@@ -2,6 +2,7 @@ import {
   createDetector, computeScale, drawSkeleton, drawKeypoints, HEAD_INDICES,
 } from './pose.js';
 import { startCamera, stopCamera } from './camera.js';
+import { EXERCISES, RepCounter } from './exercises.js';
 
 // DOM elements
 const canvas = document.getElementById('canvas');
@@ -13,11 +14,19 @@ const cameraInput = document.getElementById('cameraInput');
 const cameraToggle = document.getElementById('cameraToggle');
 const uploadControls = document.getElementById('uploadControls');
 const video = document.getElementById('video');
+const exerciseBtns = document.querySelectorAll('[data-exercise]');
+const resetBtn = document.getElementById('resetBtn');
 
 let detector = null;
 let stream = null;
 let animFrameId = null;
 let isRunning = false;
+
+// Exercise state
+let currentExercise = null;
+let repCounter = null;
+let repFlashUntil = 0;
+let lastRepCount = 0;
 
 // FPS tracking
 const FPS_BUFFER_SIZE = 30;
@@ -44,6 +53,34 @@ function updateFps(now) {
   }
 }
 
+// Draw rep counter overlay on canvas
+function drawRepOverlay(ctx, count, exerciseName, w, h, flashing) {
+  const padding = 16;
+  const x = w - padding;
+  const y = padding;
+
+  ctx.save();
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+
+  // Rep count number
+  const fontSize = flashing ? 64 : 48;
+  ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = flashing ? '#00ff88' : '#ffffff';
+  ctx.fillText(count, x, y);
+
+  // Exercise name label
+  ctx.font = '16px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillStyle = '#aaaaaa';
+  ctx.fillText(exerciseName, x, y + fontSize + 4);
+
+  ctx.restore();
+}
+
 // Live detection loop
 async function detectLoop() {
   if (!isRunning || !detector) return;
@@ -68,11 +105,30 @@ async function detectLoop() {
     drawSkeleton(ctx, keypoints);
     drawKeypoints(ctx, keypoints);
 
+    // Exercise detection
+    if (repCounter) {
+      const result = repCounter.update(keypoints);
+
+      if (result.count > lastRepCount) {
+        repFlashUntil = now + 300;
+        lastRepCount = result.count;
+      }
+
+      const flashing = now < repFlashUntil;
+      drawRepOverlay(ctx, result.count, currentExercise.name, w, h, flashing);
+    }
+
     const bodyKps = keypoints.filter((_, i) => !HEAD_INDICES.has(i));
     const avgScore = bodyKps.reduce((sum, kp) => sum + kp.score, 0) / bodyKps.length;
     statusEl.textContent = `Live — ${displayFps} fps — avg confidence: ${Math.round(avgScore * 100)}%`;
   } else {
     statusEl.textContent = `Live — ${displayFps} fps — no pose detected`;
+
+    // Still draw the rep overlay even if no pose this frame
+    if (repCounter) {
+      const flashing = now < repFlashUntil;
+      drawRepOverlay(ctx, repCounter.count, currentExercise.name, w, h, flashing);
+    }
   }
 
   animFrameId = requestAnimationFrame(detectLoop);
@@ -124,6 +180,42 @@ function handleCameraToggle() {
     handleStopCamera();
   } else {
     handleStartCamera();
+  }
+}
+
+// Exercise selection
+function selectExercise(key) {
+  // Update button active states
+  exerciseBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.exercise === key);
+  });
+
+  if (key === 'off' || !EXERCISES[key]) {
+    currentExercise = null;
+    repCounter = null;
+    lastRepCount = 0;
+    resetBtn.style.display = 'none';
+    return;
+  }
+
+  const exercise = EXERCISES[key];
+
+  // Only reset if switching to a different exercise
+  if (currentExercise !== exercise) {
+    currentExercise = exercise;
+    repCounter = new RepCounter(exercise);
+    lastRepCount = 0;
+    repFlashUntil = 0;
+  }
+
+  resetBtn.style.display = 'inline-flex';
+}
+
+function handleReset() {
+  if (repCounter) {
+    repCounter.reset();
+    lastRepCount = 0;
+    repFlashUntil = 0;
   }
 }
 
@@ -182,6 +274,11 @@ function handleFileInput(e) {
 uploadInput.addEventListener('change', handleFileInput);
 cameraInput.addEventListener('change', handleFileInput);
 cameraToggle.addEventListener('click', handleCameraToggle);
+resetBtn.addEventListener('click', handleReset);
+
+exerciseBtns.forEach(btn => {
+  btn.addEventListener('click', () => selectExercise(btn.dataset.exercise));
+});
 
 // Initialize
 async function init() {
