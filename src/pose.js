@@ -13,6 +13,7 @@ export const SKELETON = [
 ];
 
 const KEYPOINT_RADIUS = 8;
+const DISPLAY_THRESHOLD = 0.5;
 
 // Red-green gradient based on confidence score
 export function scoreToColor(score) {
@@ -35,10 +36,12 @@ export function drawSkeleton(ctx, keypoints) {
     const kpA = keypoints[i];
     const kpB = keypoints[j];
     const minScore = Math.min(kpA.score, kpB.score);
+    if (minScore < DISPLAY_THRESHOLD) continue;
+
     const avgScore = (kpA.score + kpB.score) / 2;
 
     ctx.save();
-    ctx.globalAlpha = Math.max(minScore, 0.15);
+    ctx.globalAlpha = minScore;
     ctx.strokeStyle = scoreToColor(avgScore);
     ctx.beginPath();
     ctx.moveTo(kpA.x, kpA.y);
@@ -54,9 +57,10 @@ export function drawKeypoints(ctx, keypoints) {
     if (HEAD_INDICES.has(i)) continue;
 
     const { x, y, score } = keypoints[i];
+    if (score < DISPLAY_THRESHOLD) continue;
 
     ctx.save();
-    ctx.globalAlpha = Math.max(score, 0.15);
+    ctx.globalAlpha = score;
     ctx.fillStyle = scoreToColor(score);
     ctx.beginPath();
     ctx.arc(x, y, KEYPOINT_RADIUS, 0, 2 * Math.PI);

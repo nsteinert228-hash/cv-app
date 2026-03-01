@@ -1,23 +1,61 @@
 import {
   createDetector, computeScale, drawSkeleton, drawKeypoints, HEAD_INDICES,
 } from './pose.js';
-import { startCamera, stopCamera } from './camera.js';
-import { EXERCISES, RepCounter } from './exercises.js';
+import { EXERCISES, RepCounter, ExerciseDetector } from './exercises.js';
+import { createPoseClassifier, classifyPose } from './classifier.js';
+import { SessionLog } from './sessionLog.js';
+
+// Camera helpers
+async function startCamera(videoEl) {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+    });
+  } catch (err) {
+    if (err.name === 'NotAllowedError') {
+      throw new Error('Camera access denied. Please allow camera access in your browser settings.');
+    }
+    if (err.name === 'NotFoundError') {
+      throw new Error('No camera found on this device.');
+    }
+    throw new Error(`Camera error: ${err.message}`);
+  }
+  videoEl.srcObject = stream;
+  await videoEl.play();
+  return stream;
+}
+
+function stopCamera(stream, videoEl) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (videoEl) videoEl.srcObject = null;
+}
 
 // DOM elements
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
-const placeholder = document.getElementById('placeholder');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const fallbackControls = document.getElementById('fallbackControls');
 const uploadInput = document.getElementById('uploadInput');
+const uploadInput2 = document.getElementById('uploadInput2');
 const cameraInput = document.getElementById('cameraInput');
 const cameraToggle = document.getElementById('cameraToggle');
-const uploadControls = document.getElementById('uploadControls');
 const video = document.getElementById('video');
+const modeSelector = document.getElementById('modeSelector');
+const modeTrigger = document.getElementById('modeTrigger');
+const modeTriggerLabel = document.getElementById('modeTriggerLabel');
 const exerciseBtns = document.querySelectorAll('[data-exercise]');
 const resetBtn = document.getElementById('resetBtn');
+const repOverlay = document.getElementById('repOverlay');
+const repCountEl = document.getElementById('repCount');
+const repLabelEl = document.getElementById('repLabel');
+const sessionLogEl = document.getElementById('sessionLog');
+const sessionSummaryEl = document.getElementById('sessionSummary');
+const sessionEntriesEl = document.getElementById('sessionEntries');
 
 let detector = null;
+let poseClassifier = null;
 let stream = null;
 let animFrameId = null;
 let isRunning = false;
@@ -25,68 +63,148 @@ let isRunning = false;
 // Exercise state
 let currentExercise = null;
 let repCounter = null;
-let repFlashUntil = 0;
 let lastRepCount = 0;
+let autoMode = false;
+let exerciseDetector = null;
+const sessionLog = new SessionLog();
 
-// FPS tracking
-const FPS_BUFFER_SIZE = 30;
-const frameTimes = [];
-let lastFpsUpdate = 0;
-let displayFps = 0;
+// Idle timeout — auto-log a set after 3s of no state change
+const SET_IDLE_TIMEOUT = 3000;
+let lastState = null;
+let lastStateChangeTime = Date.now();
 
 function getMaxDimensions() {
+  const stage = document.querySelector('.camera-stage');
+  if (stage) {
+    return { maxW: stage.clientWidth, maxH: stage.clientHeight };
+  }
   return {
     maxW: window.innerWidth - 40,
     maxH: window.innerHeight * 0.7,
   };
 }
 
-function updateFps(now) {
-  frameTimes.push(now);
-  if (frameTimes.length > FPS_BUFFER_SIZE) {
-    frameTimes.shift();
-  }
-  if (frameTimes.length >= 2 && now - lastFpsUpdate > 500) {
-    const elapsed = frameTimes[frameTimes.length - 1] - frameTimes[0];
-    displayFps = Math.round((frameTimes.length - 1) / elapsed * 1000);
-    lastFpsUpdate = now;
+// Loading overlay
+function hideLoadingOverlay() {
+  if (!loadingOverlay) return;
+  loadingOverlay.classList.add('fade-out');
+  loadingOverlay.addEventListener('transitionend', () => {
+    loadingOverlay.classList.add('hidden');
+  }, { once: true });
+}
+
+function showFallbackControls(message) {
+  if (statusEl) statusEl.textContent = message;
+  const spinner = loadingOverlay?.querySelector('.loading-spinner');
+  if (spinner) spinner.style.display = 'none';
+  if (fallbackControls) fallbackControls.classList.add('visible');
+}
+
+// Update the persistent DOM rep counter overlay
+let flashTimeout = null;
+
+function updateRepOverlay(count, exerciseName, flashing) {
+  repCountEl.textContent = count;
+  repLabelEl.textContent = exerciseName;
+
+  if (flashing) {
+    repCountEl.classList.add('flash');
+    clearTimeout(flashTimeout);
+    flashTimeout = setTimeout(() => repCountEl.classList.remove('flash'), 300);
   }
 }
 
-// Draw rep counter overlay on canvas
-function drawRepOverlay(ctx, count, exerciseName, w, h, flashing) {
-  const padding = 16;
-  const x = w - padding;
-  const y = padding;
+function showRepOverlay(exerciseName) {
+  repCountEl.textContent = '0';
+  repLabelEl.textContent = exerciseName;
+  repOverlay.style.display = 'block';
+}
 
-  ctx.save();
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
+function hideRepOverlay() {
+  repOverlay.style.display = 'none';
+  repCountEl.classList.remove('flash');
+  clearTimeout(flashTimeout);
+}
 
-  // Rep count number
-  const fontSize = flashing ? 64 : 48;
-  ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-  ctx.shadowColor = 'rgba(0,0,0,0.8)';
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 2;
-  ctx.fillStyle = flashing ? '#00ff88' : '#ffffff';
-  ctx.fillText(count, x, y);
+function logCurrentExercise() {
+  if (currentExercise && lastRepCount > 0) {
+    sessionLog.addEntry(currentExercise.name, lastRepCount);
+    renderSessionLog();
+  }
+}
 
-  // Exercise name label
-  ctx.font = '16px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillStyle = '#aaaaaa';
-  ctx.fillText(exerciseName, x, y + fontSize + 4);
+function resetIdleTimer() {
+  lastStateChangeTime = Date.now();
+  lastState = null;
+}
 
-  ctx.restore();
+function trackStateChange(state) {
+  if (state !== lastState) {
+    lastState = state;
+    lastStateChangeTime = Date.now();
+  }
+}
+
+function checkSetIdleTimeout() {
+  if (lastRepCount <= 0) return;
+  if (Date.now() - lastStateChangeTime < SET_IDLE_TIMEOUT) return;
+
+  logCurrentExercise();
+
+  if (autoMode && exerciseDetector) {
+    exerciseDetector.reset();
+    currentExercise = null;
+    repCounter = null;
+    lastRepCount = 0;
+    resetIdleTimer();
+    showRepOverlay('Detecting...');
+  } else if (repCounter) {
+    repCounter.reset();
+    lastRepCount = 0;
+    resetIdleTimer();
+    updateRepOverlay(0, currentExercise.name, false);
+  }
+}
+
+// Session log — incremental DOM rendering with animation
+let renderedLogCount = 0;
+
+function renderSessionLog() {
+  const entries = sessionLog.entries;
+  if (entries.length === 0) {
+    sessionLogEl.style.display = 'none';
+    renderedLogCount = 0;
+    return;
+  }
+
+  sessionLogEl.style.display = 'block';
+
+  // Only add truly new entries
+  const newEntries = entries.slice(renderedLogCount);
+  for (const e of newEntries) {
+    const time = e.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const div = document.createElement('div');
+    div.className = 'log-entry new';
+    div.innerHTML = `
+      <span class="log-exercise">${e.exercise}</span>
+      <span class="log-reps">${e.reps} rep${e.reps !== 1 ? 's' : ''}</span>
+      <span class="log-time">${time}</span>
+    `;
+    sessionEntriesEl.insertBefore(div, sessionEntriesEl.firstChild);
+    div.addEventListener('animationend', () => div.classList.remove('new'), { once: true });
+  }
+  renderedLogCount = entries.length;
+
+  // Update summary
+  const summary = sessionLog.getSummary();
+  const total = sessionLog.totalReps;
+  const parts = Object.entries(summary).map(([ex, reps]) => `${ex}: ${reps}`);
+  sessionSummaryEl.textContent = `${total} reps — ${parts.join(', ')}`;
 }
 
 // Live detection loop
 async function detectLoop() {
   if (!isRunning || !detector) return;
-
-  const now = performance.now();
-  updateFps(now);
 
   const { maxW, maxH } = getMaxDimensions();
   const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
@@ -106,60 +224,74 @@ async function detectLoop() {
     drawKeypoints(ctx, keypoints);
 
     // Exercise detection
-    if (repCounter) {
-      const result = repCounter.update(keypoints);
+    if (autoMode && exerciseDetector) {
+      const prediction = await classifyPose(poseClassifier, keypoints);
+      const newKey = exerciseDetector.update(prediction);
 
-      if (result.count > lastRepCount) {
-        repFlashUntil = now + 300;
-        lastRepCount = result.count;
+      if (newKey) {
+        logCurrentExercise();
+        const exercise = EXERCISES[newKey];
+        currentExercise = exercise;
+        repCounter = new RepCounter(exercise, poseClassifier);
+        lastRepCount = 0;
+        showRepOverlay(exercise.name);
       }
 
-      const flashing = now < repFlashUntil;
-      drawRepOverlay(ctx, result.count, currentExercise.name, w, h, flashing);
-    }
+      if (repCounter) {
+        const result = await repCounter.update(keypoints, prediction);
+        trackStateChange(result.state);
+        if (result.count > lastRepCount) {
+          lastRepCount = result.count;
+          updateRepOverlay(result.count, currentExercise.name, true);
+        } else {
+          updateRepOverlay(result.count, currentExercise.name, false);
+        }
+      }
+    } else if (repCounter) {
+      const result = await repCounter.update(keypoints);
+      trackStateChange(result.state);
 
-    const bodyKps = keypoints.filter((_, i) => !HEAD_INDICES.has(i));
-    const avgScore = bodyKps.reduce((sum, kp) => sum + kp.score, 0) / bodyKps.length;
-    statusEl.textContent = `Live — ${displayFps} fps — avg confidence: ${Math.round(avgScore * 100)}%`;
-  } else {
-    statusEl.textContent = `Live — ${displayFps} fps — no pose detected`;
-
-    // Still draw the rep overlay even if no pose this frame
-    if (repCounter) {
-      const flashing = now < repFlashUntil;
-      drawRepOverlay(ctx, repCounter.count, currentExercise.name, w, h, flashing);
+      if (result.count > lastRepCount) {
+        lastRepCount = result.count;
+        updateRepOverlay(result.count, currentExercise.name, true);
+      } else {
+        updateRepOverlay(result.count, currentExercise.name, false);
+      }
     }
   }
+
+  // Check idle timeout every frame
+  checkSetIdleTimeout();
 
   animFrameId = requestAnimationFrame(detectLoop);
 }
 
 async function handleStartCamera() {
   if (!detector) {
-    statusEl.textContent = 'Model not loaded yet. Please wait...';
+    if (statusEl) statusEl.textContent = 'Model not loaded yet. Please wait...';
     return;
   }
 
   try {
-    statusEl.textContent = 'Starting camera...';
+    if (statusEl) statusEl.textContent = 'Starting camera...';
     stream = await startCamera(video);
 
     isRunning = true;
-    frameTimes.length = 0;
-    displayFps = 0;
-
     canvas.style.display = 'block';
-    placeholder.style.display = 'none';
-    uploadControls.style.display = 'none';
-    cameraToggle.textContent = 'Stop Camera';
+    hideLoadingOverlay();
+
+    // Update camera toggle icon to "stop" state
+    cameraToggle.title = 'Stop Camera';
+    cameraToggle.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 
     detectLoop();
   } catch (err) {
-    statusEl.textContent = err.message;
+    showFallbackControls(err.message);
   }
 }
 
 function handleStopCamera() {
+  logCurrentExercise();
   isRunning = false;
   if (animFrameId) {
     cancelAnimationFrame(animFrameId);
@@ -169,43 +301,82 @@ function handleStopCamera() {
   stream = null;
 
   canvas.style.display = 'none';
-  placeholder.style.display = 'flex';
-  uploadControls.style.display = 'flex';
-  cameraToggle.textContent = 'Start Camera';
-  statusEl.textContent = 'Ready — upload a photo or start the camera.';
+
+  // Show loading overlay as a restart prompt
+  if (loadingOverlay) {
+    loadingOverlay.classList.remove('fade-out', 'hidden');
+    const spinner = loadingOverlay.querySelector('.loading-spinner');
+    if (spinner) spinner.style.display = 'none';
+    if (statusEl) statusEl.textContent = 'Camera stopped';
+    if (fallbackControls) fallbackControls.classList.add('visible');
+  }
+
+  // Update camera toggle icon to "play" state
+  cameraToggle.title = 'Start Camera';
+  cameraToggle.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
 }
 
 function handleCameraToggle() {
   if (isRunning) {
     handleStopCamera();
   } else {
+    // Restore spinner and hide fallback for restart
+    if (loadingOverlay) {
+      const spinner = loadingOverlay.querySelector('.loading-spinner');
+      if (spinner) spinner.style.display = '';
+      if (fallbackControls) fallbackControls.classList.remove('visible');
+    }
     handleStartCamera();
   }
 }
 
 // Exercise selection
+const MODE_LABELS = { auto: 'Auto', squat: 'Squats', pushup: 'Pushups', off: 'Off' };
+
 function selectExercise(key) {
-  // Update button active states
   exerciseBtns.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.exercise === key);
   });
+
+  // Update trigger label and collapse menu
+  modeTriggerLabel.textContent = MODE_LABELS[key] || key;
+  modeSelector.classList.remove('open');
+
+  logCurrentExercise();
+
+  if (key === 'auto') {
+    autoMode = true;
+    exerciseDetector = new ExerciseDetector();
+    currentExercise = null;
+    repCounter = null;
+    lastRepCount = 0;
+    resetIdleTimer();
+    showRepOverlay('Detecting...');
+    resetBtn.style.display = 'inline-flex';
+    return;
+  }
+
+  autoMode = false;
+  exerciseDetector = null;
 
   if (key === 'off' || !EXERCISES[key]) {
     currentExercise = null;
     repCounter = null;
     lastRepCount = 0;
+    resetIdleTimer();
     resetBtn.style.display = 'none';
+    hideRepOverlay();
     return;
   }
 
   const exercise = EXERCISES[key];
 
-  // Only reset if switching to a different exercise
   if (currentExercise !== exercise) {
     currentExercise = exercise;
-    repCounter = new RepCounter(exercise);
+    repCounter = new RepCounter(exercise, poseClassifier);
     lastRepCount = 0;
-    repFlashUntil = 0;
+    resetIdleTimer();
+    showRepOverlay(exercise.name);
   }
 
   resetBtn.style.display = 'inline-flex';
@@ -213,9 +384,12 @@ function selectExercise(key) {
 
 function handleReset() {
   if (repCounter) {
+    logCurrentExercise();
     repCounter.reset();
     lastRepCount = 0;
-    repFlashUntil = 0;
+    resetIdleTimer();
+    const label = currentExercise?.name || 'Detecting...';
+    updateRepOverlay(0, label, false);
   }
 }
 
@@ -226,11 +400,11 @@ async function processImage(img) {
   }
 
   if (!detector) {
-    statusEl.textContent = 'Model not loaded yet. Please wait...';
+    if (statusEl) statusEl.textContent = 'Model not loaded yet. Please wait...';
     return;
   }
 
-  statusEl.textContent = 'Detecting pose...';
+  if (statusEl) statusEl.textContent = 'Detecting pose...';
 
   const { maxW, maxH } = getMaxDimensions();
   const scale = computeScale(img.naturalWidth, img.naturalHeight, maxW, maxH);
@@ -240,14 +414,14 @@ async function processImage(img) {
   canvas.width = w;
   canvas.height = h;
   canvas.style.display = 'block';
-  placeholder.style.display = 'none';
+  hideLoadingOverlay();
 
   ctx.drawImage(img, 0, 0, w, h);
 
   const poses = await detector.estimatePoses(canvas);
 
   if (!poses.length || !poses[0].keypoints.length) {
-    statusEl.textContent = 'No pose detected. Try a clearer photo of a person.';
+    if (statusEl) statusEl.textContent = 'No pose detected. Try a clearer photo.';
     return;
   }
 
@@ -255,9 +429,7 @@ async function processImage(img) {
   drawSkeleton(ctx, keypoints);
   drawKeypoints(ctx, keypoints);
 
-  const bodyKps = keypoints.filter((_, i) => !HEAD_INDICES.has(i));
-  const avgScore = bodyKps.reduce((sum, kp) => sum + kp.score, 0) / bodyKps.length;
-  statusEl.textContent = `Pose detected — average confidence: ${Math.round(avgScore * 100)}%`;
+  if (statusEl) statusEl.textContent = 'Pose detected';
 }
 
 function handleFileInput(e) {
@@ -272,7 +444,8 @@ function handleFileInput(e) {
 
 // Event listeners
 uploadInput.addEventListener('change', handleFileInput);
-cameraInput.addEventListener('change', handleFileInput);
+if (uploadInput2) uploadInput2.addEventListener('change', handleFileInput);
+if (cameraInput) cameraInput.addEventListener('change', handleFileInput);
 cameraToggle.addEventListener('click', handleCameraToggle);
 resetBtn.addEventListener('click', handleReset);
 
@@ -280,15 +453,34 @@ exerciseBtns.forEach(btn => {
   btn.addEventListener('click', () => selectExercise(btn.dataset.exercise));
 });
 
-// Initialize
+// Mode selector expand/collapse
+modeTrigger.addEventListener('click', () => {
+  modeSelector.classList.toggle('open');
+});
+
+document.addEventListener('click', (e) => {
+  if (!modeSelector.contains(e.target)) {
+    modeSelector.classList.remove('open');
+  }
+});
+
+// Initialize — auto-start camera and auto mode
 async function init() {
   try {
     statusEl.textContent = 'Loading model...';
     detector = await createDetector();
-    statusEl.textContent = 'Ready — upload a photo or start the camera.';
+    statusEl.textContent = 'Loading classifier...';
+    poseClassifier = await createPoseClassifier();
+
+    // Auto-start camera
+    statusEl.textContent = 'Starting camera...';
+    await handleStartCamera();
+
+    // Default to auto mode
+    selectExercise('auto');
   } catch (err) {
-    statusEl.textContent = `Error loading model: ${err.message}`;
-    console.error('Model load error:', err);
+    showFallbackControls(`Error: ${err.message}`);
+    console.error('Init error:', err);
   }
 }
 

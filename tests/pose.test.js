@@ -118,13 +118,21 @@ describe('drawKeypoints', () => {
     expect(ctx.arc).toHaveBeenCalledTimes(12);
   });
 
-  it('sets globalAlpha based on score', () => {
+  it('skips keypoints below display threshold (0.5)', () => {
     const ctx = mockCtx();
-    const keypoints = fakeKeypoints(0.3);
+    const keypoints = fakeKeypoints(0.4);
     drawKeypoints(ctx, keypoints);
 
-    // After each save(), globalAlpha should be set to max(score, 0.15) = 0.3
-    // We can't directly check assignment on a mock, but arc was called 12 times
+    // All keypoints have score 0.4 < 0.5 threshold, so none are drawn
+    expect(ctx.arc).toHaveBeenCalledTimes(0);
+  });
+
+  it('draws keypoints at or above display threshold', () => {
+    const ctx = mockCtx();
+    const keypoints = fakeKeypoints(0.6);
+    drawKeypoints(ctx, keypoints);
+
+    // 12 body keypoints all above threshold
     expect(ctx.save).toHaveBeenCalledTimes(12);
     expect(ctx.restore).toHaveBeenCalledTimes(12);
   });

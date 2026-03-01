@@ -1,114 +1,149 @@
-// Exercise configurations
+// Exercise configurations — classifier-based approach
+// Each exercise maps to KNN pose classes for its up/down phases
+
+import { classifyPose } from './classifier.js';
+
 export const EXERCISES = {
   squat: {
     name: 'Squats',
-    joints: {
-      left:  [11, 13, 15],   // hip, knee, ankle
-      right: [12, 14, 16],
-    },
-    upThreshold: 160,
-    downThreshold: 100,
+    upClass: 'squat_up',
+    downClass: 'squat_down',
   },
   pushup: {
     name: 'Pushups',
-    joints: {
-      left:  [5, 7, 9],      // shoulder, elbow, wrist
-      right: [6, 8, 10],
-    },
-    upThreshold: 160,
-    downThreshold: 90,
+    upClass: 'pushup_up',
+    downClass: 'pushup_down',
   },
 };
 
-const MIN_CONFIDENCE = 0.3;
-const HYSTERESIS = 5;
-
-// Compute angle in degrees at point B, formed by points A-B-C
-export function angleBetween(a, b, c) {
-  const ba = { x: a.x - b.x, y: a.y - b.y };
-  const bc = { x: c.x - b.x, y: c.y - b.y };
-  const dot = ba.x * bc.x + ba.y * bc.y;
-  const magBA = Math.sqrt(ba.x * ba.x + ba.y * ba.y);
-  const magBC = Math.sqrt(bc.x * bc.x + bc.y * bc.y);
-  if (magBA === 0 || magBC === 0) return 0;
-  const cosAngle = Math.max(-1, Math.min(1, dot / (magBA * magBC)));
-  return Math.acos(cosAngle) * (180 / Math.PI);
-}
-
-// Pick the side (left/right) with higher average keypoint confidence
-export function pickBestSide(keypoints, exercise) {
-  const leftJoints = exercise.joints.left;
-  const rightJoints = exercise.joints.right;
-
-  const leftConf = leftJoints.reduce((sum, i) => sum + keypoints[i].score, 0) / leftJoints.length;
-  const rightConf = rightJoints.reduce((sum, i) => sum + keypoints[i].score, 0) / rightJoints.length;
-
-  return leftConf >= rightConf ? 'left' : 'right';
-}
-
-// Get the exercise-relevant angle and min confidence for the best side
-export function getExerciseAngle(keypoints, exercise) {
-  const side = pickBestSide(keypoints, exercise);
-  const [iA, iB, iC] = exercise.joints[side];
-  const a = keypoints[iA];
-  const b = keypoints[iB];
-  const c = keypoints[iC];
-  const confidence = Math.min(a.score, b.score, c.score);
-  const angle = angleBetween(a, b, c);
-  return { angle, confidence, side };
-}
+const MIN_CONFIDENCE = 0.7;
+const SMOOTHING_FRAMES = 3; // consecutive frames needed before state transition
 
 // States
 const IDLE = 'idle';
 const UP = 'up';
 const DOWN = 'down';
 
+// Auto-detection constants
+const DETECT_WINDOW = 15;     // frames to look back
+const DETECT_THRESHOLD = 10;  // frames needed to initially detect
+const SWITCH_THRESHOLD = 12;  // frames needed to switch (hysteresis)
+
 export class RepCounter {
-  constructor(exercise) {
+  constructor(exercise, classifier) {
     this.exercise = exercise;
+    this.classifier = classifier;
     this.state = IDLE;
     this.count = 0;
-    this.angle = 0;
+    this.prediction = null;
+    this._consecutiveUp = 0;
+    this._consecutiveDown = 0;
   }
 
-  update(keypoints) {
-    const { angle, confidence } = getExerciseAngle(keypoints, this.exercise);
-    this.angle = angle;
+  async update(keypoints, precomputedPrediction = null) {
+    const prediction = precomputedPrediction || await classifyPose(this.classifier, keypoints);
+    this.prediction = prediction;
 
-    // Skip frame if keypoints are too low confidence
-    if (confidence < MIN_CONFIDENCE) {
-      return { count: this.count, state: this.state, angle };
+    // Skip frame if classification failed (low keypoint confidence or degenerate pose)
+    if (!prediction) {
+      this._consecutiveUp = 0;
+      this._consecutiveDown = 0;
+      return { count: this.count, state: this.state, prediction };
     }
 
-    const { upThreshold, downThreshold } = this.exercise;
+    const { upClass, downClass } = this.exercise;
+    const upConf = prediction.confidences[upClass] || 0;
+    const downConf = prediction.confidences[downClass] || 0;
 
+    // Track consecutive high-confidence frames for each class
+    if (upConf > MIN_CONFIDENCE) {
+      this._consecutiveUp++;
+      this._consecutiveDown = 0;
+    } else if (downConf > MIN_CONFIDENCE) {
+      this._consecutiveDown++;
+      this._consecutiveUp = 0;
+    } else {
+      // Neither class is confident enough — reset streaks
+      this._consecutiveUp = 0;
+      this._consecutiveDown = 0;
+    }
+
+    // Only transition state after enough consecutive frames agree
     switch (this.state) {
       case IDLE:
-        if (angle > upThreshold) {
+        if (this._consecutiveUp >= SMOOTHING_FRAMES) {
           this.state = UP;
         }
         break;
 
       case UP:
-        if (angle < downThreshold - HYSTERESIS) {
+        if (this._consecutiveDown >= SMOOTHING_FRAMES) {
           this.state = DOWN;
         }
         break;
 
       case DOWN:
-        if (angle > upThreshold + HYSTERESIS) {
+        if (this._consecutiveUp >= SMOOTHING_FRAMES) {
           this.state = UP;
           this.count++;
         }
         break;
     }
 
-    return { count: this.count, state: this.state, angle };
+    return { count: this.count, state: this.state, prediction };
   }
 
   reset() {
     this.state = IDLE;
     this.count = 0;
-    this.angle = 0;
+    this.prediction = null;
+    this._consecutiveUp = 0;
+    this._consecutiveDown = 0;
+  }
+}
+
+export class ExerciseDetector {
+  constructor() {
+    this._window = [];
+    this.detectedKey = null;
+  }
+
+  update(prediction) {
+    if (!prediction) return null;
+
+    const prefix = prediction.label.split('_')[0];
+    this._window.push(prefix);
+    if (this._window.length > DETECT_WINDOW) {
+      this._window.shift();
+    }
+
+    const counts = {};
+    for (const p of this._window) {
+      counts[p] = (counts[p] || 0) + 1;
+    }
+
+    let bestPrefix = null;
+    let bestCount = 0;
+    for (const [p, c] of Object.entries(counts)) {
+      if (c > bestCount) { bestPrefix = p; bestCount = c; }
+    }
+
+    const threshold = (this.detectedKey && this.detectedKey !== bestPrefix)
+      ? SWITCH_THRESHOLD
+      : DETECT_THRESHOLD;
+
+    if (bestCount >= threshold && EXERCISES[bestPrefix]) {
+      if (this.detectedKey !== bestPrefix) {
+        this.detectedKey = bestPrefix;
+        return bestPrefix;
+      }
+    }
+
+    return null;
+  }
+
+  reset() {
+    this._window = [];
+    this.detectedKey = null;
   }
 }
