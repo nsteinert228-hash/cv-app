@@ -68,24 +68,25 @@ const TEMPLATES = {
     0.02, -0.03,   -0.02, 0.03, -0.65, 0.11, -0.70, 0.16, -1.21, 0.07, -1.32, 0.11,
   ],
 
-  // Standing upright (same as squat_up — pre-lunge position, profile view)
+  // Pre-lunge split stance: torso upright, feet staggered front/back, arms at sides
+  // Key difference from squat_up: legs are split (front knee slightly ahead, rear behind)
   lunge_up: [
     // nose        left_eye     right_eye    left_ear     right_ear
-    0.1, -1.35,    0.15, -1.4,  0.15, -1.4,  -0.05, -1.35, -0.05, -1.35,
+    0.12, -1.33,   0.17, -1.38, 0.17, -1.38, -0.03, -1.33, -0.03, -1.33,
     // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
-    0.0, -1.0,     0.0, -1.0,   -0.05, -0.5, -0.05, -0.5, -0.05, -0.05, -0.05, -0.05,
+    0.02, -1.0,    0.02, -1.0,  -0.03, -0.5, -0.03, -0.5, -0.03, -0.05, -0.03, -0.05,
     // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
-    0.0, 0.0,      0.0, 0.0,    0.0, 0.8,    0.0, 0.8,    0.0, 1.55,   0.0, 1.55,
+    0.0, 0.0,      0.0, 0.0,    0.40, 0.75,  -0.35, 0.80, 0.42, 1.50,  -0.40, 1.55,
   ],
 
   // Bottom of lunge: front knee bent ~90°, rear knee near ground, torso upright
   lunge_down: [
     // nose        left_eye     right_eye    left_ear     right_ear
-    0.25, -1.15,   0.30, -1.20, 0.30, -1.20, 0.15, -1.15, 0.15, -1.15,
+    0.20, -1.10,   0.25, -1.15, 0.25, -1.15, 0.10, -1.10, 0.10, -1.10,
     // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
-    0.15, -0.80,   0.15, -0.80, 0.10, -0.35, 0.10, -0.35, 0.10, 0.05,  0.10, 0.05,
+    0.10, -0.80,   0.10, -0.80, 0.05, -0.35, 0.05, -0.35, 0.05, 0.05,  0.05, 0.05,
     // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
-    0.0, 0.0,      0.0, 0.0,    0.55, 0.45,  -0.50, 0.50, 0.55, 1.10,  -0.80, 1.05,
+    0.0, 0.0,      0.0, 0.0,    0.60, 0.40,  -0.45, 0.55, 0.58, 1.10,  -0.75, 1.10,
   ],
 };
 
