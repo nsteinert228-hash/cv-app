@@ -28,8 +28,8 @@ function gaussianNoise(rng) {
 // Profile view facing right, hip at origin, torso length = 1.0
 // y increases downward (canvas convention)
 const TEMPLATES = {
-  // Standing upright
-  squat_up: [
+  // Standing upright — shared starting position for squats and lunges
+  standing_up: [
     // nose        left_eye     right_eye    left_ear     right_ear
     0.1, -1.35,    0.15, -1.4,  0.15, -1.4,  -0.05, -1.35, -0.05, -1.35,
     // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
@@ -68,17 +68,6 @@ const TEMPLATES = {
     0.02, -0.03,   -0.02, 0.03, -0.65, 0.11, -0.70, 0.16, -1.21, 0.07, -1.32, 0.11,
   ],
 
-  // Pre-lunge split stance: torso upright, feet staggered front/back, arms at sides
-  // Key difference from squat_up: legs are split (front knee slightly ahead, rear behind)
-  lunge_up: [
-    // nose        left_eye     right_eye    left_ear     right_ear
-    0.12, -1.33,   0.17, -1.38, 0.17, -1.38, -0.03, -1.33, -0.03, -1.33,
-    // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
-    0.02, -1.0,    0.02, -1.0,  -0.03, -0.5, -0.03, -0.5, -0.03, -0.05, -0.03, -0.05,
-    // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
-    0.0, 0.0,      0.0, 0.0,    0.40, 0.75,  -0.35, 0.80, 0.42, 1.50,  -0.40, 1.55,
-  ],
-
   // Bottom of lunge: front knee bent ~90°, rear knee near ground, torso upright
   lunge_down: [
     // nose        left_eye     right_eye    left_ear     right_ear
@@ -110,11 +99,10 @@ const EXAMPLES_PER_CLASS = 30;
 const NOISE_SIGMA = 0.06;
 
 export const POSE_DATA = {
-  squat_up: generateVariations(TEMPLATES.squat_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 42),
+  standing_up: generateVariations(TEMPLATES.standing_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 42),
   squat_down: generateVariations(TEMPLATES.squat_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 137),
   pushup_up: generateVariations(TEMPLATES.pushup_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 256),
   pushup_down: generateVariations(TEMPLATES.pushup_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 389),
-  lunge_up: generateVariations(TEMPLATES.lunge_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 512),
   lunge_down: generateVariations(TEMPLATES.lunge_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 631),
 };
 

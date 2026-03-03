@@ -94,14 +94,16 @@ describe('normalizeKeypoints', () => {
 });
 
 describe('POSE_DATA', () => {
-  it('has 6 pose classes', () => {
+  it('has 5 pose classes (standing_up shared by squat and lunge)', () => {
     expect(Object.keys(POSE_DATA)).toEqual(
       expect.arrayContaining([
-        'squat_up', 'squat_down',
+        'standing_up',
+        'squat_down',
         'pushup_up', 'pushup_down',
-        'lunge_up', 'lunge_down',
+        'lunge_down',
       ]),
     );
+    expect(Object.keys(POSE_DATA)).toHaveLength(5);
   });
 
   it('has 30 examples per class', () => {
@@ -119,8 +121,8 @@ describe('POSE_DATA', () => {
   });
 
   it('variations differ from the template', () => {
-    const template = TEMPLATES.squat_up;
-    const examples = POSE_DATA.squat_up;
+    const template = TEMPLATES.standing_up;
+    const examples = POSE_DATA.standing_up;
     // At least some values should differ (noise was added)
     const firstExample = examples[0];
     let hasDiff = false;
@@ -134,8 +136,8 @@ describe('POSE_DATA', () => {
   });
 
   it('generates reproducible data with same seed', () => {
-    const a = generateVariations(TEMPLATES.squat_up, 5, 0.06, 42);
-    const b = generateVariations(TEMPLATES.squat_up, 5, 0.06, 42);
+    const a = generateVariations(TEMPLATES.standing_up, 5, 0.06, 42);
+    const b = generateVariations(TEMPLATES.standing_up, 5, 0.06, 42);
     for (let i = 0; i < 5; i++) {
       for (let j = 0; j < 34; j++) {
         expect(a[i][j]).toBe(b[i][j]);
