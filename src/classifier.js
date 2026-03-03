@@ -2,9 +2,8 @@
 // Classifies normalized pose keypoints into exercise phases
 
 import { POSE_DATA } from './poseData.js';
+import { K_NEIGHBORS, MIN_KEYPOINT_CONFIDENCE } from './config.js';
 
-const K_NEIGHBORS = 5;
-const MIN_KEYPOINT_CONFIDENCE = 0.3;
 const BODY_INDICES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
 // Normalize keypoints: center on hip midpoint, scale by torso length,

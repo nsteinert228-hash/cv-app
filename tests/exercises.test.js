@@ -89,6 +89,12 @@ describe('EXERCISES config', () => {
     expect(EXERCISES.pushup.downClass).toBe('pushup_down');
     expect(EXERCISES.pushup.name).toBe('Pushups');
   });
+
+  it('lunge has correct class names', () => {
+    expect(EXERCISES.lunge.upClass).toBe('lunge_up');
+    expect(EXERCISES.lunge.downClass).toBe('lunge_down');
+    expect(EXERCISES.lunge.name).toBe('Lunges');
+  });
 });
 
 describe('RepCounter — temporal smoothing', () => {
@@ -180,6 +186,21 @@ describe('RepCounter — temporal smoothing', () => {
     const counter = new TestableRepCounter(EXERCISES.pushup, predictions);
     for (const _ of predictions) await counter.update(fakeKeypoints());
     expect(counter.count).toBe(1);
+  });
+
+  it('works with lunge exercise', async () => {
+    const lUp = pred('lunge_up', { lunge_up: 0.9, lunge_down: 0.1 });
+    const lDown = pred('lunge_down', { lunge_up: 0.1, lunge_down: 0.9 });
+    const predictions = [
+      ...repeat(lUp, 3),   // idle → up
+      ...repeat(lDown, 3), // up → down
+      ...repeat(lUp, 3),   // down → up, count++
+      ...repeat(lDown, 3), // up → down
+      ...repeat(lUp, 3),   // down → up, count++
+    ];
+    const counter = new TestableRepCounter(EXERCISES.lunge, predictions);
+    for (const _ of predictions) await counter.update(fakeKeypoints());
+    expect(counter.count).toBe(2);
   });
 
   it('reset clears count, state, and consecutive counters', async () => {
