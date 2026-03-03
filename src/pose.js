@@ -1,3 +1,5 @@
+import { KEYPOINT_RADIUS, DISPLAY_THRESHOLD } from './config.js';
+
 // Head keypoint indices to skip (not useful for lifting exercises)
 export const HEAD_INDICES = new Set([0, 1, 2, 3, 4]);
 
@@ -11,9 +13,6 @@ export const SKELETON = [
   [11, 13], [13, 15],   // left leg
   [12, 14], [14, 16],   // right leg
 ];
-
-const KEYPOINT_RADIUS = 8;
-const DISPLAY_THRESHOLD = 0.5;
 
 // Red-green gradient based on confidence score
 export function scoreToColor(score) {

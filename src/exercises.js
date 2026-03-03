@@ -2,6 +2,10 @@
 // Each exercise maps to KNN pose classes for its up/down phases
 
 import { classifyPose } from './classifier.js';
+import {
+  MIN_CONFIDENCE, SMOOTHING_FRAMES,
+  DETECT_WINDOW, DETECT_THRESHOLD, SWITCH_THRESHOLD,
+} from './config.js';
 
 export const EXERCISES = {
   squat: {
@@ -14,20 +18,17 @@ export const EXERCISES = {
     upClass: 'pushup_up',
     downClass: 'pushup_down',
   },
+  lunge: {
+    name: 'Lunges',
+    upClass: 'lunge_up',
+    downClass: 'lunge_down',
+  },
 };
-
-const MIN_CONFIDENCE = 0.7;
-const SMOOTHING_FRAMES = 3; // consecutive frames needed before state transition
 
 // States
 const IDLE = 'idle';
 const UP = 'up';
 const DOWN = 'down';
-
-// Auto-detection constants
-const DETECT_WINDOW = 15;     // frames to look back
-const DETECT_THRESHOLD = 10;  // frames needed to initially detect
-const SWITCH_THRESHOLD = 12;  // frames needed to switch (hysteresis)
 
 export class RepCounter {
   constructor(exercise, classifier) {

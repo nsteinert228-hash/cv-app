@@ -4,6 +4,7 @@ import {
 import { EXERCISES, RepCounter, ExerciseDetector } from './exercises.js';
 import { createPoseClassifier, classifyPose } from './classifier.js';
 import { SessionLog } from './sessionLog.js';
+import { SET_IDLE_TIMEOUT } from './config.js';
 
 // Camera helpers
 async function startCamera(videoEl) {
@@ -66,10 +67,9 @@ let repCounter = null;
 let lastRepCount = 0;
 let autoMode = false;
 let exerciseDetector = null;
-const sessionLog = new SessionLog();
+const sessionLog = new SessionLog(localStorage);
 
-// Idle timeout — auto-log a set after 3s of no state change
-const SET_IDLE_TIMEOUT = 3000;
+// Idle timeout — auto-log a set after configured idle period
 let lastState = null;
 let lastStateChangeTime = Date.now();
 
@@ -331,7 +331,7 @@ function handleCameraToggle() {
 }
 
 // Exercise selection
-const MODE_LABELS = { auto: 'Auto', squat: 'Squats', pushup: 'Pushups', off: 'Off' };
+const MODE_LABELS = { auto: 'Auto', squat: 'Squats', pushup: 'Pushups', lunge: 'Lunges', off: 'Off' };
 
 function selectExercise(key) {
   exerciseBtns.forEach(btn => {
@@ -466,6 +466,9 @@ document.addEventListener('click', (e) => {
 
 // Initialize — auto-start camera and auto mode
 async function init() {
+  // Render any previously persisted session entries
+  renderSessionLog();
+
   try {
     statusEl.textContent = 'Loading model...';
     detector = await createDetector();

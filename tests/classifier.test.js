@@ -94,9 +94,13 @@ describe('normalizeKeypoints', () => {
 });
 
 describe('POSE_DATA', () => {
-  it('has 4 pose classes', () => {
+  it('has 6 pose classes', () => {
     expect(Object.keys(POSE_DATA)).toEqual(
-      expect.arrayContaining(['squat_up', 'squat_down', 'pushup_up', 'pushup_down']),
+      expect.arrayContaining([
+        'squat_up', 'squat_down',
+        'pushup_up', 'pushup_down',
+        'lunge_up', 'lunge_down',
+      ]),
     );
   });
 
