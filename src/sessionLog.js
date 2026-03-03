@@ -1,20 +1,31 @@
 const STORAGE_KEY = 'cv-app-session-log';
 
 export class SessionLog {
-  constructor(storage = null) {
+  constructor(storage = null, db = null) {
     this._storage = storage;
+    this._db = db; // { fetchWorkoutEntries, insertWorkoutEntry, deleteAllWorkoutEntries }
     this.entries = [];
     this._load();
   }
 
-  addEntry(exerciseName, repCount) {
+  async addEntry(exerciseName, repCount) {
     if (repCount <= 0) return;
-    this.entries.push({
+    const entry = {
       exercise: exerciseName,
       reps: repCount,
       timestamp: new Date(),
-    });
-    this._save();
+    };
+    this.entries.push(entry);
+    this._saveLocal();
+
+    // Sync to Supabase in background
+    if (this._db) {
+      try {
+        await this._db.insertWorkoutEntry(entry.exercise, entry.reps, entry.timestamp);
+      } catch (err) {
+        console.warn('Failed to sync entry to Supabase:', err.message);
+      }
+    }
   }
 
   getSummary() {
@@ -29,12 +40,50 @@ export class SessionLog {
     return this.entries.reduce((sum, e) => sum + e.reps, 0);
   }
 
-  reset() {
+  async reset() {
     this.entries = [];
-    this._save();
+    this._saveLocal();
+
+    if (this._db) {
+      try {
+        await this._db.deleteAllWorkoutEntries();
+      } catch (err) {
+        console.warn('Failed to clear Supabase entries:', err.message);
+      }
+    }
   }
 
-  _save() {
+  // Load entries from Supabase (source of truth when authenticated)
+  async syncFromRemote() {
+    if (!this._db) return;
+    try {
+      const remoteEntries = await this._db.fetchWorkoutEntries();
+      this.entries = remoteEntries;
+      this._saveLocal(); // update local cache
+    } catch (err) {
+      console.warn('Failed to fetch from Supabase, using local data:', err.message);
+    }
+  }
+
+  // Push any local-only entries to Supabase (e.g. after login)
+  async pushLocalToRemote() {
+    if (!this._db || this.entries.length === 0) return;
+    try {
+      for (const entry of this.entries) {
+        await this._db.insertWorkoutEntry(entry.exercise, entry.reps, entry.timestamp);
+      }
+      // Clear localStorage after successful push — Supabase is now source of truth
+      this._saveLocal();
+    } catch (err) {
+      console.warn('Failed to push local entries to Supabase:', err.message);
+    }
+  }
+
+  setDb(db) {
+    this._db = db;
+  }
+
+  _saveLocal() {
     const storage = this._storage ?? _getLocalStorage();
     if (!storage) return;
     try {

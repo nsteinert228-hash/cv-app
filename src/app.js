@@ -5,6 +5,9 @@ import { EXERCISES, RepCounter, ExerciseDetector } from './exercises.js';
 import { createPoseClassifier, classifyPose } from './classifier.js';
 import { SessionLog } from './sessionLog.js';
 import { SET_IDLE_TIMEOUT } from './config.js';
+import { isSupabaseConfigured } from './supabase.js';
+import { signIn, signUp, signOut, onAuthStateChange } from './auth.js';
+import * as db from './db.js';
 
 // Camera helpers
 async function startCamera(videoEl) {
@@ -54,6 +57,20 @@ const repLabelEl = document.getElementById('repLabel');
 const sessionLogEl = document.getElementById('sessionLog');
 const sessionSummaryEl = document.getElementById('sessionSummary');
 const sessionEntriesEl = document.getElementById('sessionEntries');
+
+// Auth DOM elements
+const authSection = document.getElementById('authSection');
+const authUser = document.getElementById('authUser');
+const authBtn = document.getElementById('authBtn');
+const authModal = document.getElementById('authModal');
+const authModalTitle = document.getElementById('authModalTitle');
+const authEmail = document.getElementById('authEmail');
+const authPassword = document.getElementById('authPassword');
+const authSubmit = document.getElementById('authSubmit');
+const authCancel = document.getElementById('authCancel');
+const authError = document.getElementById('authError');
+const authToggleText = document.getElementById('authToggleText');
+const authToggleLink = document.getElementById('authToggleLink');
 
 let detector = null;
 let poseClassifier = null;
@@ -464,10 +481,139 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// --- Auth UI logic ---
+let authMode = 'signin'; // 'signin' or 'signup'
+let currentUser = null;
+
+function updateAuthUI(user) {
+  currentUser = user;
+  if (user) {
+    authUser.textContent = user.email;
+    authBtn.textContent = 'Sign Out';
+  } else {
+    authUser.textContent = '';
+    authBtn.textContent = 'Sign In';
+  }
+}
+
+function showAuthModal() {
+  authMode = 'signin';
+  authModalTitle.textContent = 'Sign In';
+  authSubmit.textContent = 'Sign In';
+  authToggleText.textContent = "Don't have an account?";
+  authToggleLink.textContent = 'Sign Up';
+  authEmail.value = '';
+  authPassword.value = '';
+  authError.textContent = '';
+  authModal.classList.add('visible');
+}
+
+function hideAuthModal() {
+  authModal.classList.remove('visible');
+  authError.textContent = '';
+}
+
+if (authBtn) {
+  authBtn.addEventListener('click', async () => {
+    if (currentUser) {
+      try {
+        await signOut();
+        sessionLog.setDb(null);
+        updateAuthUI(null);
+      } catch (err) {
+        console.warn('Sign out failed:', err.message);
+      }
+    } else {
+      showAuthModal();
+    }
+  });
+}
+
+if (authCancel) {
+  authCancel.addEventListener('click', hideAuthModal);
+}
+
+if (authModal) {
+  authModal.addEventListener('click', (e) => {
+    if (e.target === authModal) hideAuthModal();
+  });
+}
+
+if (authToggleLink) {
+  authToggleLink.addEventListener('click', () => {
+    if (authMode === 'signin') {
+      authMode = 'signup';
+      authModalTitle.textContent = 'Sign Up';
+      authSubmit.textContent = 'Sign Up';
+      authToggleText.textContent = 'Already have an account?';
+      authToggleLink.textContent = 'Sign In';
+    } else {
+      authMode = 'signin';
+      authModalTitle.textContent = 'Sign In';
+      authSubmit.textContent = 'Sign In';
+      authToggleText.textContent = "Don't have an account?";
+      authToggleLink.textContent = 'Sign Up';
+    }
+    authError.textContent = '';
+  });
+}
+
+if (authSubmit) {
+  authSubmit.addEventListener('click', async () => {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    if (!email || !password) {
+      authError.textContent = 'Please enter email and password.';
+      return;
+    }
+    authError.textContent = '';
+    authSubmit.disabled = true;
+    try {
+      if (authMode === 'signup') {
+        await signUp(email, password);
+        authError.style.color = 'var(--accent-dark)';
+        authError.textContent = 'Check your email to confirm your account.';
+        authSubmit.disabled = false;
+        return;
+      }
+      const user = await signIn(email, password);
+      updateAuthUI(user);
+      sessionLog.setDb(db);
+      await sessionLog.pushLocalToRemote();
+      await sessionLog.syncFromRemote();
+      renderedLogCount = 0;
+      sessionEntriesEl.innerHTML = '';
+      renderSessionLog();
+      hideAuthModal();
+    } catch (err) {
+      authError.style.color = '#ef4444';
+      authError.textContent = err.message;
+    }
+    authSubmit.disabled = false;
+  });
+}
+
 // Initialize — auto-start camera and auto mode
 async function init() {
   // Render any previously persisted session entries
   renderSessionLog();
+
+  // Show auth UI if Supabase is configured
+  if (isSupabaseConfigured() && authSection) {
+    authSection.classList.remove('hidden');
+    onAuthStateChange(async (user) => {
+      updateAuthUI(user);
+      if (user) {
+        sessionLog.setDb(db);
+        await sessionLog.syncFromRemote();
+        renderedLogCount = 0;
+        sessionEntriesEl.innerHTML = '';
+        renderSessionLog();
+      } else {
+        sessionLog.setDb(null);
+      }
+    });
+  }
 
   try {
     statusEl.textContent = 'Loading model...';
