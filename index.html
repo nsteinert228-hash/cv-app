@@ -35,6 +35,14 @@
     header {
       padding: 16px 20px 12px;
       text-align: center;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     header h1 {
@@ -48,6 +56,128 @@
       font-size: 0.85rem;
       color: var(--text-muted);
       margin-top: 4px;
+    }
+
+    /* Auth UI */
+    .auth-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .auth-section.hidden {
+      display: none;
+    }
+
+    .auth-user {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .auth-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .auth-btn:hover {
+      background: var(--bg-page);
+    }
+
+    .auth-btn.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .auth-btn.primary:hover {
+      background: var(--accent-dark);
+    }
+
+    /* Auth Modal */
+    .auth-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auth-modal-backdrop.visible {
+      display: flex;
+    }
+
+    .auth-modal {
+      background: var(--bg-surface);
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .auth-modal h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    .auth-modal input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .auth-modal input:focus {
+      border-color: var(--accent);
+    }
+
+    .auth-modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .auth-modal-actions .auth-btn {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.85rem;
+    }
+
+    .auth-error {
+      color: #ef4444;
+      font-size: 0.78rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+
+    .auth-toggle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .auth-toggle a {
+      color: var(--accent-dark);
+      cursor: pointer;
+      text-decoration: underline;
     }
 
     main {
@@ -463,9 +593,33 @@
 <body>
 
   <header>
-    <h1>CV — Exercise Tracker</h1>
+    <div class="header-top">
+      <h1>CV — Exercise Tracker</h1>
+      <div class="auth-section hidden" id="authSection">
+        <span class="auth-user" id="authUser"></span>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+      </div>
+    </div>
     <p class="intro-msg">Currently supports pushup, squat, and lunge tracking in profile view.</p>
   </header>
+
+  <!-- Auth Modal -->
+  <div class="auth-modal-backdrop" id="authModal">
+    <div class="auth-modal">
+      <h2 id="authModalTitle">Sign In</h2>
+      <input type="email" id="authEmail" placeholder="Email" autocomplete="email">
+      <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+      <div class="auth-modal-actions">
+        <button class="auth-btn" id="authCancel">Cancel</button>
+        <button class="auth-btn primary" id="authSubmit">Sign In</button>
+      </div>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-toggle">
+        <span id="authToggleText">Don't have an account?</span>
+        <a id="authToggleLink">Sign Up</a>
+      </div>
+    </div>
+  </div>
 
   <main>
     <div class="camera-stage">
@@ -535,6 +689,7 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>

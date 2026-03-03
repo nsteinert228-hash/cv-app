@@ -73,27 +73,32 @@ function repeat(p, n) {
   return Array(n).fill(p);
 }
 
-const upPred = pred('squat_up', { squat_up: 0.9, squat_down: 0.1 });
-const downPred = pred('squat_down', { squat_up: 0.1, squat_down: 0.9 });
-const lowConfPred = pred('squat_up', { squat_up: 0.4, squat_down: 0.3 });
+// Squat uses standing_up as its upClass
+const upPred = pred('standing_up', { standing_up: 0.9, squat_down: 0.1 });
+const downPred = pred('squat_down', { standing_up: 0.1, squat_down: 0.9 });
+const lowConfPred = pred('standing_up', { standing_up: 0.4, squat_down: 0.3 });
 
 describe('EXERCISES config', () => {
-  it('squat has correct class names', () => {
-    expect(EXERCISES.squat.upClass).toBe('squat_up');
+  it('squat uses shared standing_up class', () => {
+    expect(EXERCISES.squat.upClass).toBe('standing_up');
     expect(EXERCISES.squat.downClass).toBe('squat_down');
     expect(EXERCISES.squat.name).toBe('Squats');
   });
 
-  it('pushup has correct class names', () => {
+  it('pushup has its own up class', () => {
     expect(EXERCISES.pushup.upClass).toBe('pushup_up');
     expect(EXERCISES.pushup.downClass).toBe('pushup_down');
     expect(EXERCISES.pushup.name).toBe('Pushups');
   });
 
-  it('lunge has correct class names', () => {
-    expect(EXERCISES.lunge.upClass).toBe('lunge_up');
+  it('lunge uses shared standing_up class', () => {
+    expect(EXERCISES.lunge.upClass).toBe('standing_up');
     expect(EXERCISES.lunge.downClass).toBe('lunge_down');
     expect(EXERCISES.lunge.name).toBe('Lunges');
+  });
+
+  it('squat and lunge share the same upClass', () => {
+    expect(EXERCISES.squat.upClass).toBe(EXERCISES.lunge.upClass);
   });
 });
 
@@ -188,9 +193,10 @@ describe('RepCounter — temporal smoothing', () => {
     expect(counter.count).toBe(1);
   });
 
-  it('works with lunge exercise', async () => {
-    const lUp = pred('lunge_up', { lunge_up: 0.9, lunge_down: 0.1 });
-    const lDown = pred('lunge_down', { lunge_up: 0.1, lunge_down: 0.9 });
+  it('works with lunge exercise (shared standing_up)', async () => {
+    // Lunge uses standing_up for up, lunge_down for down
+    const lUp = pred('standing_up', { standing_up: 0.9, lunge_down: 0.1 });
+    const lDown = pred('lunge_down', { standing_up: 0.1, lunge_down: 0.9 });
     const predictions = [
       ...repeat(lUp, 3),   // idle → up
       ...repeat(lDown, 3), // up → down
@@ -223,6 +229,7 @@ describe('RepCounter — temporal smoothing', () => {
 });
 
 describe('ExerciseDetector', () => {
+  // Detector now uses down-class labels for detection (shared up labels are skipped)
   function detPred(label) {
     return { label, confidences: { [label]: 0.9 } };
   }
@@ -234,31 +241,49 @@ describe('ExerciseDetector', () => {
 
   it('does not detect from a single frame', () => {
     const d = new ExerciseDetector();
-    d.update(detPred('squat_up'));
+    d.update(detPred('squat_down'));
     expect(d.detectedKey).toBeNull();
   });
 
-  it('detects squat after 10 frames', () => {
+  it('ignores shared standing_up labels (ambiguous)', () => {
+    const d = new ExerciseDetector();
+    for (let i = 0; i < 15; i++) {
+      d.update(detPred('standing_up'));
+    }
+    // standing_up is shared between squat and lunge — should not detect anything
+    expect(d.detectedKey).toBeNull();
+  });
+
+  it('detects squat after 10 squat_down frames', () => {
     const d = new ExerciseDetector();
     for (let i = 0; i < 9; i++) {
-      expect(d.update(detPred('squat_up'))).toBeNull();
+      expect(d.update(detPred('squat_down'))).toBeNull();
     }
-    expect(d.update(detPred('squat_up'))).toBe('squat');
+    expect(d.update(detPred('squat_down'))).toBe('squat');
     expect(d.detectedKey).toBe('squat');
   });
 
-  it('treats squat_up and squat_down as same exercise', () => {
+  it('detects lunge after 10 lunge_down frames', () => {
+    const d = new ExerciseDetector();
+    for (let i = 0; i < 9; i++) {
+      expect(d.update(detPred('lunge_down'))).toBeNull();
+    }
+    expect(d.update(detPred('lunge_down'))).toBe('lunge');
+    expect(d.detectedKey).toBe('lunge');
+  });
+
+  it('detects pushup from pushup_up or pushup_down labels', () => {
     const d = new ExerciseDetector();
     for (let i = 0; i < 10; i++) {
-      d.update(detPred(i % 2 === 0 ? 'squat_up' : 'squat_down'));
+      d.update(detPred(i % 2 === 0 ? 'pushup_up' : 'pushup_down'));
     }
-    expect(d.detectedKey).toBe('squat');
+    expect(d.detectedKey).toBe('pushup');
   });
 
   it('ignores null predictions', () => {
     const d = new ExerciseDetector();
     for (let i = 0; i < 10; i++) {
-      d.update(detPred('squat_up'));
+      d.update(detPred('squat_down'));
       d.update(null); // nulls don't enter the window
     }
     expect(d.detectedKey).toBe('squat');
@@ -266,22 +291,22 @@ describe('ExerciseDetector', () => {
 
   it('requires higher threshold to switch exercises (hysteresis)', () => {
     const d = new ExerciseDetector();
-    // Establish squat (10 frames)
-    for (let i = 0; i < 10; i++) d.update(detPred('squat_up'));
+    // Establish squat (10 frames of squat_down)
+    for (let i = 0; i < 10; i++) d.update(detPred('squat_down'));
     expect(d.detectedKey).toBe('squat');
 
     // 11 pushup frames — not enough to switch (need 12)
-    for (let i = 0; i < 11; i++) d.update(detPred('pushup_up'));
+    for (let i = 0; i < 11; i++) d.update(detPred('pushup_down'));
     expect(d.detectedKey).toBe('squat');
 
     // One more pushup frame (12 total in window) triggers switch
-    expect(d.update(detPred('pushup_up'))).toBe('pushup');
+    expect(d.update(detPred('pushup_down'))).toBe('pushup');
     expect(d.detectedKey).toBe('pushup');
   });
 
   it('returns null when detected exercise is same as current', () => {
     const d = new ExerciseDetector();
-    for (let i = 0; i < 10; i++) d.update(detPred('squat_up'));
+    for (let i = 0; i < 10; i++) d.update(detPred('squat_down'));
     expect(d.detectedKey).toBe('squat');
 
     // More squat frames don't trigger a change
@@ -290,7 +315,7 @@ describe('ExerciseDetector', () => {
 
   it('reset clears all state', () => {
     const d = new ExerciseDetector();
-    for (let i = 0; i < 10; i++) d.update(detPred('squat_up'));
+    for (let i = 0; i < 10; i++) d.update(detPred('squat_down'));
     expect(d.detectedKey).toBe('squat');
 
     d.reset();

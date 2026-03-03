@@ -28,8 +28,8 @@ function gaussianNoise(rng) {
 // Profile view facing right, hip at origin, torso length = 1.0
 // y increases downward (canvas convention)
 const TEMPLATES = {
-  // Standing upright
-  squat_up: [
+  // Standing upright — shared starting position for squats and lunges
+  standing_up: [
     // nose        left_eye     right_eye    left_ear     right_ear
     0.1, -1.35,    0.15, -1.4,  0.15, -1.4,  -0.05, -1.35, -0.05, -1.35,
     // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
@@ -68,24 +68,14 @@ const TEMPLATES = {
     0.02, -0.03,   -0.02, 0.03, -0.65, 0.11, -0.70, 0.16, -1.21, 0.07, -1.32, 0.11,
   ],
 
-  // Standing upright (same as squat_up — pre-lunge position, profile view)
-  lunge_up: [
-    // nose        left_eye     right_eye    left_ear     right_ear
-    0.1, -1.35,    0.15, -1.4,  0.15, -1.4,  -0.05, -1.35, -0.05, -1.35,
-    // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
-    0.0, -1.0,     0.0, -1.0,   -0.05, -0.5, -0.05, -0.5, -0.05, -0.05, -0.05, -0.05,
-    // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
-    0.0, 0.0,      0.0, 0.0,    0.0, 0.8,    0.0, 0.8,    0.0, 1.55,   0.0, 1.55,
-  ],
-
   // Bottom of lunge: front knee bent ~90°, rear knee near ground, torso upright
   lunge_down: [
     // nose        left_eye     right_eye    left_ear     right_ear
-    0.25, -1.15,   0.30, -1.20, 0.30, -1.20, 0.15, -1.15, 0.15, -1.15,
+    0.20, -1.10,   0.25, -1.15, 0.25, -1.15, 0.10, -1.10, 0.10, -1.10,
     // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
-    0.15, -0.80,   0.15, -0.80, 0.10, -0.35, 0.10, -0.35, 0.10, 0.05,  0.10, 0.05,
+    0.10, -0.80,   0.10, -0.80, 0.05, -0.35, 0.05, -0.35, 0.05, 0.05,  0.05, 0.05,
     // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
-    0.0, 0.0,      0.0, 0.0,    0.55, 0.45,  -0.50, 0.50, 0.55, 1.10,  -0.80, 1.05,
+    0.0, 0.0,      0.0, 0.0,    0.60, 0.40,  -0.45, 0.55, 0.58, 1.10,  -0.75, 1.10,
   ],
 };
 
@@ -109,11 +99,10 @@ const EXAMPLES_PER_CLASS = 30;
 const NOISE_SIGMA = 0.06;
 
 export const POSE_DATA = {
-  squat_up: generateVariations(TEMPLATES.squat_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 42),
+  standing_up: generateVariations(TEMPLATES.standing_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 42),
   squat_down: generateVariations(TEMPLATES.squat_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 137),
   pushup_up: generateVariations(TEMPLATES.pushup_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 256),
   pushup_down: generateVariations(TEMPLATES.pushup_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 389),
-  lunge_up: generateVariations(TEMPLATES.lunge_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 512),
   lunge_down: generateVariations(TEMPLATES.lunge_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 631),
 };
 

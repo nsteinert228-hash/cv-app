@@ -10,7 +10,7 @@ import {
 export const EXERCISES = {
   squat: {
     name: 'Squats',
-    upClass: 'squat_up',
+    upClass: 'standing_up',
     downClass: 'squat_down',
   },
   pushup: {
@@ -20,7 +20,7 @@ export const EXERCISES = {
   },
   lunge: {
     name: 'Lunges',
-    upClass: 'lunge_up',
+    upClass: 'standing_up',
     downClass: 'lunge_down',
   },
 };
@@ -103,6 +103,24 @@ export class RepCounter {
   }
 }
 
+// Build reverse mapping from classifier labels → exercise keys.
+// Labels shared across exercises (e.g. standing_up) map to null (ambiguous).
+function buildLabelMap() {
+  const map = {};
+  for (const [key, ex] of Object.entries(EXERCISES)) {
+    for (const label of [ex.upClass, ex.downClass]) {
+      if (!(label in map)) {
+        map[label] = key;
+      } else if (map[label] !== key) {
+        map[label] = null; // shared across exercises — ambiguous
+      }
+    }
+  }
+  return map;
+}
+
+const LABEL_MAP = buildLabelMap();
+
 export class ExerciseDetector {
   constructor() {
     this._window = [];
@@ -112,31 +130,34 @@ export class ExerciseDetector {
   update(prediction) {
     if (!prediction) return null;
 
-    const prefix = prediction.label.split('_')[0];
-    this._window.push(prefix);
+    const exerciseKey = LABEL_MAP[prediction.label];
+    // Skip labels that don't map to a specific exercise (shared up classes)
+    if (!exerciseKey) return null;
+
+    this._window.push(exerciseKey);
     if (this._window.length > DETECT_WINDOW) {
       this._window.shift();
     }
 
     const counts = {};
-    for (const p of this._window) {
-      counts[p] = (counts[p] || 0) + 1;
+    for (const k of this._window) {
+      counts[k] = (counts[k] || 0) + 1;
     }
 
-    let bestPrefix = null;
+    let bestKey = null;
     let bestCount = 0;
-    for (const [p, c] of Object.entries(counts)) {
-      if (c > bestCount) { bestPrefix = p; bestCount = c; }
+    for (const [k, c] of Object.entries(counts)) {
+      if (c > bestCount) { bestKey = k; bestCount = c; }
     }
 
-    const threshold = (this.detectedKey && this.detectedKey !== bestPrefix)
+    const threshold = (this.detectedKey && this.detectedKey !== bestKey)
       ? SWITCH_THRESHOLD
       : DETECT_THRESHOLD;
 
-    if (bestCount >= threshold && EXERCISES[bestPrefix]) {
-      if (this.detectedKey !== bestPrefix) {
-        this.detectedKey = bestPrefix;
-        return bestPrefix;
+    if (bestCount >= threshold && EXERCISES[bestKey]) {
+      if (this.detectedKey !== bestKey) {
+        this.detectedKey = bestKey;
+        return bestKey;
       }
     }
 

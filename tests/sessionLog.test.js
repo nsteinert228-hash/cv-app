@@ -19,32 +19,32 @@ describe('SessionLog', () => {
     expect(log.totalReps).toBe(0);
   });
 
-  it('adds entries with timestamp', () => {
+  it('adds entries with timestamp', async () => {
     const log = new SessionLog();
-    log.addEntry('Squats', 5);
+    await log.addEntry('Squats', 5);
     expect(log.entries).toHaveLength(1);
     expect(log.entries[0].exercise).toBe('Squats');
     expect(log.entries[0].reps).toBe(5);
     expect(log.entries[0].timestamp).toBeInstanceOf(Date);
   });
 
-  it('does not log zero reps', () => {
+  it('does not log zero reps', async () => {
     const log = new SessionLog();
-    log.addEntry('Squats', 0);
+    await log.addEntry('Squats', 0);
     expect(log.entries).toHaveLength(0);
   });
 
-  it('does not log negative reps', () => {
+  it('does not log negative reps', async () => {
     const log = new SessionLog();
-    log.addEntry('Squats', -1);
+    await log.addEntry('Squats', -1);
     expect(log.entries).toHaveLength(0);
   });
 
-  it('computes summary across multiple entries', () => {
+  it('computes summary across multiple entries', async () => {
     const log = new SessionLog();
-    log.addEntry('Squats', 5);
-    log.addEntry('Pushups', 10);
-    log.addEntry('Squats', 3);
+    await log.addEntry('Squats', 5);
+    await log.addEntry('Pushups', 10);
+    await log.addEntry('Squats', 3);
     expect(log.getSummary()).toEqual({ Squats: 8, Pushups: 10 });
     expect(log.totalReps).toBe(18);
   });
@@ -54,11 +54,11 @@ describe('SessionLog', () => {
     expect(log.getSummary()).toEqual({});
   });
 
-  it('reset clears all entries', () => {
+  it('reset clears all entries', async () => {
     const log = new SessionLog();
-    log.addEntry('Squats', 5);
-    log.addEntry('Pushups', 3);
-    log.reset();
+    await log.addEntry('Squats', 5);
+    await log.addEntry('Pushups', 3);
+    await log.reset();
     expect(log.entries).toHaveLength(0);
     expect(log.totalReps).toBe(0);
   });
@@ -71,9 +71,9 @@ describe('SessionLog — persistence', () => {
     storage = createMockStorage();
   });
 
-  it('persists entries to storage on addEntry', () => {
+  it('persists entries to storage on addEntry', async () => {
     const log = new SessionLog(storage);
-    log.addEntry('Squats', 5);
+    await log.addEntry('Squats', 5);
     const raw = JSON.parse(storage.getItem(STORAGE_KEY));
     expect(raw).toHaveLength(1);
     expect(raw[0].exercise).toBe('Squats');
@@ -81,10 +81,10 @@ describe('SessionLog — persistence', () => {
     expect(raw[0].timestamp).toBeDefined();
   });
 
-  it('restores entries from storage on construction', () => {
+  it('restores entries from storage on construction', async () => {
     const log1 = new SessionLog(storage);
-    log1.addEntry('Squats', 5);
-    log1.addEntry('Pushups', 8);
+    await log1.addEntry('Squats', 5);
+    await log1.addEntry('Pushups', 8);
 
     const log2 = new SessionLog(storage);
     expect(log2.entries).toHaveLength(2);
@@ -95,10 +95,10 @@ describe('SessionLog — persistence', () => {
     expect(log2.totalReps).toBe(13);
   });
 
-  it('clears storage on reset', () => {
+  it('clears storage on reset', async () => {
     const log = new SessionLog(storage);
-    log.addEntry('Squats', 5);
-    log.reset();
+    await log.addEntry('Squats', 5);
+    await log.reset();
     const raw = JSON.parse(storage.getItem(STORAGE_KEY));
     expect(raw).toEqual([]);
   });
@@ -128,11 +128,96 @@ describe('SessionLog — persistence', () => {
     expect(log.entries[1].exercise).toBe('Lunges');
   });
 
-  it('works without storage (null)', () => {
+  it('works without storage (null)', async () => {
     const log = new SessionLog(null);
-    log.addEntry('Squats', 5);
+    await log.addEntry('Squats', 5);
     expect(log.entries).toHaveLength(1);
-    log.reset();
+    await log.reset();
     expect(log.entries).toHaveLength(0);
+  });
+});
+
+describe('SessionLog — Supabase sync', () => {
+  let storage;
+
+  beforeEach(() => {
+    storage = createMockStorage();
+  });
+
+  function createMockDb() {
+    const inserted = [];
+    let deleted = false;
+    return {
+      insertWorkoutEntry: async (exercise, reps, timestamp) => {
+        inserted.push({ exercise, reps, timestamp });
+      },
+      fetchWorkoutEntries: async () => [
+        { exercise: 'Squats', reps: 10, timestamp: new Date('2025-01-01T10:00:00Z') },
+      ],
+      deleteAllWorkoutEntries: async () => { deleted = true; },
+      _inserted: inserted,
+      get _deleted() { return deleted; },
+    };
+  }
+
+  it('syncs addEntry to db when db is set', async () => {
+    const mockDb = createMockDb();
+    const log = new SessionLog(storage, mockDb);
+    await log.addEntry('Squats', 5);
+    expect(mockDb._inserted).toHaveLength(1);
+    expect(mockDb._inserted[0].exercise).toBe('Squats');
+    expect(mockDb._inserted[0].reps).toBe(5);
+  });
+
+  it('does not fail when db.insertWorkoutEntry throws', async () => {
+    const mockDb = createMockDb();
+    mockDb.insertWorkoutEntry = async () => { throw new Error('network error'); };
+    const log = new SessionLog(storage, mockDb);
+    await log.addEntry('Squats', 5);
+    expect(log.entries).toHaveLength(1); // still added locally
+  });
+
+  it('reset calls deleteAllWorkoutEntries on db', async () => {
+    const mockDb = createMockDb();
+    const log = new SessionLog(storage, mockDb);
+    await log.addEntry('Squats', 5);
+    await log.reset();
+    expect(mockDb._deleted).toBe(true);
+    expect(log.entries).toHaveLength(0);
+  });
+
+  it('syncFromRemote replaces local entries with remote data', async () => {
+    const mockDb = createMockDb();
+    const log = new SessionLog(storage, mockDb);
+    await log.addEntry('Pushups', 3);
+    await log.syncFromRemote();
+    expect(log.entries).toHaveLength(1);
+    expect(log.entries[0].exercise).toBe('Squats');
+    expect(log.entries[0].reps).toBe(10);
+  });
+
+  it('pushLocalToRemote sends all local entries to db', async () => {
+    const mockDb = createMockDb();
+    const log = new SessionLog(storage);
+    await log.addEntry('Squats', 5);
+    await log.addEntry('Pushups', 3);
+    log.setDb(mockDb);
+    await log.pushLocalToRemote();
+    expect(mockDb._inserted).toHaveLength(2);
+  });
+
+  it('setDb updates the db reference', () => {
+    const log = new SessionLog(storage);
+    expect(log._db).toBeNull();
+    const mockDb = createMockDb();
+    log.setDb(mockDb);
+    expect(log._db).toBe(mockDb);
+  });
+
+  it('syncFromRemote is no-op when db is null', async () => {
+    const log = new SessionLog(storage);
+    await log.addEntry('Squats', 5);
+    await log.syncFromRemote();
+    expect(log.entries).toHaveLength(1); // unchanged
   });
 });
