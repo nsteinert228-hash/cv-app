@@ -79,6 +79,22 @@ const TEMPLATES = {
   ],
 };
 
+// Mirror a template by swapping left/right COCO keypoint pairs.
+// Handles asymmetric poses like lunges done with either leg forward.
+function mirrorTemplate(template) {
+  const mirrored = [...template];
+  // COCO left/right pairs: (1,2) eyes, (3,4) ears, (5,6) shoulders,
+  // (7,8) elbows, (9,10) wrists, (11,12) hips, (13,14) knees, (15,16) ankles
+  const pairs = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12], [13, 14], [15, 16]];
+  for (const [l, r] of pairs) {
+    mirrored[l * 2] = template[r * 2];
+    mirrored[l * 2 + 1] = template[r * 2 + 1];
+    mirrored[r * 2] = template[l * 2];
+    mirrored[r * 2 + 1] = template[l * 2 + 1];
+  }
+  return mirrored;
+}
+
 // Generate N variations of a template pose by adding Gaussian noise
 function generateVariations(template, count, sigma, seed) {
   const rng = mulberry32(seed);
@@ -98,12 +114,17 @@ function generateVariations(template, count, sigma, seed) {
 const EXAMPLES_PER_CLASS = 30;
 const NOISE_SIGMA = 0.06;
 
+const HALF_EXAMPLES = EXAMPLES_PER_CLASS / 2;
+
 export const POSE_DATA = {
   standing_up: generateVariations(TEMPLATES.standing_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 42),
   squat_down: generateVariations(TEMPLATES.squat_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 137),
   pushup_up: generateVariations(TEMPLATES.pushup_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 256),
   pushup_down: generateVariations(TEMPLATES.pushup_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 389),
-  lunge_down: generateVariations(TEMPLATES.lunge_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 631),
+  lunge_down: [
+    ...generateVariations(TEMPLATES.lunge_down, HALF_EXAMPLES, NOISE_SIGMA, 631),
+    ...generateVariations(mirrorTemplate(TEMPLATES.lunge_down), HALF_EXAMPLES, NOISE_SIGMA, 732),
+  ],
 };
 
-export { TEMPLATES, generateVariations };
+export { TEMPLATES, generateVariations, mirrorTemplate };
