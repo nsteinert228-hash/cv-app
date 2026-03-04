@@ -1,7 +1,7 @@
 // Garmin Connect integration — edge function calls and data queries
-import { getSupabaseClient } from './supabase.js';
+import { getSupabaseClient, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase.js';
 
-const FUNCTIONS_BASE = 'https://zzmfhumffrvlfinpyrzc.supabase.co/functions/v1';
+const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
 
 async function _callEdgeFunction(name, body = {}) {
   const client = getSupabaseClient();
@@ -15,7 +15,7 @@ async function _callEdgeFunction(name, body = {}) {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
-      'apikey': session.access_token,
+      'apikey': SUPABASE_ANON_KEY,
     },
     body: JSON.stringify(body),
   });
