@@ -17,6 +17,8 @@ const mockClient = {
 
 vi.mock('../src/supabase.js', () => ({
   getSupabaseClient: () => mockClient,
+  SUPABASE_URL: 'https://test.supabase.co',
+  SUPABASE_ANON_KEY: 'test-anon-key',
 }));
 
 // Mock global fetch
