@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeKeypoints } from '../src/classifier.js';
-import { POSE_DATA, TEMPLATES, generateVariations } from '../src/poseData.js';
+import { POSE_DATA, TEMPLATES, generateVariations, mirrorTemplate } from '../src/poseData.js';
 
 // Helper: create keypoints array from flat [x,y,...] with score
 function keypointsFromFlat(flat, score = 0.9) {
@@ -133,6 +133,35 @@ describe('POSE_DATA', () => {
       }
     }
     expect(hasDiff).toBe(true);
+  });
+
+  it('mirrorTemplate swaps left/right COCO keypoint pairs', () => {
+    const original = TEMPLATES.lunge_down;
+    const mirrored = mirrorTemplate(original);
+    // Knees swapped: left_knee (13) ↔ right_knee (14)
+    expect(mirrored[13 * 2]).toBeCloseTo(original[14 * 2], 6);
+    expect(mirrored[13 * 2 + 1]).toBeCloseTo(original[14 * 2 + 1], 6);
+    expect(mirrored[14 * 2]).toBeCloseTo(original[13 * 2], 6);
+    expect(mirrored[14 * 2 + 1]).toBeCloseTo(original[13 * 2 + 1], 6);
+    // Ankles swapped: left_ankle (15) ↔ right_ankle (16)
+    expect(mirrored[15 * 2]).toBeCloseTo(original[16 * 2], 6);
+    expect(mirrored[15 * 2 + 1]).toBeCloseTo(original[16 * 2 + 1], 6);
+    expect(mirrored[16 * 2]).toBeCloseTo(original[15 * 2], 6);
+    expect(mirrored[16 * 2 + 1]).toBeCloseTo(original[15 * 2 + 1], 6);
+    // Nose (0) stays unchanged
+    expect(mirrored[0]).toBeCloseTo(original[0], 6);
+    expect(mirrored[1]).toBeCloseTo(original[1], 6);
+  });
+
+  it('lunge_down includes both leg-forward variations', () => {
+    // lunge_down should have 30 examples covering both left and right leg forward
+    expect(POSE_DATA.lunge_down).toHaveLength(30);
+    // First 15 derived from original template (left leg forward: left_knee.x > 0)
+    const firstKneeX = POSE_DATA.lunge_down[0][13 * 2]; // left_knee x
+    expect(firstKneeX).toBeGreaterThan(0);
+    // Last 15 derived from mirrored template (right leg forward: left_knee.x < 0)
+    const lastKneeX = POSE_DATA.lunge_down[15][13 * 2]; // left_knee x
+    expect(lastKneeX).toBeLessThan(0);
   });
 
   it('generates reproducible data with same seed', () => {
