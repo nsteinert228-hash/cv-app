@@ -1,6 +1,14 @@
+"""Garmin Connect client with token persistence, singleton pattern, and retry logic.
+
+Handles authentication (tokens first, credentials fallback), rate-limit
+backoff, and automatic re-auth on stale sessions.
+"""
+
 import logging
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, TypeVar
 
 from garminconnect import (
     Garmin,
@@ -13,6 +21,8 @@ from garth.exc import GarthHTTPError
 import config
 
 log = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 RATE_LIMIT_BASE_DELAY = 60
 RATE_LIMIT_MAX_DELAY = 900
@@ -77,7 +87,7 @@ def reset_client() -> None:
     log.info("Client reset")
 
 
-def with_retry(fn, *args, **kwargs):
+def with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     """Call *fn* with exponential backoff on rate limits and auto-reauth on stale tokens.
 
     Handles:

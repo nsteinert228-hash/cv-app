@@ -8,13 +8,17 @@ so delete+insert ensures idempotent re-runs without duplicates.
 
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import TypeVar
 
 from supabase import create_client, Client
 
 import config
 
 log = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 CHUNK_SIZE = 500
 MAX_RETRIES = 3
@@ -27,10 +31,11 @@ def get_client() -> Client:
 
 
 def _now_iso() -> str:
+    """Return the current UTC time as an ISO 8601 string."""
     return datetime.now(timezone.utc).isoformat()
 
 
-def _with_retry(fn):
+def _with_retry(fn: Callable[..., T]) -> T:
     """Retry a Supabase operation with exponential backoff on connection errors."""
     last_exc = None
     delay = RETRY_BASE_DELAY
@@ -66,26 +71,32 @@ def _upsert_daily(client: Client, table: str, data: dict) -> int:
 
 
 def upsert_daily_summary(client: Client, data: dict) -> int:
+    """Upsert a daily summary row."""
     return _upsert_daily(client, "daily_summaries", data)
 
 
 def upsert_hrv(client: Client, data: dict) -> int:
+    """Upsert an HRV summary row."""
     return _upsert_daily(client, "hrv_summaries", data)
 
 
 def upsert_sleep(client: Client, data: dict) -> int:
+    """Upsert a sleep summary row."""
     return _upsert_daily(client, "sleep_summaries", data)
 
 
 def upsert_body_composition(client: Client, data: dict) -> int:
+    """Upsert a body composition row."""
     return _upsert_daily(client, "body_composition", data)
 
 
 def upsert_spo2(client: Client, data: dict) -> int:
+    """Upsert a daily SpO2 row."""
     return _upsert_daily(client, "spo2_daily", data)
 
 
 def upsert_respiration(client: Client, data: dict) -> int:
+    """Upsert a daily respiration row."""
     return _upsert_daily(client, "respiration_daily", data)
 
 
@@ -142,10 +153,12 @@ def _replace_intraday(client: Client, table: str, date_str: str, rows: list[dict
 
 
 def upsert_heart_rate_intraday(client: Client, date_str: str, rows: list[dict]) -> int:
+    """Replace all intraday heart rate rows for a date."""
     return _replace_intraday(client, "heart_rate_intraday", date_str, rows)
 
 
 def upsert_stress_details(client: Client, date_str: str, rows: list[dict]) -> int:
+    """Replace all intraday stress detail rows for a date."""
     return _replace_intraday(client, "stress_details", date_str, rows)
 
 

@@ -41,6 +41,7 @@ def _print_summary(agg: dict) -> None:
 
 
 def cmd_sync(args: argparse.Namespace) -> None:
+    """Run a sync for --today, --date, or --range."""
     garmin = garmin_client.get_client()
     sb = supabase_client.get_client()
     data_types = _parse_types(args.types)
@@ -68,6 +69,7 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
 
 def cmd_backfill(args: argparse.Namespace) -> None:
+    """Backfill the last N days, skipping already-synced date/type pairs."""
     garmin = garmin_client.get_client()
     sb = supabase_client.get_client()
     data_types = _parse_types(args.types)
@@ -77,6 +79,7 @@ def cmd_backfill(args: argparse.Namespace) -> None:
 
 
 def cmd_status(args: argparse.Namespace) -> None:
+    """Query sync_log and display the most recent successful sync per data type."""
     sb = supabase_client.get_client()
 
     result = (
@@ -107,6 +110,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    """Parse CLI args and dispatch to the appropriate subcommand."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)-5s %(name)s: %(message)s",

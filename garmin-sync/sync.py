@@ -198,7 +198,7 @@ def sync_date_range(
 
         # Extra delay between dates to respect Garmin rate limits
         if current <= end:
-            time.sleep(1)
+            time.sleep(config.FETCH_DELAY)
 
     return agg
 
@@ -288,6 +288,6 @@ def backfill(
         current += timedelta(days=1)
 
         if current <= end:
-            time.sleep(1)
+            time.sleep(config.FETCH_DELAY)
 
     return agg
