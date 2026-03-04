@@ -572,6 +572,189 @@
       text-align: center;
     }
 
+    /* Garmin Section */
+    .garmin-section {
+      display: none;
+      width: 100%;
+      max-width: 640px;
+      margin-top: 20px;
+    }
+
+    .garmin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 0 4px;
+    }
+
+    .garmin-header h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+
+    .status-dot.active { background: var(--accent); }
+    .status-dot.pending { background: #f59e0b; }
+    .status-dot.error { background: #ef4444; }
+
+    .garmin-not-connected {
+      background: var(--bg-surface);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .garmin-not-connected p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+
+    .garmin-dashboard {
+      display: none;
+      background: var(--bg-surface);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .health-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .health-card {
+      background: var(--bg-page);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .health-card .label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .health-card .value {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .health-card .unit {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    .garmin-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .garmin-actions .auth-btn {
+      flex: 1;
+    }
+
+    .garmin-last-sync {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    /* Garmin Connect Modal */
+    .garmin-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .garmin-modal-backdrop.visible {
+      display: flex;
+    }
+
+    .garmin-modal {
+      background: var(--bg-surface);
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+
+    .garmin-modal h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    .garmin-modal input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .garmin-modal input:focus {
+      border-color: var(--accent);
+    }
+
+    .garmin-modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .garmin-modal-actions .auth-btn {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.85rem;
+    }
+
+    .garmin-error {
+      color: #ef4444;
+      font-size: 0.78rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+
+    .garmin-privacy {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 12px;
+      text-align: center;
+    }
+
     /* Responsive */
     @media (max-width: 640px) {
       main {
@@ -586,6 +769,10 @@
       .exercise-btn {
         font-size: 0.75rem;
         padding: 7px 14px;
+      }
+      .garmin-section {
+        max-width: 100%;
+        padding: 0 12px;
       }
     }
   </style>
@@ -683,11 +870,73 @@
     <div id="sessionLog" class="session-log">
       <div class="session-header">
         <h3>Session</h3>
-        <div id="sessionSummary" class="session-summary"></div>
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <span id="sessionSummary" class="session-summary"></span>
+          <button id="clearSessionBtn" style="display:none;background:none;border:none;color:#ef4444;font-size:0.78rem;cursor:pointer;padding:0;font-weight:500">Clear Session</button>
+        </div>
       </div>
       <div id="sessionEntries" class="session-entries"></div>
     </div>
   </main>
+
+  <!-- Garmin Section -->
+  <div class="garmin-section" id="garminSection">
+    <div class="garmin-header">
+      <h3>Garmin Health</h3>
+      <div class="status-badge" id="garminStatusBadge">
+        <span class="status-dot" id="garminStatusDot"></span>
+        <span id="garminStatusText">Not connected</span>
+      </div>
+    </div>
+
+    <!-- Not connected state -->
+    <div class="garmin-not-connected" id="garminNotConnected">
+      <p>Connect your Garmin account to see health data like steps, heart rate, and sleep.</p>
+      <button class="auth-btn primary" id="connectGarminBtn">Connect Garmin</button>
+    </div>
+
+    <!-- Connected state / dashboard -->
+    <div class="garmin-dashboard" id="garminDashboard">
+      <div class="health-cards">
+        <div class="health-card">
+          <div class="label">Steps</div>
+          <div class="value" id="garminSteps">--</div>
+        </div>
+        <div class="health-card">
+          <div class="label">Resting HR</div>
+          <div class="value"><span id="garminHR">--</span> <span class="unit">bpm</span></div>
+        </div>
+        <div class="health-card">
+          <div class="label">Sleep Score</div>
+          <div class="value" id="garminSleepScore">--</div>
+        </div>
+        <div class="health-card">
+          <div class="label">Calories</div>
+          <div class="value" id="garminCalories">--</div>
+        </div>
+      </div>
+      <div class="garmin-actions">
+        <button class="auth-btn primary" id="garminSyncBtn">Sync Now</button>
+        <button class="auth-btn" id="garminDisconnectBtn">Disconnect</button>
+      </div>
+      <div class="garmin-last-sync" id="garminLastSync"></div>
+    </div>
+  </div>
+
+  <!-- Garmin Connect Modal -->
+  <div class="garmin-modal-backdrop" id="garminModal">
+    <div class="garmin-modal">
+      <h2>Connect Garmin</h2>
+      <input type="email" id="garminEmail" placeholder="Garmin Email" autocomplete="email">
+      <input type="password" id="garminPassword" placeholder="Garmin Password" autocomplete="current-password">
+      <div class="garmin-modal-actions">
+        <button class="auth-btn" id="garminCancel">Cancel</button>
+        <button class="auth-btn primary" id="garminSubmit">Connect</button>
+      </div>
+      <div class="garmin-error" id="garminError"></div>
+      <div class="garmin-privacy">Your password is encrypted at rest and used only for initial authentication.</div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>

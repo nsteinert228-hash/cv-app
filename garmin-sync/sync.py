@@ -40,47 +40,47 @@ ALL_DATA_TYPES = [
 _DISPATCH: dict[str, dict] = {
     "daily_summaries": {
         "fetch": lambda g, d: data_fetchers.fetch_daily_summary(g, d),
-        "upsert": lambda sb, d, data: supabase_client.upsert_daily_summary(sb, data),
+        "upsert": lambda sb, d, data, uid: supabase_client.upsert_daily_summary(sb, data, uid),
         "kind": "single",
     },
     "heart_rate": {
         "fetch": lambda g, d: data_fetchers.fetch_heart_rates(g, d),
-        "upsert": lambda sb, d, rows: supabase_client.upsert_heart_rate_intraday(sb, d, rows),
+        "upsert": lambda sb, d, rows, uid: supabase_client.upsert_heart_rate_intraday(sb, d, rows, uid),
         "kind": "multi",
     },
     "hrv": {
         "fetch": lambda g, d: data_fetchers.fetch_hrv(g, d),
-        "upsert": lambda sb, d, data: supabase_client.upsert_hrv(sb, data),
+        "upsert": lambda sb, d, data, uid: supabase_client.upsert_hrv(sb, data, uid),
         "kind": "single",
     },
     "sleep": {
         "fetch": lambda g, d: data_fetchers.fetch_sleep(g, d),
-        "upsert": lambda sb, d, data: supabase_client.upsert_sleep(sb, data),
+        "upsert": lambda sb, d, data, uid: supabase_client.upsert_sleep(sb, data, uid),
         "kind": "single",
     },
     "activities": {
         "fetch": lambda g, d: data_fetchers.fetch_activities(g, d),
-        "upsert": lambda sb, d, rows: supabase_client.upsert_activities(sb, rows),
+        "upsert": lambda sb, d, rows, uid: supabase_client.upsert_activities(sb, rows, uid),
         "kind": "list",
     },
     "body_composition": {
         "fetch": lambda g, d: data_fetchers.fetch_body_composition(g, d),
-        "upsert": lambda sb, d, data: supabase_client.upsert_body_composition(sb, data),
+        "upsert": lambda sb, d, data, uid: supabase_client.upsert_body_composition(sb, data, uid),
         "kind": "single",
     },
     "spo2": {
         "fetch": lambda g, d: data_fetchers.fetch_spo2(g, d),
-        "upsert": lambda sb, d, data: supabase_client.upsert_spo2(sb, data),
+        "upsert": lambda sb, d, data, uid: supabase_client.upsert_spo2(sb, data, uid),
         "kind": "single",
     },
     "respiration": {
         "fetch": lambda g, d: data_fetchers.fetch_respiration(g, d),
-        "upsert": lambda sb, d, data: supabase_client.upsert_respiration(sb, data),
+        "upsert": lambda sb, d, data, uid: supabase_client.upsert_respiration(sb, data, uid),
         "kind": "single",
     },
     "stress": {
         "fetch": lambda g, d: data_fetchers.fetch_stress_details(g, d),
-        "upsert": lambda sb, d, rows: supabase_client.upsert_stress_details(sb, d, rows),
+        "upsert": lambda sb, d, rows, uid: supabase_client.upsert_stress_details(sb, d, rows, uid),
         "kind": "multi",
     },
 }
@@ -91,6 +91,7 @@ def _sync_one_type(
     sb: Client,
     date_str: str,
     dtype: str,
+    user_id: str,
 ) -> tuple[str, int]:
     """Fetch + upsert a single data type for one date.
 
@@ -106,11 +107,11 @@ def _sync_one_type(
 
     kind = spec["kind"]
     if kind == "single":
-        count = spec["upsert"](sb, date_str, data)
+        count = spec["upsert"](sb, date_str, data, user_id)
     elif kind == "multi":
-        count = spec["upsert"](sb, date_str, data)
+        count = spec["upsert"](sb, date_str, data, user_id)
     elif kind == "list":
-        count = spec["upsert"](sb, date_str, data)
+        count = spec["upsert"](sb, date_str, data, user_id)
     else:
         raise ValueError(f"Unknown dispatch kind: {kind}")
 
@@ -124,6 +125,7 @@ def sync_date(
     garmin: Garmin,
     sb: Client,
     date_str: str,
+    user_id: str,
     data_types: list[str] | None = None,
 ) -> dict[str, dict]:
     """Sync all data types for a single date.
@@ -141,15 +143,15 @@ def sync_date(
 
         started_at = supabase_client._now_iso()
         try:
-            status, count = _sync_one_type(garmin, sb, date_str, dtype)
+            status, count = _sync_one_type(garmin, sb, date_str, dtype, user_id)
             results[dtype] = {"status": status, "records": count, "error": None}
-            supabase_client.log_sync(sb, dtype, date_str, "success",
+            supabase_client.log_sync(sb, dtype, date_str, "success", user_id,
                                      records_synced=count, started_at=started_at)
             log.info("  %s: %d records", dtype, count)
         except Exception as exc:
             msg = str(exc)
             results[dtype] = {"status": "error", "records": 0, "error": msg}
-            supabase_client.log_sync(sb, dtype, date_str, "error",
+            supabase_client.log_sync(sb, dtype, date_str, "error", user_id,
                                      error_message=msg, started_at=started_at)
             log.error("  %s: error — %s", dtype, msg)
 
@@ -164,6 +166,7 @@ def sync_date_range(
     sb: Client,
     start_date: str,
     end_date: str,
+    user_id: str,
     data_types: list[str] | None = None,
 ) -> dict[str, dict]:
     """Sync a range of dates sequentially.
@@ -183,7 +186,7 @@ def sync_date_range(
         date_str = current.isoformat()
         log.info("Syncing %s  (%d/%d days)", date_str, day_num, total_days)
 
-        day_results = sync_date(garmin, sb, date_str, data_types)
+        day_results = sync_date(garmin, sb, date_str, user_id, data_types)
 
         for dtype, result in day_results.items():
             if dtype not in agg:
@@ -206,20 +209,22 @@ def sync_date_range(
 def sync_today(
     garmin: Garmin,
     sb: Client,
+    user_id: str,
     data_types: list[str] | None = None,
 ) -> dict[str, dict]:
     """Sync today's date."""
     today = date.today().isoformat()
     log.info("Syncing today: %s", today)
-    return sync_date(garmin, sb, today, data_types)
+    return sync_date(garmin, sb, today, user_id, data_types)
 
 
-def _already_synced_today(sb: Client, date_str: str, dtype: str) -> bool:
-    """Check if a data type was already successfully synced for a given date."""
+def _already_synced_today(sb: Client, date_str: str, dtype: str, user_id: str) -> bool:
+    """Check if a data type was already successfully synced for a given user+date."""
     try:
         result = (
             sb.table("sync_log")
             .select("id")
+            .eq("user_id", user_id)
             .eq("data_type", dtype)
             .eq("sync_date", date_str)
             .eq("status", "success")
@@ -234,6 +239,7 @@ def _already_synced_today(sb: Client, date_str: str, dtype: str) -> bool:
 def backfill(
     garmin: Garmin,
     sb: Client,
+    user_id: str,
     days: int = 30,
     data_types: list[str] | None = None,
 ) -> dict[str, dict]:
@@ -255,7 +261,7 @@ def backfill(
         date_str = current.isoformat()
 
         # Filter to only types not yet synced for this date
-        needed = [t for t in types if not _already_synced_today(sb, date_str, t)]
+        needed = [t for t in types if not _already_synced_today(sb, date_str, t, user_id)]
 
         if not needed:
             log.info("Skipping %s — all types already synced  (%d/%d)", date_str, day_num, total_days)
@@ -267,7 +273,7 @@ def backfill(
             continue
 
         log.info("Backfilling %s  (%d/%d days, %d types)", date_str, day_num, total_days, len(needed))
-        day_results = sync_date(garmin, sb, date_str, needed)
+        day_results = sync_date(garmin, sb, date_str, user_id, needed)
 
         for dtype, result in day_results.items():
             if dtype not in agg:

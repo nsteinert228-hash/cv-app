@@ -8,6 +8,7 @@ import { SET_IDLE_TIMEOUT } from './config.js';
 import { isSupabaseConfigured } from './supabase.js';
 import { signIn, signUp, signOut, onAuthStateChange } from './auth.js';
 import * as db from './db.js';
+import * as garmin from './garmin.js';
 
 // Camera helpers
 async function startCamera(videoEl) {
@@ -57,6 +58,7 @@ const repLabelEl = document.getElementById('repLabel');
 const sessionLogEl = document.getElementById('sessionLog');
 const sessionSummaryEl = document.getElementById('sessionSummary');
 const sessionEntriesEl = document.getElementById('sessionEntries');
+const clearSessionBtn = document.getElementById('clearSessionBtn');
 
 // Auth DOM elements
 const authSection = document.getElementById('authSection');
@@ -71,6 +73,27 @@ const authCancel = document.getElementById('authCancel');
 const authError = document.getElementById('authError');
 const authToggleText = document.getElementById('authToggleText');
 const authToggleLink = document.getElementById('authToggleLink');
+
+// Garmin DOM elements
+const garminSection = document.getElementById('garminSection');
+const garminStatusDot = document.getElementById('garminStatusDot');
+const garminStatusText = document.getElementById('garminStatusText');
+const garminNotConnected = document.getElementById('garminNotConnected');
+const garminDashboard = document.getElementById('garminDashboard');
+const connectGarminBtn = document.getElementById('connectGarminBtn');
+const garminSyncBtn = document.getElementById('garminSyncBtn');
+const garminDisconnectBtn = document.getElementById('garminDisconnectBtn');
+const garminLastSync = document.getElementById('garminLastSync');
+const garminSteps = document.getElementById('garminSteps');
+const garminHR = document.getElementById('garminHR');
+const garminSleepScore = document.getElementById('garminSleepScore');
+const garminCalories = document.getElementById('garminCalories');
+const garminModal = document.getElementById('garminModal');
+const garminEmailInput = document.getElementById('garminEmail');
+const garminPasswordInput = document.getElementById('garminPassword');
+const garminSubmit = document.getElementById('garminSubmit');
+const garminCancel = document.getElementById('garminCancel');
+const garminError = document.getElementById('garminError');
 
 let detector = null;
 let poseClassifier = null;
@@ -466,6 +489,16 @@ if (cameraInput) cameraInput.addEventListener('change', handleFileInput);
 cameraToggle.addEventListener('click', handleCameraToggle);
 resetBtn.addEventListener('click', handleReset);
 
+if (clearSessionBtn) {
+  clearSessionBtn.addEventListener('click', () => {
+    sessionLog.reset();
+    renderedLogCount = 0;
+    sessionEntriesEl.innerHTML = '';
+    sessionSummaryEl.textContent = '';
+    sessionLogEl.style.display = 'none';
+  });
+}
+
 exerciseBtns.forEach(btn => {
   btn.addEventListener('click', () => selectExercise(btn.dataset.exercise));
 });
@@ -490,9 +523,11 @@ function updateAuthUI(user) {
   if (user) {
     authUser.textContent = user.email;
     authBtn.textContent = 'Sign Out';
+    if (clearSessionBtn) clearSessionBtn.style.display = 'inline';
   } else {
     authUser.textContent = '';
     authBtn.textContent = 'Sign In';
+    if (clearSessionBtn) clearSessionBtn.style.display = 'none';
   }
 }
 
@@ -593,6 +628,130 @@ if (authSubmit) {
   });
 }
 
+// --- Garmin UI logic ---
+
+async function refreshGarminUI() {
+  if (!garminSection) return;
+
+  if (!currentUser) {
+    garminSection.style.display = 'none';
+    return;
+  }
+
+  garminSection.style.display = 'block';
+
+  try {
+    const status = await garmin.getGarminStatus();
+
+    if (!status) {
+      // Not connected
+      garminNotConnected.style.display = 'block';
+      garminDashboard.style.display = 'none';
+      garminStatusDot.className = 'status-dot';
+      garminStatusText.textContent = 'Not connected';
+      return;
+    }
+
+    // Connected — show dashboard
+    garminNotConnected.style.display = 'none';
+    garminDashboard.style.display = 'block';
+
+    // Status badge
+    garminStatusDot.className = `status-dot ${status.status === 'active' ? 'active' : status.status === 'error' ? 'error' : 'pending'}`;
+    const statusLabels = { active: 'Connected', pending: 'Pending', sync_requested: 'Syncing...', error: 'Error' };
+    garminStatusText.textContent = statusLabels[status.status] || status.status;
+
+    if (status.last_sync_at) {
+      const syncDate = new Date(status.last_sync_at);
+      garminLastSync.textContent = `Last sync: ${syncDate.toLocaleString()}`;
+    } else {
+      garminLastSync.textContent = 'Not synced yet';
+    }
+
+    // Populate health cards
+    const [daily, sleep] = await Promise.all([
+      garmin.getLatestDailySummary(),
+      garmin.getLatestSleep(),
+    ]);
+
+    garminSteps.textContent = daily?.steps?.toLocaleString() ?? '--';
+    garminHR.textContent = daily?.resting_heart_rate ?? '--';
+    garminCalories.textContent = daily?.calories_total?.toLocaleString() ?? '--';
+    garminSleepScore.textContent = sleep?.sleep_score ?? '--';
+  } catch (err) {
+    console.warn('Failed to refresh Garmin UI:', err.message);
+  }
+}
+
+if (connectGarminBtn) {
+  connectGarminBtn.addEventListener('click', () => {
+    if (garminEmailInput) garminEmailInput.value = '';
+    if (garminPasswordInput) garminPasswordInput.value = '';
+    if (garminError) garminError.textContent = '';
+    garminModal.classList.add('visible');
+  });
+}
+
+if (garminCancel) {
+  garminCancel.addEventListener('click', () => {
+    garminModal.classList.remove('visible');
+  });
+}
+
+if (garminModal) {
+  garminModal.addEventListener('click', (e) => {
+    if (e.target === garminModal) garminModal.classList.remove('visible');
+  });
+}
+
+if (garminSubmit) {
+  garminSubmit.addEventListener('click', async () => {
+    const email = garminEmailInput.value.trim();
+    const password = garminPasswordInput.value;
+    if (!email || !password) {
+      garminError.textContent = 'Please enter your Garmin email and password.';
+      return;
+    }
+    garminError.textContent = '';
+    garminSubmit.disabled = true;
+    try {
+      await garmin.connectGarmin(email, password);
+      garminModal.classList.remove('visible');
+      await refreshGarminUI();
+    } catch (err) {
+      garminError.textContent = err.message;
+    }
+    garminSubmit.disabled = false;
+  });
+}
+
+if (garminSyncBtn) {
+  garminSyncBtn.addEventListener('click', async () => {
+    garminSyncBtn.disabled = true;
+    try {
+      await garmin.requestSync();
+      garminStatusDot.className = 'status-dot pending';
+      garminStatusText.textContent = 'Syncing...';
+    } catch (err) {
+      console.warn('Sync request failed:', err.message);
+    }
+    garminSyncBtn.disabled = false;
+  });
+}
+
+if (garminDisconnectBtn) {
+  garminDisconnectBtn.addEventListener('click', async () => {
+    garminDisconnectBtn.disabled = true;
+    try {
+      await garmin.disconnectGarmin();
+      await refreshGarminUI();
+    } catch (err) {
+      console.warn('Disconnect failed:', err.message);
+    }
+    garminDisconnectBtn.disabled = false;
+  });
+}
+
 // Initialize — auto-start camera and auto mode
 async function init() {
   // Render any previously persisted session entries
@@ -609,8 +768,10 @@ async function init() {
         renderedLogCount = 0;
         sessionEntriesEl.innerHTML = '';
         renderSessionLog();
+        refreshGarminUI();
       } else {
         sessionLog.setDb(null);
+        refreshGarminUI();
       }
     });
   }

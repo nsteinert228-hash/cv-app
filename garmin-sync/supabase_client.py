@@ -56,63 +56,65 @@ def _with_retry(fn: Callable[..., T]) -> T:
 # ── Single-row upserts (daily tables with date PK) ────────────
 
 
-def _upsert_daily(client: Client, table: str, data: dict) -> int:
-    """Upsert a single row into a date-PK table. Returns 1 on success, 0 on skip."""
+def _upsert_daily(client: Client, table: str, data: dict, user_id: str) -> int:
+    """Upsert a single row into a (user_id, date) PK table. Returns 1 on success, 0 on skip."""
     if not data:
         return 0
+    data["user_id"] = user_id
     data["synced_at"] = _now_iso()
 
     def _do():
-        client.table(table).upsert(data, on_conflict="date").execute()
+        client.table(table).upsert(data, on_conflict="user_id,date").execute()
 
     _with_retry(_do)
     log.info("Upserted 1 row into %s for %s", table, data.get("date"))
     return 1
 
 
-def upsert_daily_summary(client: Client, data: dict) -> int:
+def upsert_daily_summary(client: Client, data: dict, user_id: str) -> int:
     """Upsert a daily summary row."""
-    return _upsert_daily(client, "daily_summaries", data)
+    return _upsert_daily(client, "daily_summaries", data, user_id)
 
 
-def upsert_hrv(client: Client, data: dict) -> int:
+def upsert_hrv(client: Client, data: dict, user_id: str) -> int:
     """Upsert an HRV summary row."""
-    return _upsert_daily(client, "hrv_summaries", data)
+    return _upsert_daily(client, "hrv_summaries", data, user_id)
 
 
-def upsert_sleep(client: Client, data: dict) -> int:
+def upsert_sleep(client: Client, data: dict, user_id: str) -> int:
     """Upsert a sleep summary row."""
-    return _upsert_daily(client, "sleep_summaries", data)
+    return _upsert_daily(client, "sleep_summaries", data, user_id)
 
 
-def upsert_body_composition(client: Client, data: dict) -> int:
+def upsert_body_composition(client: Client, data: dict, user_id: str) -> int:
     """Upsert a body composition row."""
-    return _upsert_daily(client, "body_composition", data)
+    return _upsert_daily(client, "body_composition", data, user_id)
 
 
-def upsert_spo2(client: Client, data: dict) -> int:
+def upsert_spo2(client: Client, data: dict, user_id: str) -> int:
     """Upsert a daily SpO2 row."""
-    return _upsert_daily(client, "spo2_daily", data)
+    return _upsert_daily(client, "spo2_daily", data, user_id)
 
 
-def upsert_respiration(client: Client, data: dict) -> int:
+def upsert_respiration(client: Client, data: dict, user_id: str) -> int:
     """Upsert a daily respiration row."""
-    return _upsert_daily(client, "respiration_daily", data)
+    return _upsert_daily(client, "respiration_daily", data, user_id)
 
 
 # ── Activities (activity_id PK) ────────────────────────────────
 
 
-def upsert_activities(client: Client, rows: list[dict]) -> int:
-    """Upsert activity rows, keyed on activity_id."""
+def upsert_activities(client: Client, rows: list[dict], user_id: str) -> int:
+    """Upsert activity rows, keyed on (user_id, activity_id)."""
     if not rows:
         return 0
     now = _now_iso()
     for row in rows:
+        row["user_id"] = user_id
         row["synced_at"] = now
 
     def _do():
-        client.table("activities").upsert(rows, on_conflict="activity_id").execute()
+        client.table("activities").upsert(rows, on_conflict="user_id,activity_id").execute()
 
     _with_retry(_do)
     log.info("Upserted %d activities", len(rows))
@@ -122,8 +124,8 @@ def upsert_activities(client: Client, rows: list[dict]) -> int:
 # ── Intraday tables (delete-for-date + chunked insert) ────────
 
 
-def _replace_intraday(client: Client, table: str, date_str: str, rows: list[dict]) -> int:
-    """Replace all rows for a date: delete existing, then chunked insert.
+def _replace_intraday(client: Client, table: str, date_str: str, rows: list[dict], user_id: str) -> int:
+    """Replace all rows for a user+date: delete existing, then chunked insert.
 
     This is idempotent — safe to re-run for the same date.
     Returns the number of rows inserted.
@@ -131,9 +133,12 @@ def _replace_intraday(client: Client, table: str, date_str: str, rows: list[dict
     if not rows:
         return 0
 
-    # Delete existing rows for this date
+    for row in rows:
+        row["user_id"] = user_id
+
+    # Delete existing rows for this user+date
     def _delete():
-        client.table(table).delete().eq("date", date_str).execute()
+        client.table(table).delete().eq("user_id", user_id).eq("date", date_str).execute()
 
     _with_retry(_delete)
 
@@ -152,14 +157,14 @@ def _replace_intraday(client: Client, table: str, date_str: str, rows: list[dict
     return inserted
 
 
-def upsert_heart_rate_intraday(client: Client, date_str: str, rows: list[dict]) -> int:
-    """Replace all intraday heart rate rows for a date."""
-    return _replace_intraday(client, "heart_rate_intraday", date_str, rows)
+def upsert_heart_rate_intraday(client: Client, date_str: str, rows: list[dict], user_id: str) -> int:
+    """Replace all intraday heart rate rows for a user+date."""
+    return _replace_intraday(client, "heart_rate_intraday", date_str, rows, user_id)
 
 
-def upsert_stress_details(client: Client, date_str: str, rows: list[dict]) -> int:
-    """Replace all intraday stress detail rows for a date."""
-    return _replace_intraday(client, "stress_details", date_str, rows)
+def upsert_stress_details(client: Client, date_str: str, rows: list[dict], user_id: str) -> int:
+    """Replace all intraday stress detail rows for a user+date."""
+    return _replace_intraday(client, "stress_details", date_str, rows, user_id)
 
 
 # ── Sync log ───────────────────────────────────────────────────
@@ -170,12 +175,14 @@ def log_sync(
     data_type: str,
     sync_date: str,
     status: str,
+    user_id: str,
     records_synced: int = 0,
     error_message: str | None = None,
     started_at: str | None = None,
 ) -> None:
     """Write an entry to the sync_log table."""
     row = {
+        "user_id": user_id,
         "data_type": data_type,
         "sync_date": sync_date,
         "status": status,

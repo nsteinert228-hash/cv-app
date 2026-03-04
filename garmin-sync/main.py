@@ -1,6 +1,7 @@
 """CLI entrypoint for Garmin Health → Supabase sync."""
 
 import argparse
+import json
 import logging
 import sys
 
@@ -45,22 +46,23 @@ def cmd_sync(args: argparse.Namespace) -> None:
     garmin = garmin_client.get_client()
     sb = supabase_client.get_client()
     data_types = _parse_types(args.types)
+    user_id = args.user_id
 
     if args.today:
-        results = sync.sync_today(garmin, sb, data_types)
+        results = sync.sync_today(garmin, sb, user_id, data_types)
         _print_summary({"_": {"success": 1, "records": sum(
             r["records"] for r in results.values()
         )}}) if results else None
 
     elif args.date:
-        results = sync.sync_date(garmin, sb, args.date, data_types)
+        results = sync.sync_date(garmin, sb, args.date, user_id, data_types)
         for dtype, r in results.items():
             status = "ok" if r["status"] == "success" else f"ERROR: {r['error']}"
             print(f"  {dtype}: {status} ({r['records']} records)")
 
     elif args.range:
         start, end = args.range
-        agg = sync.sync_date_range(garmin, sb, start, end, data_types)
+        agg = sync.sync_date_range(garmin, sb, start, end, user_id, data_types)
         _print_summary(agg)
 
     else:
@@ -74,22 +76,121 @@ def cmd_backfill(args: argparse.Namespace) -> None:
     sb = supabase_client.get_client()
     data_types = _parse_types(args.types)
 
-    agg = sync.backfill(garmin, sb, days=args.days, data_types=data_types)
+    agg = sync.backfill(garmin, sb, args.user_id, days=args.days, data_types=data_types)
     _print_summary(agg)
+
+
+def cmd_sync_all(args: argparse.Namespace) -> None:
+    """Sync all connected Garmin users (multi-user mode)."""
+    config.validate(multi_user=True)
+
+    sb = supabase_client.get_client()
+    encryption_key = config.GARMIN_ENCRYPTION_KEY
+
+    # Fetch all connections that need processing
+    result = (
+        sb.table("garmin_connections")
+        .select("user_id, status")
+        .in_("status", ["pending", "active", "sync_requested"])
+        .execute()
+    )
+
+    connections = result.data or []
+    if not connections:
+        print("No Garmin connections to process.")
+        return
+
+    print(f"Processing {len(connections)} connection(s)...")
+
+    for conn in connections:
+        uid = conn["user_id"]
+        status = conn["status"]
+        log.info("Processing user %s (status: %s)", uid, status)
+
+        try:
+            # Get decrypted credentials
+            creds_result = sb.rpc("get_garmin_credentials", {
+                "p_user_id": uid,
+                "p_key": encryption_key,
+            }).execute()
+
+            if not creds_result.data:
+                log.error("No credentials found for user %s", uid)
+                continue
+
+            creds = creds_result.data[0]
+
+            if status == "pending":
+                # Initial auth — authenticate with credentials and store tokens
+                garmin = garmin_client.get_client_for_user(
+                    creds["garmin_email"], creds["garmin_password"]
+                )
+                # Save garth tokens back to DB
+                tokens_json = json.dumps(garmin.garth.dumps())
+                sb.table("garmin_connections").update({
+                    "encrypted_tokens": {
+                        "password": (
+                            sb.rpc("store_garmin_credentials", {
+                                "p_user_id": uid,
+                                "p_email": creds["garmin_email"],
+                                "p_password": creds["garmin_password"],
+                                "p_key": encryption_key,
+                            })
+                        ),
+                        "garth_tokens": tokens_json,
+                    },
+                    "status": "active",
+                    "error_message": None,
+                }).eq("user_id", uid).execute()
+                log.info("Activated user %s, running initial sync", uid)
+
+            else:
+                # Active/sync_requested — create client from credentials
+                garmin = garmin_client.get_client_for_user(
+                    creds["garmin_email"], creds["garmin_password"]
+                )
+
+            # Run today's sync
+            sync.sync_today(garmin, sb, uid)
+
+            # Update last_sync_at and reset status
+            sb.table("garmin_connections").update({
+                "last_sync_at": supabase_client._now_iso(),
+                "status": "active",
+                "error_message": None,
+            }).eq("user_id", uid).execute()
+
+            log.info("Sync complete for user %s", uid)
+
+        except Exception as exc:
+            log.error("Sync failed for user %s: %s", uid, exc)
+            try:
+                sb.table("garmin_connections").update({
+                    "status": "error",
+                    "error_message": str(exc)[:500],
+                }).eq("user_id", uid).execute()
+            except Exception:
+                log.error("Failed to update error status for user %s", uid)
+
+    print("sync-all complete.")
 
 
 def cmd_status(args: argparse.Namespace) -> None:
     """Query sync_log and display the most recent successful sync per data type."""
     sb = supabase_client.get_client()
 
-    result = (
+    query = (
         sb.table("sync_log")
         .select("data_type, sync_date, status, records_synced, completed_at")
         .eq("status", "success")
         .order("completed_at", desc=True)
         .limit(50)
-        .execute()
     )
+
+    if hasattr(args, "user_id") and args.user_id:
+        query = query.eq("user_id", args.user_id)
+
+    result = query.execute()
 
     if not result.data:
         print("No sync history found.")
@@ -121,12 +222,13 @@ def main() -> None:
         description="Garmin Health → Supabase Sync",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""examples:
-  python main.py sync --today
-  python main.py sync --date 2025-03-01
-  python main.py sync --range 2025-01-01 2025-03-01
-  python main.py sync --today --types sleep,hrv
-  python main.py backfill --days 90
-  python main.py status""",
+  python main.py sync --today --user-id <uuid>
+  python main.py sync --date 2025-03-01 --user-id <uuid>
+  python main.py sync --range 2025-01-01 2025-03-01 --user-id <uuid>
+  python main.py sync --today --user-id <uuid> --types sleep,hrv
+  python main.py backfill --days 90 --user-id <uuid>
+  python main.py sync-all
+  python main.py status --user-id <uuid>""",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -140,6 +242,8 @@ def main() -> None:
     sp.add_argument("--types", type=str, metavar="TYPE,TYPE,...",
                     help=f"Comma-separated data types (default: all). "
                          f"Options: {', '.join(sync.ALL_DATA_TYPES)}")
+    sp.add_argument("--user-id", type=str, required=True,
+                    help="UUID of the user to sync data for")
 
     # backfill
     bp = subparsers.add_parser("backfill", help="Backfill historical data")
@@ -147,19 +251,31 @@ def main() -> None:
                     help="Number of days to backfill (default: 30)")
     bp.add_argument("--types", type=str, metavar="TYPE,TYPE,...",
                     help="Comma-separated data types (default: all)")
+    bp.add_argument("--user-id", type=str, required=True,
+                    help="UUID of the user to backfill data for")
+
+    # sync-all
+    subparsers.add_parser("sync-all",
+                          help="Sync all connected Garmin users (multi-user cron)")
 
     # status
-    subparsers.add_parser("status", help="Show last sync status per data type")
+    stp = subparsers.add_parser("status", help="Show last sync status per data type")
+    stp.add_argument("--user-id", type=str, default=None,
+                     help="Filter status to a specific user UUID")
 
     args = parser.parse_args()
 
     if args.command in ("sync", "backfill", "status"):
         config.validate()
+    elif args.command == "sync-all":
+        config.validate(multi_user=True)
 
     if args.command == "sync":
         cmd_sync(args)
     elif args.command == "backfill":
         cmd_backfill(args)
+    elif args.command == "sync-all":
+        cmd_sync_all(args)
     elif args.command == "status":
         cmd_status(args)
     else:

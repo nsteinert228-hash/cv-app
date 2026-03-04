@@ -80,6 +80,27 @@ def get_client() -> Garmin:
     return _client
 
 
+def get_client_for_user(email: str, password: str, token_dir: str | None = None) -> Garmin:
+    """Create a Garmin client for a specific user (no singleton caching).
+
+    Tries saved tokens first if token_dir is provided, then falls back to credentials.
+    """
+    if token_dir:
+        td = Path(token_dir).expanduser()
+        try:
+            client = _login_with_tokens(td)
+            return client
+        except (FileNotFoundError, GarthHTTPError, GarminConnectAuthenticationError) as exc:
+            log.warning("Token login failed for %s (%s), using credentials", email, type(exc).__name__)
+
+    log.info("Logging in user %s with credentials", email)
+    client = Garmin(email=email, password=password)
+    client.login()
+    if token_dir:
+        _save_tokens(client, Path(token_dir).expanduser())
+    return client
+
+
 def reset_client() -> None:
     """Clear the singleton so the next get_client() re-authenticates."""
     global _client
