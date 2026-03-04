@@ -21,30 +21,56 @@
 <h1>Exercise Pose Templates</h1>
 <div class="exercises" id="root"></div>
 
-<script type="module">
-import { TEMPLATES, mirrorTemplate } from './src/poseData.js';
-
-// COCO skeleton connections
-const SKELETON = [
-  [0,1],[0,2],[1,3],[2,4],           // head
-  [5,6],[5,7],[7,9],[6,8],[8,10],    // arms
-  [5,11],[6,12],[11,12],             // torso
-  [11,13],[13,15],[12,14],[14,16],   // legs
-];
-
-const KEYPOINT_NAMES = [
-  'nose','left_eye','right_eye','left_ear','right_ear',
-  'left_shoulder','right_shoulder','left_elbow','right_elbow',
-  'left_wrist','right_wrist','left_hip','right_hip',
-  'left_knee','right_knee','left_ankle','right_ankle',
-];
-
-const COLORS = {
-  head: '#ffdd57',
-  arm: '#ff6b6b',
-  torso: '#6cf',
-  leg: '#69db7c',
+<script>
+// Inline template data (from src/poseData.js)
+const TEMPLATES = {
+  standing_up: [
+    0.1, -1.35, 0.15, -1.4, 0.15, -1.4, -0.05, -1.35, -0.05, -1.35,
+    0.0, -1.0, 0.0, -1.0, -0.05, -0.5, -0.05, -0.5, -0.05, -0.05, -0.05, -0.05,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.8, 0.0, 1.55, 0.0, 1.55,
+  ],
+  squat_down: [
+    0.82, -1.12, 0.87, -1.17, 0.87, -1.17, 0.72, -1.07, 0.72, -1.07,
+    0.57, -0.82, 0.57, -0.82, 0.75, -0.55, 0.75, -0.55, 0.9, -0.3, 0.9, -0.3,
+    0.0, 0.0, 0.0, 0.0, 0.75, 0.27, 0.75, 0.27, 0.68, 1.02, 0.68, 1.02,
+  ],
+  pushup_up: [
+    1.39, -0.14, 1.48, -0.14, 1.42, -0.24, 1.42, -0.23, 1.29, -0.41,
+    0.97, -0.29, 0.95, -0.27, 0.89, 0.35, 0.89, 0.42, 1.01, 0.79, 1.05, 0.93,
+    0.03, 0.00, -0.03, -0.00, -0.66, 0.32, -0.76, 0.33, -1.10, 0.50, -1.50, 0.53,
+  ],
+  pushup_down: [
+    1.34, 0.22, 1.38, 0.20, 1.37, 0.18, 1.31, 0.04, 1.28, -0.00,
+    1.00, -0.06, 1.00, -0.01, 0.50, -0.07, 0.44, -0.01, 0.62, 0.30, 0.59, 0.43,
+    0.02, -0.03, -0.02, 0.03, -0.65, 0.11, -0.70, 0.16, -1.21, 0.07, -1.32, 0.11,
+  ],
+  lunge_down: [
+    0.20, -1.10, 0.25, -1.15, 0.25, -1.15, 0.10, -1.10, 0.10, -1.10,
+    0.10, -0.80, 0.10, -0.80, 0.05, -0.35, 0.05, -0.35, 0.05, 0.05, 0.05, 0.05,
+    0.0, 0.0, 0.0, 0.0, 0.60, 0.40, -0.45, 0.55, 0.58, 1.10, -0.75, 1.10,
+  ],
 };
+
+function mirrorTemplate(template) {
+  const mirrored = [...template];
+  const pairs = [[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[13,14],[15,16]];
+  for (const [l, r] of pairs) {
+    mirrored[l*2] = template[r*2];
+    mirrored[l*2+1] = template[r*2+1];
+    mirrored[r*2] = template[l*2];
+    mirrored[r*2+1] = template[l*2+1];
+  }
+  return mirrored;
+}
+
+const SKELETON = [
+  [0,1],[0,2],[1,3],[2,4],
+  [5,6],[5,7],[7,9],[6,8],[8,10],
+  [5,11],[6,12],[11,12],
+  [11,13],[13,15],[12,14],[14,16],
+];
+
+const COLORS = { head: '#ffdd57', arm: '#ff6b6b', torso: '#6cf', leg: '#69db7c' };
 
 function connectionColor(i, j) {
   if (i <= 4 || j <= 4) return COLORS.head;
@@ -54,102 +80,63 @@ function connectionColor(i, j) {
   return COLORS.torso;
 }
 
-function drawPose(canvas, template, label) {
+function drawPose(canvas, template) {
   const W = 240, H = 300;
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
-
-  // Find bounding box to auto-scale
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (let i = 0; i < 17; i++) {
-    const x = template[i * 2], y = template[i * 2 + 1];
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    minX = Math.min(minX, template[i*2]); maxX = Math.max(maxX, template[i*2]);
+    minY = Math.min(minY, template[i*2+1]); maxY = Math.max(maxY, template[i*2+1]);
   }
-  const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
   const pad = 30;
-  const scale = Math.min((W - pad * 2) / rangeX, (H - pad * 2) / rangeY);
-  const offX = (W - rangeX * scale) / 2 - minX * scale;
-  const offY = (H - rangeY * scale) / 2 - minY * scale;
+  const scale = Math.min((W-pad*2)/(maxX-minX||1), (H-pad*2)/(maxY-minY||1));
+  const offX = (W-(maxX-minX)*scale)/2 - minX*scale;
+  const offY = (H-(maxY-minY)*scale)/2 - minY*scale;
+  const tx = i => template[i*2]*scale+offX;
+  const ty = i => template[i*2+1]*scale+offY;
 
-  function tx(i) { return template[i * 2] * scale + offX; }
-  function ty(i) { return template[i * 2 + 1] * scale + offY; }
-
-  // Draw skeleton lines
-  for (const [i, j] of SKELETON) {
-    ctx.beginPath();
-    ctx.moveTo(tx(i), ty(i));
-    ctx.lineTo(tx(j), ty(j));
-    ctx.strokeStyle = connectionColor(i, j);
-    ctx.lineWidth = 3;
-    ctx.globalAlpha = 0.7;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+  for (const [i,j] of SKELETON) {
+    ctx.beginPath(); ctx.moveTo(tx(i),ty(i)); ctx.lineTo(tx(j),ty(j));
+    ctx.strokeStyle = connectionColor(i,j); ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1;
   }
-
-  // Draw keypoints
   for (let i = 0; i < 17; i++) {
-    const x = tx(i), y = ty(i);
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    const color = i <= 4 ? COLORS.head
-      : i <= 10 ? COLORS.arm
-      : i <= 12 ? COLORS.torso
-      : COLORS.leg;
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(tx(i), ty(i), 5, 0, Math.PI*2);
+    ctx.fillStyle = i<=4?COLORS.head:i<=10?COLORS.arm:i<=12?COLORS.torso:COLORS.leg;
+    ctx.fill(); ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke();
   }
 }
 
 const exercises = [
-  {
-    name: 'Squats',
-    poses: [
-      { template: TEMPLATES.standing_up, label: 'Standing (Up)' },
-      { template: TEMPLATES.squat_down, label: 'Squat (Down)' },
-    ],
-  },
-  {
-    name: 'Lunges',
-    poses: [
-      { template: TEMPLATES.standing_up, label: 'Standing (Up)' },
-      { template: TEMPLATES.lunge_down, label: 'Lunge Down (Left Leg)' },
-      { template: mirrorTemplate(TEMPLATES.lunge_down), label: 'Lunge Down (Right Leg)' },
-    ],
-  },
-  {
-    name: 'Pushups',
-    poses: [
-      { template: TEMPLATES.pushup_up, label: 'Pushup (Up)' },
-      { template: TEMPLATES.pushup_down, label: 'Pushup (Down)' },
-    ],
-  },
+  { name:'Squats', poses:[
+    {t:TEMPLATES.standing_up, l:'Standing (Up)'},
+    {t:TEMPLATES.squat_down, l:'Squat (Down)'},
+  ]},
+  { name:'Lunges', poses:[
+    {t:TEMPLATES.standing_up, l:'Standing (Up)'},
+    {t:TEMPLATES.lunge_down, l:'Lunge Down (Left Leg)'},
+    {t:mirrorTemplate(TEMPLATES.lunge_down), l:'Lunge Down (Right Leg)'},
+  ]},
+  { name:'Pushups', poses:[
+    {t:TEMPLATES.pushup_up, l:'Pushup (Up)'},
+    {t:TEMPLATES.pushup_down, l:'Pushup (Down)'},
+  ]},
 ];
 
 const root = document.getElementById('root');
 for (const ex of exercises) {
-  const section = document.createElement('div');
-  section.className = 'exercise';
-  section.innerHTML = `<h2>${ex.name}</h2><div class="poses"></div>`;
-  const posesDiv = section.querySelector('.poses');
-
+  const sec = document.createElement('div'); sec.className='exercise';
+  sec.innerHTML = `<h2>${ex.name}</h2><div class="poses"></div>`;
+  const pd = sec.querySelector('.poses');
   for (const pose of ex.poses) {
-    const card = document.createElement('div');
-    card.className = 'pose-card';
-    const canvas = document.createElement('canvas');
-    const p = document.createElement('p');
-    p.textContent = pose.label;
-    card.appendChild(canvas);
-    card.appendChild(p);
-    posesDiv.appendChild(card);
-    drawPose(canvas, pose.template, pose.label);
+    const card = document.createElement('div'); card.className='pose-card';
+    const c = document.createElement('canvas');
+    const p = document.createElement('p'); p.textContent = pose.l;
+    card.appendChild(c); card.appendChild(p); pd.appendChild(card);
+    drawPose(c, pose.t);
   }
-
-  root.appendChild(section);
+  root.appendChild(sec);
 }
 </script>
 </body>
