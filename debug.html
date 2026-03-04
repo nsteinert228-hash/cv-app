@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pose Data Debug Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 8px; color: #fff; }
+  .controls { text-align: center; margin-bottom: 20px; }
+  .controls label { cursor: pointer; font-size: 14px; }
+  .controls input[type="checkbox"] { margin-right: 6px; }
+  .canvases { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin-bottom: 32px; }
+  .pose-card { background: #16213e; border-radius: 8px; padding: 12px; }
+  .pose-card h3 { text-align: center; margin-bottom: 8px; font-size: 14px; font-family: monospace; }
+  .pose-card canvas { display: block; border: 1px solid #333; border-radius: 4px; }
+  h2 { text-align: center; margin: 24px 0 12px; }
+  table { margin: 0 auto; border-collapse: collapse; font-size: 14px; font-family: monospace; }
+  th, td { padding: 8px 14px; border: 1px solid #333; text-align: center; }
+  th { background: #16213e; }
+  td.highlight { background: #4a1942; font-weight: bold; }
+  td.self { background: #222; color: #555; }
+</style>
+</head>
+<body>
+<h1>Pose Data Debug Viewer</h1>
+<div class="controls">
+  <label><input type="checkbox" id="showVariations"> Show 30 noisy variations per pose</label>
+</div>
+<div class="canvases" id="canvases"></div>
+<h2>Euclidean Distance Between Templates</h2>
+<div id="distanceTable"></div>
+
+<script type="module">
+import { TEMPLATES, POSE_DATA } from './src/poseData.js';
+
+// COCO skeleton connections [from, to]
+const SKELETON = [
+  [0, 1], [0, 2], [1, 3], [2, 4],           // face
+  [5, 6],                                     // shoulders
+  [5, 7], [7, 9],                             // left arm
+  [6, 8], [8, 10],                            // right arm
+  [5, 11], [6, 12],                           // torso sides
+  [11, 12],                                   // hips
+  [11, 13], [13, 15],                         // left leg
+  [12, 14], [14, 16],                         // right leg
+];
+
+const KEYPOINT_NAMES = [
+  'nose', 'L eye', 'R eye', 'L ear', 'R ear',
+  'L shoulder', 'R shoulder', 'L elbow', 'R elbow',
+  'L wrist', 'R wrist', 'L hip', 'R hip',
+  'L knee', 'R knee', 'L ankle', 'R ankle',
+];
+
+const CANVAS_W = 280;
+const CANVAS_H = 320;
+const poseNames = Object.keys(TEMPLATES);
+
+function poseToPoints(flat) {
+  const pts = [];
+  for (let i = 0; i < flat.length; i += 2) {
+    pts.push({ x: flat[i], y: flat[i + 1] });
+  }
+  return pts;
+}
+
+function drawSkeleton(ctx, pts, color, lineWidth, radius, drawLabels) {
+  // bones
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  for (const [a, b] of SKELETON) {
+    ctx.beginPath();
+    ctx.moveTo(pts[a].x, pts[a].y);
+    ctx.lineTo(pts[b].x, pts[b].y);
+    ctx.stroke();
+  }
+  // joints
+  ctx.fillStyle = color;
+  for (let i = 0; i < pts.length; i++) {
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // labels
+  if (drawLabels) {
+    ctx.fillStyle = '#ccc';
+    ctx.font = '9px monospace';
+    ctx.textBaseline = 'bottom';
+    for (let i = 0; i < pts.length; i++) {
+      ctx.fillText(KEYPOINT_NAMES[i], pts[i].x + 4, pts[i].y - 3);
+    }
+  }
+}
+
+function transformPoints(pts) {
+  // map normalized coords to canvas pixels
+  // find bounding box across all templates for consistent scale
+  const scale = 90;
+  const cx = CANVAS_W / 2;
+  const cy = CANVAS_H / 2 - 10;
+  return pts.map(p => ({ x: cx + p.x * scale, y: cy + p.y * scale }));
+}
+
+function renderAll(showVariations) {
+  const container = document.getElementById('canvases');
+  container.innerHTML = '';
+
+  for (const name of poseNames) {
+    const card = document.createElement('div');
+    card.className = 'pose-card';
+    const title = document.createElement('h3');
+    title.textContent = name;
+    card.appendChild(title);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = CANVAS_W;
+    canvas.height = CANVAS_H;
+    card.appendChild(canvas);
+    container.appendChild(card);
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0f0f23';
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // draw variations first (behind template)
+    if (showVariations) {
+      const variations = POSE_DATA[name];
+      for (const v of variations) {
+        const pts = transformPoints(poseToPoints(Array.from(v)));
+        drawSkeleton(ctx, pts, 'rgba(100, 180, 255, 0.12)', 1, 1.5, false);
+      }
+    }
+
+    // draw template
+    const templatePts = transformPoints(poseToPoints(TEMPLATES[name]));
+    drawSkeleton(ctx, templatePts, '#ff6b6b', 2.5, 4, true);
+  }
+}
+
+// Distance table
+function euclideanDist(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    sum += (a[i] - b[i]) ** 2;
+  }
+  return Math.sqrt(sum);
+}
+
+function buildDistanceTable() {
+  const distances = {};
+  let minToLunge = Infinity;
+  for (const a of poseNames) {
+    distances[a] = {};
+    for (const b of poseNames) {
+      const d = euclideanDist(TEMPLATES[a], TEMPLATES[b]);
+      distances[a][b] = d;
+      if (a !== b && (a === 'lunge_down' || b === 'lunge_down')) {
+        minToLunge = Math.min(minToLunge, d);
+      }
+    }
+  }
+
+  let html = '<table><tr><th></th>';
+  for (const name of poseNames) html += `<th>${name}</th>`;
+  html += '</tr>';
+
+  for (const a of poseNames) {
+    html += `<tr><th>${a}</th>`;
+    for (const b of poseNames) {
+      const d = distances[a][b];
+      let cls = '';
+      if (a === b) {
+        cls = 'self';
+      } else if ((a === 'lunge_down' || b === 'lunge_down') && d === minToLunge) {
+        cls = 'highlight';
+      }
+      html += `<td class="${cls}">${d.toFixed(3)}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  document.getElementById('distanceTable').innerHTML = html;
+}
+
+// Init
+renderAll(false);
+buildDistanceTable();
+
+document.getElementById('showVariations').addEventListener('change', (e) => {
+  renderAll(e.target.checked);
+});
+</script>
+</body>
+</html>

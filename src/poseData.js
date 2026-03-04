@@ -71,11 +71,11 @@ const TEMPLATES = {
   // Bottom of lunge: front knee bent ~90°, rear knee near ground, torso upright
   lunge_down: [
     // nose        left_eye     right_eye    left_ear     right_ear
-    0.20, -1.10,   0.25, -1.15, 0.25, -1.15, 0.10, -1.10, 0.10, -1.10,
+    0.10, -1.32,   0.15, -1.37, 0.15, -1.37, 0.00, -1.32, 0.00, -1.32,
     // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
-    0.10, -0.80,   0.10, -0.80, 0.05, -0.35, 0.05, -0.35, 0.05, 0.05,  0.05, 0.05,
+    0.05, -1.0,    0.05, -1.0,  0.00, -0.50, 0.00, -0.50, -0.05, -0.05, -0.05, -0.05,
     // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
-    0.0, 0.0,      0.0, 0.0,    0.60, 0.40,  -0.45, 0.55, 0.58, 1.10,  -0.75, 1.10,
+    0.0, 0.0,      0.0, 0.0,   -0.55, 0.55,  0.65, 0.0,   -1.10, 0.75,  0.65, 0.75,
   ],
 };
 
