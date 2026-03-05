@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import sys
+import time
 
 import config
 import garmin_client
@@ -175,6 +176,18 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
     print("sync-all complete.")
 
 
+def cmd_sync_all_watch(args: argparse.Namespace) -> None:
+    """Run sync-all in a loop, polling every --interval seconds."""
+    interval = args.interval
+    print(f"Watching for sync requests every {interval}s  (Ctrl+C to stop)")
+    try:
+        while True:
+            cmd_sync_all(args)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
+
 def cmd_status(args: argparse.Namespace) -> None:
     """Query sync_log and display the most recent successful sync per data type."""
     sb = supabase_client.get_client()
@@ -255,8 +268,12 @@ def main() -> None:
                     help="UUID of the user to backfill data for")
 
     # sync-all
-    subparsers.add_parser("sync-all",
-                          help="Sync all connected Garmin users (multi-user cron)")
+    sa = subparsers.add_parser("sync-all",
+                               help="Sync all connected Garmin users (multi-user cron)")
+    sa.add_argument("--watch", action="store_true",
+                    help="Poll continuously for sync requests")
+    sa.add_argument("--interval", type=int, default=10,
+                    help="Seconds between polls in watch mode (default: 10)")
 
     # status
     stp = subparsers.add_parser("status", help="Show last sync status per data type")
@@ -275,7 +292,10 @@ def main() -> None:
     elif args.command == "backfill":
         cmd_backfill(args)
     elif args.command == "sync-all":
-        cmd_sync_all(args)
+        if args.watch:
+            cmd_sync_all_watch(args)
+        else:
+            cmd_sync_all(args)
     elif args.command == "status":
         cmd_status(args)
     else:
