@@ -35,22 +35,25 @@ def fetch_daily_summary(client: Garmin, date_str: str) -> dict | None:
     moderate = raw.get("moderateIntensityMinutes") or 0
     vigorous = raw.get("vigorousIntensityMinutes") or 0
 
+    def _int(v):
+        return int(v) if v is not None else None
+
     return {
         "date": date_str,
-        "steps": raw.get("totalSteps"),
-        "floors_climbed": raw.get("floorsAscended"),
-        "calories_total": raw.get("totalKilocalories"),
-        "calories_active": raw.get("activeKilocalories"),
-        "calories_bmr": raw.get("bmrKilocalories"),
-        "distance_meters": raw.get("totalDistanceMeters"),
-        "intensity_minutes": moderate + vigorous,
-        "stress_avg": raw.get("averageStressLevel"),
-        "stress_max": raw.get("maxStressLevel"),
+        "steps": _int(raw.get("totalSteps")),
+        "floors_climbed": _int(raw.get("floorsAscended")),
+        "calories_total": _int(raw.get("totalKilocalories")),
+        "calories_active": _int(raw.get("activeKilocalories")),
+        "calories_bmr": _int(raw.get("bmrKilocalories")),
+        "distance_meters": _int(raw.get("totalDistanceMeters")),
+        "intensity_minutes": int(moderate + vigorous),
+        "stress_avg": _int(raw.get("averageStressLevel")),
+        "stress_max": _int(raw.get("maxStressLevel")),
         "stress_qualifier": raw.get("stressQualifier"),
-        "avg_heart_rate": raw.get("restingHeartRate"),
-        "max_heart_rate": raw.get("maxHeartRate"),
-        "resting_heart_rate": raw.get("restingHeartRate"),
-        "min_heart_rate": raw.get("minHeartRate"),
+        "avg_heart_rate": _int(raw.get("restingHeartRate")),
+        "max_heart_rate": _int(raw.get("maxHeartRate")),
+        "resting_heart_rate": _int(raw.get("restingHeartRate")),
+        "min_heart_rate": _int(raw.get("minHeartRate")),
         "raw_json": json.dumps(raw),
     }
 

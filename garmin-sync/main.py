@@ -122,24 +122,11 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
             creds = creds_result.data[0]
 
             if status == "pending":
-                # Initial auth — authenticate with credentials and store tokens
+                # Initial auth — verify credentials work
                 garmin = garmin_client.get_client_for_user(
                     creds["garmin_email"], creds["garmin_password"]
                 )
-                # Save garth tokens back to DB
-                tokens_json = json.dumps(garmin.garth.dumps())
                 sb.table("garmin_connections").update({
-                    "encrypted_tokens": {
-                        "password": (
-                            sb.rpc("store_garmin_credentials", {
-                                "p_user_id": uid,
-                                "p_email": creds["garmin_email"],
-                                "p_password": creds["garmin_password"],
-                                "p_key": encryption_key,
-                            })
-                        ),
-                        "garth_tokens": tokens_json,
-                    },
                     "status": "active",
                     "error_message": None,
                 }).eq("user_id", uid).execute()
