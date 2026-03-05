@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV — Garmin Readiness</title>
+  <style>
+    :root {
+      --bg-page: #f7f7f8;
+      --bg-surface: #ffffff;
+      --text-primary: #1a1a1a;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --accent: #10b981;
+      --accent-light: #d1fae5;
+      --accent-dark: #059669;
+      --border: #e5e7eb;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      padding: 16px 20px 12px;
+      text-align: center;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+    }
+
+    /* Auth UI */
+    .auth-section { display: flex; align-items: center; gap: 8px; }
+    .auth-section.hidden { display: none; }
+    .auth-user { font-size: 0.78rem; color: var(--text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .auth-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .auth-btn:hover { background: var(--bg-page); }
+    .auth-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .auth-btn.primary:hover { background: var(--accent-dark); }
+
+    /* Auth Modal */
+    .auth-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    .auth-modal-backdrop.visible { display: flex; }
+    .auth-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+    .auth-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
+    .auth-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
+    .auth-modal input:focus { border-color: var(--accent); }
+    .auth-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .auth-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
+    .auth-error { color: #ef4444; font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
+    .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
+    .auth-toggle a { color: var(--accent-dark); cursor: pointer; text-decoration: underline; }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      width: 100%;
+      max-width: 640px;
+      padding: 0 20px;
+      margin-bottom: 16px;
+    }
+
+    .tab-link {
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .tab-link:hover { color: var(--text-secondary); }
+    .tab-link.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+
+    /* Layout */
+    .dashboard {
+      display: none;
+      width: 100%;
+      max-width: 640px;
+      padding: 0 16px 40px;
+      gap: 14px;
+      flex-direction: column;
+    }
+
+    .dashboard.visible { display: flex; }
+
+    .card {
+      background: var(--bg-surface);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 14px;
+    }
+
+    /* Readiness + Battery row */
+    .top-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .readiness-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .readiness-card canvas {
+      width: 140px;
+      height: 140px;
+    }
+
+    /* Body battery */
+    .bb-bar-wrap {
+      margin: 10px 0 12px;
+    }
+
+    .bb-bar-wrap canvas {
+      width: 100%;
+      height: 32px;
+    }
+
+    .bb-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .bb-stat {
+      text-align: center;
+    }
+
+    .bb-stat .val {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .bb-stat .lbl {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .bb-stat .val.charged { color: #10b981; }
+    .bb-stat .val.drained { color: #ef4444; }
+
+    /* Sleep */
+    .sleep-bar-wrap {
+      margin-bottom: 12px;
+    }
+
+    .sleep-bar-wrap canvas {
+      width: 100%;
+      height: 36px;
+    }
+
+    .sleep-total {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    .sleep-legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .sleep-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .sleep-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .sleep-scores {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .sleep-score-item {
+      text-align: center;
+      padding: 8px 4px;
+      background: var(--bg-page);
+      border-radius: 10px;
+    }
+
+    .sleep-score-item .val {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .sleep-score-item .lbl {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    /* HRV */
+    .hrv-chart-wrap canvas {
+      width: 100%;
+      height: 160px;
+    }
+
+    /* Stress */
+    .stress-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .stress-row canvas {
+      width: 120px;
+      height: 120px;
+      flex-shrink: 0;
+    }
+
+    .stress-legend {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stress-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .stress-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Quick stats */
+    .quick-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .quick-stat {
+      text-align: center;
+      padding: 12px 8px;
+      background: var(--bg-page);
+      border-radius: 12px;
+    }
+
+    .quick-stat .val {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .quick-stat .lbl {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-top: 2px;
+    }
+
+    .quick-stat .unit {
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    /* Steps progress */
+    .steps-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .steps-info {
+      flex-shrink: 0;
+    }
+
+    .steps-info .val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .steps-info .goal {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .steps-progress {
+      flex: 1;
+      height: 10px;
+      background: var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .steps-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 5px;
+      transition: width 0.5s ease;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    /* Garmin connect modal */
+    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    .garmin-modal-backdrop.visible { display: flex; }
+    .garmin-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+    .garmin-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
+    .garmin-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
+    .garmin-modal input:focus { border-color: var(--accent); }
+    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .garmin-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
+    .garmin-error { color: #ef4444; font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
+    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
+
+    @media (max-width: 640px) {
+      .dashboard { padding: 0 10px 40px; }
+      .top-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .quick-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .sleep-scores { grid-template-columns: repeat(4, 1fr); }
+      .tab-bar { padding: 0 10px; }
+    }
+
+    @media (max-width: 400px) {
+      .top-row { grid-template-columns: 1fr; }
+      .quick-stats { grid-template-columns: repeat(2, 1fr); }
+      .sleep-scores { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-top">
+      <h1>CV — Garmin Readiness</h1>
+      <div class="auth-section hidden" id="authSection">
+        <span class="auth-user" id="authUser"></span>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth Modal -->
+  <div class="auth-modal-backdrop" id="authModal">
+    <div class="auth-modal">
+      <h2 id="authModalTitle">Sign In</h2>
+      <input type="email" id="authEmail" placeholder="Email" autocomplete="email">
+      <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+      <div class="auth-modal-actions">
+        <button class="auth-btn" id="authCancel">Cancel</button>
+        <button class="auth-btn primary" id="authSubmit">Sign In</button>
+      </div>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-toggle">
+        <span id="authToggleText">Don't have an account?</span>
+        <a id="authToggleLink">Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar">
+    <a class="tab-link" href="index.html">Exercise Tracker</a>
+    <a class="tab-link active" href="garmin.html">Garmin Readiness</a>
+  </nav>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState">
+    <p>Sign in to view your Garmin health dashboard.</p>
+    <button class="auth-btn primary" id="connectGarminBtn" style="display:none">Connect Garmin</button>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboardContent">
+
+    <!-- Row 1: Readiness gauge + Body battery -->
+    <div class="top-row">
+      <div class="card readiness-card">
+        <div class="card-title">Training Readiness</div>
+        <canvas id="readinessGauge"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Body Battery</div>
+        <div class="bb-bar-wrap">
+          <canvas id="bodyBatteryBar"></canvas>
+        </div>
+        <div class="bb-stats">
+          <div class="bb-stat">
+            <div class="val" id="bbStart">--</div>
+            <div class="lbl">Start</div>
+          </div>
+          <div class="bb-stat">
+            <div class="val" id="bbEnd">--</div>
+            <div class="lbl">Current</div>
+          </div>
+          <div class="bb-stat">
+            <div class="val charged" id="bbCharged">--</div>
+            <div class="lbl">Charged</div>
+          </div>
+          <div class="bb-stat">
+            <div class="val drained" id="bbDrained">--</div>
+            <div class="lbl">Drained</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Sleep -->
+    <div class="card">
+      <div class="card-title">Sleep</div>
+      <div class="sleep-total" id="sleepTotal">--</div>
+      <div class="sleep-bar-wrap">
+        <canvas id="sleepBar"></canvas>
+      </div>
+      <div class="sleep-legend">
+        <div class="sleep-legend-item">
+          <div class="sleep-legend-dot" style="background:#1e3a5f"></div>
+          Deep <strong id="sleepDeep">--</strong>
+        </div>
+        <div class="sleep-legend-item">
+          <div class="sleep-legend-dot" style="background:#60a5fa"></div>
+          Light <strong id="sleepLight">--</strong>
+        </div>
+        <div class="sleep-legend-item">
+          <div class="sleep-legend-dot" style="background:#a78bfa"></div>
+          REM <strong id="sleepRem">--</strong>
+        </div>
+        <div class="sleep-legend-item">
+          <div class="sleep-legend-dot" style="background:#f59e0b"></div>
+          Awake <strong id="sleepAwake">--</strong>
+        </div>
+      </div>
+      <div class="sleep-scores">
+        <div class="sleep-score-item">
+          <div class="val" id="scoreOverall">--</div>
+          <div class="lbl">Overall</div>
+        </div>
+        <div class="sleep-score-item">
+          <div class="val" id="scoreQuality">--</div>
+          <div class="lbl">Quality</div>
+        </div>
+        <div class="sleep-score-item">
+          <div class="val" id="scoreDuration">--</div>
+          <div class="lbl">Duration</div>
+        </div>
+        <div class="sleep-score-item">
+          <div class="val" id="scoreRecovery">--</div>
+          <div class="lbl">Recovery</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: HRV trend -->
+    <div class="card">
+      <div class="card-title">HRV — 14 Day Trend</div>
+      <div class="hrv-chart-wrap">
+        <canvas id="hrvChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Row 4: Stress -->
+    <div class="card">
+      <div class="card-title">Stress Distribution</div>
+      <div class="stress-row">
+        <canvas id="stressDonut"></canvas>
+        <div class="stress-legend">
+          <div class="stress-legend-item">
+            <div class="stress-legend-dot" style="background:#10b981"></div>
+            Rest
+          </div>
+          <div class="stress-legend-item">
+            <div class="stress-legend-dot" style="background:#60a5fa"></div>
+            Low
+          </div>
+          <div class="stress-legend-item">
+            <div class="stress-legend-dot" style="background:#f59e0b"></div>
+            Medium
+          </div>
+          <div class="stress-legend-item">
+            <div class="stress-legend-dot" style="background:#ef4444"></div>
+            High
+          </div>
+        </div>
+      </div>
+      <span id="stressAvgValue" data-value="--" style="display:none"></span>
+    </div>
+
+    <!-- Row 5: Quick stats -->
+    <div class="card">
+      <div class="card-title">Today's Stats</div>
+      <div class="steps-row">
+        <div class="steps-info">
+          <div class="val" id="qSteps">--</div>
+          <div class="goal">of <span id="qStepsGoal">10,000</span> steps</div>
+        </div>
+        <div class="steps-progress">
+          <div class="steps-progress-fill" id="stepsProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="quick-stats">
+        <div class="quick-stat">
+          <div class="val"><span id="qHR">--</span> <span class="unit">bpm</span></div>
+          <div class="lbl">Resting HR</div>
+        </div>
+        <div class="quick-stat">
+          <div class="val"><span id="qHR7d">--</span> <span class="unit">bpm</span></div>
+          <div class="lbl">7-Day Avg HR</div>
+        </div>
+        <div class="quick-stat">
+          <div class="val" id="qSpo2">--</div>
+          <div class="lbl">SpO2</div>
+        </div>
+        <div class="quick-stat">
+          <div class="val"><span id="qResp">--</span> <span class="unit">brpm</span></div>
+          <div class="lbl">Respiration</div>
+        </div>
+        <div class="quick-stat">
+          <div class="val"><span id="qIntensity">--</span> <span class="unit">min</span></div>
+          <div class="lbl">Intensity Min</div>
+        </div>
+        <div class="quick-stat">
+          <div class="val" id="qFloors">--</div>
+          <div class="lbl">Floors</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Garmin Connect Modal -->
+  <div class="garmin-modal-backdrop" id="garminModal">
+    <div class="garmin-modal">
+      <h2>Connect Garmin</h2>
+      <input type="email" id="garminEmail" placeholder="Garmin Email" autocomplete="email">
+      <input type="password" id="garminPassword" placeholder="Garmin Password" autocomplete="current-password">
+      <div class="garmin-modal-actions">
+        <button class="auth-btn" id="garminCancel">Cancel</button>
+        <button class="auth-btn primary" id="garminSubmit">Connect</button>
+      </div>
+      <div class="garmin-error" id="garminError"></div>
+      <div class="garmin-privacy">Your password is encrypted at rest and used only for initial authentication.</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" src="src/garminDashboard.js"></script>
+</body>
+</html>

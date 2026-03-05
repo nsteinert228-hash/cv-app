@@ -572,6 +572,31 @@
       text-align: center;
     }
 
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      width: 100%;
+      max-width: 640px;
+      padding: 0 20px;
+      margin-bottom: 4px;
+    }
+
+    .tab-link {
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .tab-link:hover { color: var(--text-secondary); }
+    .tab-link.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+
     /* Garmin Section */
     .garmin-section {
       display: none;
@@ -807,6 +832,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar">
+    <a class="tab-link active" href="index.html">Exercise Tracker</a>
+    <a class="tab-link" href="garmin.html">Garmin Readiness</a>
+  </nav>
 
   <main>
     <div class="camera-stage">

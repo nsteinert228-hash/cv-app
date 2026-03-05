@@ -82,3 +82,128 @@ export async function getLatestSleep() {
   if (error) throw error;
   return data;
 }
+
+// ── Dashboard data fetchers ──────────────────────────────────
+
+export async function getTrainingReadiness() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_training_readiness')
+    .select('date, score, level')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getBodyBattery() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_body_battery')
+    .select('date, charged, drained, start_level, end_level')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getSleepDetailed() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_sleep')
+    .select('date, deep_sleep_seconds, light_sleep_seconds, rem_sleep_seconds, awake_sleep_seconds, total_sleep_seconds, score_overall, score_quality, score_duration, score_recovery, score_deep, score_rem, score_restlessness')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getHrvTrend(days = 14) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceStr = since.toISOString().split('T')[0];
+
+  const { data, error } = await client
+    .from('garmin_hrv')
+    .select('date, last_night_avg, baseline_low, baseline_balanced, baseline_high, status')
+    .gte('date', sinceStr)
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getDailySummaryDetailed() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_daily_summary')
+    .select('date, total_steps, daily_step_goal, total_kilocalories, active_kilocalories, average_stress_level, max_stress_level, rest_stress_duration, low_stress_duration, medium_stress_duration, high_stress_duration, moderate_intensity_minutes, vigorous_intensity_minutes, floors_ascended')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getHeartRateDaily() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_heart_rate')
+    .select('date, resting_heart_rate, min_heart_rate, max_heart_rate, seven_day_avg_resting_hr')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getSpo2() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_spo2')
+    .select('date, average_spo2, lowest_spo2')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getRespiration() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('garmin_respiration')
+    .select('date, avg_waking_respiration, avg_sleep_respiration')
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
