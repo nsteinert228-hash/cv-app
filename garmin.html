@@ -446,30 +446,30 @@
     <!-- Row 1: Readiness gauge + Body battery -->
     <div class="top-row">
       <div class="card readiness-card">
-        <div class="card-title">Training Readiness</div>
+        <div class="card-title">Sleep Score</div>
         <canvas id="readinessGauge"></canvas>
       </div>
       <div class="card">
-        <div class="card-title">Body Battery</div>
+        <div class="card-title">Daily Overview</div>
         <div class="bb-bar-wrap">
           <canvas id="bodyBatteryBar"></canvas>
         </div>
         <div class="bb-stats">
           <div class="bb-stat">
             <div class="val" id="bbStart">--</div>
-            <div class="lbl">Start</div>
+            <div class="lbl">Rest HR</div>
           </div>
           <div class="bb-stat">
             <div class="val" id="bbEnd">--</div>
-            <div class="lbl">Current</div>
+            <div class="lbl">Avg Stress</div>
           </div>
           <div class="bb-stat">
             <div class="val charged" id="bbCharged">--</div>
-            <div class="lbl">Charged</div>
+            <div class="lbl">Active Cal</div>
           </div>
           <div class="bb-stat">
             <div class="val drained" id="bbDrained">--</div>
-            <div class="lbl">Drained</div>
+            <div class="lbl">Total Cal</div>
           </div>
         </div>
       </div>
@@ -507,15 +507,15 @@
         </div>
         <div class="sleep-score-item">
           <div class="val" id="scoreQuality">--</div>
-          <div class="lbl">Quality</div>
+          <div class="lbl">SpO2</div>
         </div>
         <div class="sleep-score-item">
           <div class="val" id="scoreDuration">--</div>
-          <div class="lbl">Duration</div>
+          <div class="lbl">Total</div>
         </div>
         <div class="sleep-score-item">
           <div class="val" id="scoreRecovery">--</div>
-          <div class="lbl">Recovery</div>
+          <div class="lbl">Resp</div>
         </div>
       </div>
     </div>
@@ -574,7 +574,7 @@
         </div>
         <div class="quick-stat">
           <div class="val"><span id="qHR7d">--</span> <span class="unit">bpm</span></div>
-          <div class="lbl">7-Day Avg HR</div>
+          <div class="lbl">Min HR</div>
         </div>
         <div class="quick-stat">
           <div class="val" id="qSpo2">--</div>

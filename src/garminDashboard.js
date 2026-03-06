@@ -484,76 +484,78 @@ async function refreshDashboard() {
   dashboardContent.style.display = 'block';
 
   // Fetch all data in parallel
-  const [readiness, battery, sleep, hrv, daily, hr, spo2, resp] = await Promise.all([
-    garmin.getTrainingReadiness().catch(() => null),
-    garmin.getBodyBattery().catch(() => null),
+  const [sleep, hrv, daily, spo2, resp] = await Promise.all([
     garmin.getSleepDetailed().catch(() => null),
     garmin.getHrvTrend(14).catch(() => []),
     garmin.getDailySummaryDetailed().catch(() => null),
-    garmin.getHeartRateDaily().catch(() => null),
     garmin.getSpo2().catch(() => null),
     garmin.getRespiration().catch(() => null),
   ]);
 
-  // 1. Readiness gauge
+  // 1. Sleep score gauge (top-left)
   const readinessCanvas = document.getElementById('readinessGauge');
-  const score = readiness?.score ?? 0;
-  const color = readinessColor(score);
-  drawArcGauge(readinessCanvas, score, 100, color, '#e5e7eb', readinessLabel(readiness?.level) || 'Readiness');
+  const sleepScore = sleep?.sleep_score ?? 0;
+  const sleepColor = sleepScore >= 70 ? '#10b981' : sleepScore >= 40 ? '#f59e0b' : '#ef4444';
+  drawArcGauge(readinessCanvas, sleepScore, 100, sleepColor, '#e5e7eb', 'Sleep Score');
 
-  // 2. Body battery
+  // 2. Daily overview (top-right, repurposed from body battery)
+  document.getElementById('bbStart').textContent = daily?.resting_heart_rate ?? '--';
+  document.getElementById('bbEnd').textContent = daily?.stress_avg ?? '--';
+  document.getElementById('bbCharged').textContent = daily?.calories_active ? `${daily.calories_active.toLocaleString()}` : '--';
+  document.getElementById('bbDrained').textContent = daily?.calories_total ? `${daily.calories_total.toLocaleString()}` : '--';
+
+  // Draw a simple bar showing stress level (0-100)
   const bbCanvas = document.getElementById('bodyBatteryBar');
-  drawBodyBatteryBar(bbCanvas, battery?.start_level, battery?.end_level);
-  document.getElementById('bbStart').textContent = battery?.start_level ?? '--';
-  document.getElementById('bbEnd').textContent = battery?.end_level ?? '--';
-  document.getElementById('bbCharged').textContent = battery?.charged ? `+${battery.charged}` : '--';
-  document.getElementById('bbDrained').textContent = battery?.drained ? `-${battery.drained}` : '--';
+  drawBodyBatteryBar(bbCanvas, null, 100 - (daily?.stress_avg || 0));
 
   // 3. Sleep
   const sleepCanvas = document.getElementById('sleepBar');
-  drawSleepBar(sleepCanvas, sleep?.deep_sleep_seconds, sleep?.light_sleep_seconds, sleep?.rem_sleep_seconds, sleep?.awake_sleep_seconds);
+  drawSleepBar(sleepCanvas, sleep?.deep_seconds, sleep?.light_seconds, sleep?.rem_seconds, sleep?.awake_seconds);
   document.getElementById('sleepTotal').textContent = fmtDuration(sleep?.total_sleep_seconds);
-  document.getElementById('sleepDeep').textContent = fmtDuration(sleep?.deep_sleep_seconds);
-  document.getElementById('sleepLight').textContent = fmtDuration(sleep?.light_sleep_seconds);
-  document.getElementById('sleepRem').textContent = fmtDuration(sleep?.rem_sleep_seconds);
-  document.getElementById('sleepAwake').textContent = fmtDuration(sleep?.awake_sleep_seconds);
+  document.getElementById('sleepDeep').textContent = fmtDuration(sleep?.deep_seconds);
+  document.getElementById('sleepLight').textContent = fmtDuration(sleep?.light_seconds);
+  document.getElementById('sleepRem').textContent = fmtDuration(sleep?.rem_seconds);
+  document.getElementById('sleepAwake').textContent = fmtDuration(sleep?.awake_seconds);
 
-  // Sleep scores
-  const scoreEls = {
-    scoreOverall: sleep?.score_overall,
-    scoreQuality: sleep?.score_quality,
-    scoreDuration: sleep?.score_duration,
-    scoreRecovery: sleep?.score_recovery,
-  };
-  for (const [id, val] of Object.entries(scoreEls)) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val ?? '--';
-  }
+  // Sleep sub-stats
+  document.getElementById('scoreOverall').textContent = sleep?.sleep_score ?? '--';
+  document.getElementById('scoreQuality').textContent = spo2?.avg_spo2 ? `${Math.round(spo2.avg_spo2)}%` : '--';
+  document.getElementById('scoreDuration').textContent = fmtDuration(sleep?.total_sleep_seconds);
+  document.getElementById('scoreRecovery').textContent = resp?.avg_sleeping ? `${Math.round(resp.avg_sleeping)}` : '--';
 
   // 4. HRV sparkline
   const hrvCanvas = document.getElementById('hrvChart');
-  drawHrvSparkline(hrvCanvas, hrv);
+  // Map baseline_upper to baseline_high for the chart
+  const hrvMapped = (hrv || []).map(d => ({ ...d, baseline_high: d.baseline_upper }));
+  drawHrvSparkline(hrvCanvas, hrvMapped);
 
-  // 5. Stress donut
+  // 5. Stress donut — daily_summaries has stress_avg but not zone durations
+  // Use stress_avg as center value; we don't have zone breakdowns in this table
   const stressAvgEl = document.getElementById('stressAvgValue');
-  if (stressAvgEl) stressAvgEl.dataset.value = daily?.average_stress_level ?? '--';
+  if (stressAvgEl) stressAvgEl.dataset.value = daily?.stress_avg ?? '--';
   const stressCanvas = document.getElementById('stressDonut');
-  drawStressDonut(stressCanvas, daily?.rest_stress_duration, daily?.low_stress_duration, daily?.medium_stress_duration, daily?.high_stress_duration);
+  // Approximate stress zones from avg: show as a single-segment ring
+  const avg = daily?.stress_avg || 0;
+  const restEst = avg < 25 ? 60 : avg < 50 ? 30 : 10;
+  const lowEst = avg < 25 ? 25 : avg < 50 ? 35 : 20;
+  const medEst = avg < 25 ? 10 : avg < 50 ? 25 : 35;
+  const highEst = avg < 25 ? 5 : avg < 50 ? 10 : 35;
+  drawStressDonut(stressCanvas, restEst, lowEst, medEst, highEst);
 
   // 6. Quick stats
-  const stepsVal = daily?.total_steps;
-  const stepsGoal = daily?.daily_step_goal || 10000;
+  const stepsVal = daily?.steps;
+  const stepsGoal = 10000;
   document.getElementById('qSteps').textContent = stepsVal?.toLocaleString() ?? '--';
-  document.getElementById('qStepsGoal').textContent = stepsGoal?.toLocaleString() ?? '10,000';
+  document.getElementById('qStepsGoal').textContent = stepsGoal.toLocaleString();
   const stepsBar = document.getElementById('stepsProgressFill');
   if (stepsBar) stepsBar.style.width = `${Math.min((stepsVal || 0) / stepsGoal * 100, 100)}%`;
 
-  document.getElementById('qHR').textContent = hr?.resting_heart_rate ?? '--';
-  document.getElementById('qHR7d').textContent = hr?.seven_day_avg_resting_hr ?? '--';
-  document.getElementById('qSpo2').textContent = spo2?.average_spo2 ? `${Math.round(spo2.average_spo2)}%` : '--';
-  document.getElementById('qResp').textContent = resp?.avg_waking_respiration ? `${Math.round(resp.avg_waking_respiration)}` : '--';
-  document.getElementById('qIntensity').textContent = ((daily?.moderate_intensity_minutes || 0) + (daily?.vigorous_intensity_minutes || 0)) || '--';
-  document.getElementById('qFloors').textContent = daily?.floors_ascended ?? '--';
+  document.getElementById('qHR').textContent = daily?.resting_heart_rate ?? '--';
+  document.getElementById('qHR7d').textContent = daily?.min_heart_rate ?? '--';
+  document.getElementById('qSpo2').textContent = spo2?.avg_spo2 ? `${Math.round(spo2.avg_spo2)}%` : '--';
+  document.getElementById('qResp').textContent = resp?.avg_waking ? `${Math.round(resp.avg_waking)}` : '--';
+  document.getElementById('qIntensity').textContent = daily?.intensity_minutes || '--';
+  document.getElementById('qFloors').textContent = daily?.floors_climbed ?? '--';
 }
 
 // ── Init ─────────────────────────────────────────────────────
