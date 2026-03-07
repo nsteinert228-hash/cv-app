@@ -156,12 +156,12 @@ describe('POSE_DATA', () => {
   it('lunge_down includes both leg-forward variations', () => {
     // lunge_down should have 30 examples covering both left and right leg forward
     expect(POSE_DATA.lunge_down).toHaveLength(30);
-    // First 15 derived from original template (left leg forward: left_knee.x > 0)
-    const firstKneeX = POSE_DATA.lunge_down[0][13 * 2]; // left_knee x
-    expect(firstKneeX).toBeGreaterThan(0);
-    // Last 15 derived from mirrored template (right leg forward: left_knee.x < 0)
-    const lastKneeX = POSE_DATA.lunge_down[15][13 * 2]; // left_knee x
-    expect(lastKneeX).toBeLessThan(0);
+    // First 15 from original template: right_knee (14) is forward (x > 0)
+    const firstRightKneeX = POSE_DATA.lunge_down[0][14 * 2]; // right_knee x
+    expect(firstRightKneeX).toBeGreaterThan(0);
+    // Last 15 from mirrored template: left_knee (13) is forward (x > 0), right_knee behind
+    const lastRightKneeX = POSE_DATA.lunge_down[15][14 * 2]; // right_knee x
+    expect(lastRightKneeX).toBeLessThan(0);
   });
 
   it('generates reproducible data with same seed', () => {

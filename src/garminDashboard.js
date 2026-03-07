@@ -1,22 +1,13 @@
 // Garmin Readiness Dashboard — data loading + canvas chart rendering
 import { isSupabaseConfigured } from './supabase.js';
-import { signIn, signUp, signOut, onAuthStateChange } from './auth.js';
+import { onAuthStateChange, getUser } from './auth.js';
+import { createAuthUI } from './authUI.js';
 import * as garmin from './garmin.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
 const authSection = document.getElementById('authSection');
-const authUser = document.getElementById('authUser');
-const authBtn = document.getElementById('authBtn');
-const authModal = document.getElementById('authModal');
-const authModalTitle = document.getElementById('authModalTitle');
-const authEmail = document.getElementById('authEmail');
-const authPassword = document.getElementById('authPassword');
-const authSubmit = document.getElementById('authSubmit');
-const authCancel = document.getElementById('authCancel');
-const authError = document.getElementById('authError');
-const authToggleText = document.getElementById('authToggleText');
-const authToggleLink = document.getElementById('authToggleLink');
+const authUI = createAuthUI();
 
 const dashboardContent = document.getElementById('dashboardContent');
 const emptyState = document.getElementById('emptyState');
@@ -30,96 +21,10 @@ const garminError = document.getElementById('garminError');
 
 // ── Auth (shared logic) ──────────────────────────────────────
 
-let authMode = 'signin';
-let currentUser = null;
-
-function updateAuthUI(user) {
-  currentUser = user;
-  if (user) {
-    authUser.textContent = user.email;
-    authBtn.textContent = 'Sign Out';
-  } else {
-    authUser.textContent = '';
-    authBtn.textContent = 'Sign In';
-  }
-}
-
-function showAuthModal() {
-  authMode = 'signin';
-  authModalTitle.textContent = 'Sign In';
-  authSubmit.textContent = 'Sign In';
-  authToggleText.textContent = "Don't have an account?";
-  authToggleLink.textContent = 'Sign Up';
-  authEmail.value = '';
-  authPassword.value = '';
-  authError.textContent = '';
-  authModal.classList.add('visible');
-}
-
-function hideAuthModal() {
-  authModal.classList.remove('visible');
-  authError.textContent = '';
-}
-
-if (authBtn) {
-  authBtn.addEventListener('click', async () => {
-    if (currentUser) {
-      try { await signOut(); updateAuthUI(null); refreshDashboard(); }
-      catch (err) { console.warn('Sign out failed:', err.message); }
-    } else {
-      showAuthModal();
-    }
-  });
-}
-
-if (authCancel) authCancel.addEventListener('click', hideAuthModal);
-if (authModal) authModal.addEventListener('click', (e) => { if (e.target === authModal) hideAuthModal(); });
-
-if (authToggleLink) {
-  authToggleLink.addEventListener('click', () => {
-    if (authMode === 'signin') {
-      authMode = 'signup';
-      authModalTitle.textContent = 'Sign Up';
-      authSubmit.textContent = 'Sign Up';
-      authToggleText.textContent = 'Already have an account?';
-      authToggleLink.textContent = 'Sign In';
-    } else {
-      authMode = 'signin';
-      authModalTitle.textContent = 'Sign In';
-      authSubmit.textContent = 'Sign In';
-      authToggleText.textContent = "Don't have an account?";
-      authToggleLink.textContent = 'Sign Up';
-    }
-    authError.textContent = '';
-  });
-}
-
-if (authSubmit) {
-  authSubmit.addEventListener('click', async () => {
-    const email = authEmail.value.trim();
-    const password = authPassword.value;
-    if (!email || !password) { authError.textContent = 'Please enter email and password.'; return; }
-    authError.textContent = '';
-    authSubmit.disabled = true;
-    try {
-      if (authMode === 'signup') {
-        await signUp(email, password);
-        authError.style.color = 'var(--accent-dark)';
-        authError.textContent = 'Check your email to confirm your account.';
-        authSubmit.disabled = false;
-        return;
-      }
-      const user = await signIn(email, password);
-      updateAuthUI(user);
-      hideAuthModal();
-      refreshDashboard();
-    } catch (err) {
-      authError.style.color = '#ef4444';
-      authError.textContent = err.message;
-    }
-    authSubmit.disabled = false;
-  });
-}
+authUI.init({
+  onSignIn() { refreshDashboard(); },
+  onSignOut() { refreshDashboard(); },
+});
 
 // ── Garmin connect modal ─────────────────────────────────────
 
@@ -463,6 +368,8 @@ function readinessLabel(level) {
 // ── Dashboard rendering ──────────────────────────────────────
 
 async function refreshDashboard() {
+  const currentUser = authUI.getCurrentUser();
+
   if (!currentUser) {
     dashboardContent.style.display = 'none';
     emptyState.style.display = 'block';
@@ -471,7 +378,15 @@ async function refreshDashboard() {
     return;
   }
 
-  const status = await garmin.getGarminStatus();
+  let status;
+  try {
+    status = await garmin.getGarminStatus();
+  } catch (err) {
+    console.error('[garmin] getGarminStatus failed:', err);
+    // Continue anyway — user may have data even if connections table has issues
+    status = true;
+  }
+
   if (!status) {
     dashboardContent.style.display = 'none';
     emptyState.style.display = 'block';
@@ -483,6 +398,7 @@ async function refreshDashboard() {
   emptyState.style.display = 'none';
   dashboardContent.style.display = 'block';
 
+  try {
   // Fetch all data in parallel
   const [sleep, hrv, daily, spo2, resp] = await Promise.all([
     garmin.getSleepDetailed().catch(() => null),
@@ -556,6 +472,13 @@ async function refreshDashboard() {
   document.getElementById('qResp').textContent = resp?.avg_waking ? `${Math.round(resp.avg_waking)}` : '--';
   document.getElementById('qIntensity').textContent = daily?.intensity_minutes || '--';
   document.getElementById('qFloors').textContent = daily?.floors_climbed ?? '--';
+
+  } catch (err) {
+    emptyState.style.display = 'block';
+    dashboardContent.style.display = 'none';
+    emptyState.querySelector('p').textContent = `Error loading dashboard: ${err.message}`;
+    if (connectBtn) connectBtn.style.display = 'none';
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────────
@@ -563,10 +486,20 @@ async function refreshDashboard() {
 async function init() {
   if (isSupabaseConfigured() && authSection) {
     authSection.classList.remove('hidden');
+
     onAuthStateChange(async (user) => {
-      updateAuthUI(user);
+      authUI.updateAuthUI(user);
       refreshDashboard();
     });
+
+    // Fallback: if onAuthStateChange doesn't fire for an existing session, check directly
+    try {
+      const user = await getUser();
+      if (user && !authUI.getCurrentUser()) {
+        authUI.updateAuthUI(user);
+        refreshDashboard();
+      }
+    } catch { /* session check failed — user will need to sign in */ }
   }
 }
 
