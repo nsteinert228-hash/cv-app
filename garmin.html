@@ -383,6 +383,152 @@
     .garmin-error { color: #ef4444; font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
     .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
 
+    /* Skeleton shimmer */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    .skeleton-text {
+      display: inline-block;
+      width: 3em;
+      height: 1.2em;
+      vertical-align: middle;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: none;
+      width: 100%;
+      max-width: 640px;
+      padding: 8px 20px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-bar.visible { display: flex; }
+
+    .status-bar .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--text-muted);
+    }
+
+    .status-bar .status-dot.active { background: var(--accent); }
+    .status-bar .status-dot.pending { background: #f59e0b; }
+    .status-bar .status-dot.error { background: #ef4444; }
+    .status-bar .status-dot.syncing {
+      background: #60a5fa;
+      animation: pulse-dot 1s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-bar .status-text { flex: 1; }
+
+    .status-bar .sync-link {
+      color: var(--accent-dark);
+      cursor: pointer;
+      text-decoration: underline;
+      font-weight: 500;
+      background: none;
+      border: none;
+      font-size: 0.78rem;
+      padding: 0;
+    }
+
+    .status-bar .sync-link:disabled {
+      color: var(--text-muted);
+      cursor: default;
+      text-decoration: none;
+    }
+
+    .status-bar .disconnect-link {
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.72rem;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-left: 4px;
+    }
+
+    .status-bar .disconnect-link:hover {
+      color: #ef4444;
+      text-decoration: underline;
+    }
+
+    /* Error banner */
+    .error-banner {
+      display: none;
+      width: 100%;
+      max-width: 640px;
+      padding: 12px 20px;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 12px;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: #991b1b;
+      margin-bottom: 10px;
+    }
+
+    .error-banner.visible { display: flex; }
+
+    .error-banner .error-msg { flex: 1; }
+
+    .error-banner .error-action {
+      padding: 5px 12px;
+      border: 1px solid #fca5a5;
+      border-radius: 6px;
+      background: #fff;
+      color: #991b1b;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .error-banner .error-action:hover { background: #fef2f2; }
+
+    .error-banner .error-dismiss {
+      background: none;
+      border: none;
+      color: #991b1b;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0 2px;
+    }
+
+    /* Card inline error */
+    .card-error {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 80px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      text-align: center;
+    }
+
     @media (max-width: 640px) {
       .dashboard { padding: 0 10px 40px; }
       .top-row { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -433,6 +579,21 @@
     <a class="tab-link" href="index.html">Exercise Tracker</a>
     <a class="tab-link active" href="garmin.html">Garmin Readiness</a>
   </nav>
+
+  <!-- Error banner -->
+  <div class="error-banner" id="errorBanner">
+    <span class="error-msg" id="errorMsg"></span>
+    <button class="error-action" id="errorAction">Retry</button>
+    <button class="error-dismiss" id="errorDismiss">&times;</button>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-dot" id="statusDot"></span>
+    <span class="status-text" id="statusText"></span>
+    <button class="sync-link" id="syncBtn" style="display:none">Sync</button>
+    <button class="disconnect-link" id="disconnectBtn" style="display:none">Disconnect</button>
+  </div>
 
   <!-- Empty state -->
   <div class="empty-state" id="emptyState">

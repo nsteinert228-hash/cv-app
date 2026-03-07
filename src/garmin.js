@@ -124,7 +124,7 @@ export async function getDailySummaryDetailed() {
 
   const { data, error } = await client
     .from('daily_summaries')
-    .select('date, steps, calories_total, calories_active, stress_avg, stress_max, stress_qualifier, intensity_minutes, floors_climbed, resting_heart_rate, min_heart_rate, max_heart_rate, distance_meters')
+    .select('date, steps, calories_total, calories_active, stress_avg, stress_max, stress_qualifier, intensity_minutes, floors_climbed, resting_heart_rate, min_heart_rate, max_heart_rate, distance_meters, rest_stress_duration, low_stress_duration, medium_stress_duration, high_stress_duration')
     .order('date', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -146,6 +146,22 @@ export async function getSpo2() {
 
   if (error) throw error;
   return data;
+}
+
+export async function getLastSyncTime() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('sync_log')
+    .select('completed_at')
+    .eq('status', 'success')
+    .order('completed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.completed_at ?? null;
 }
 
 export async function getRespiration() {
