@@ -30,6 +30,9 @@ const errorMsg = document.getElementById('errorMsg');
 const errorAction = document.getElementById('errorAction');
 const errorDismiss = document.getElementById('errorDismiss');
 
+const lastSyncBanner = document.getElementById('lastSyncBanner');
+const lastSyncTimeEl = document.getElementById('lastSyncTime');
+
 // ── Auth ─────────────────────────────────────────────────────
 
 authUI.init({
@@ -151,6 +154,20 @@ function timeAgo(iso) {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 }
+
+function fmtSyncTime(iso) {
+  if (!iso) return '--';
+  const d = new Date(iso);
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} (${timeAgo(iso)})`;
+}
+
+function showLastSyncBanner(iso) {
+  if (!iso) { lastSyncBanner.classList.remove('visible'); return; }
+  lastSyncTimeEl.textContent = fmtSyncTime(iso);
+  lastSyncBanner.classList.add('visible');
+}
+
+function hideLastSyncBanner() { lastSyncBanner.classList.remove('visible'); }
 
 function fmtDuration(s) {
   if (!s) return '--';
@@ -388,11 +405,11 @@ function showState(name, opts = {}) {
     case 'not-signed-in':
       dashboardContent.style.display = 'none'; emptyState.style.display = 'block';
       emptyState.querySelector('p').textContent = 'Sign in to view your Garmin health dashboard.';
-      if (connectBtn) connectBtn.style.display = 'none'; hideStatusBar(); break;
+      if (connectBtn) connectBtn.style.display = 'none'; hideStatusBar(); hideLastSyncBanner(); break;
     case 'not-connected':
       dashboardContent.style.display = 'none'; emptyState.style.display = 'block';
       emptyState.querySelector('p').textContent = 'Connect your Garmin account to see your readiness dashboard.';
-      if (connectBtn) connectBtn.style.display = ''; hideStatusBar(); break;
+      if (connectBtn) connectBtn.style.display = ''; hideStatusBar(); hideLastSyncBanner(); break;
     case 'pending':
       emptyState.style.display = 'none'; dashboardContent.classList.add('visible'); dashboardContent.style.display = '';
       updateStatusBar('pending'); break;
@@ -408,7 +425,7 @@ function showState(name, opts = {}) {
       showErrorBanner(opts.message || 'An error occurred.', actionLabel, actionFn);
       emptyState.style.display = 'none'; dashboardContent.classList.add('visible'); dashboardContent.style.display = ''; break;
     case 'network-error':
-      dashboardContent.style.display = 'none'; emptyState.style.display = 'none'; hideStatusBar();
+      dashboardContent.style.display = 'none'; emptyState.style.display = 'none'; hideStatusBar(); hideLastSyncBanner();
       showErrorBanner(opts.message || 'Unable to load. Check your connection.', 'Retry', () => { hideErrorBanner(); refreshDashboard(); }); break;
   }
 }
@@ -439,6 +456,9 @@ async function refreshDashboard() {
   let lastSyncAt = status.last_sync_at;
   try { const st = await garmin.getLastSyncTime(); if (st) lastSyncAt = st; } catch { /* ok */ }
   if (status.status === 'active') showState('active', { lastSyncAt });
+
+  // Show explicit last sync timestamp
+  showLastSyncBanner(lastSyncAt);
 
   // ── Fetch all data in parallel ──
   const [sleep, hrv, daily, spo2, resp, activities, bodyComp, dailyTrend] = await Promise.all([

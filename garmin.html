@@ -113,6 +113,19 @@
     .error-banner .error-action { padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff; color: #991b1b; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .error-banner .error-dismiss { background: none; border: none; color: #991b1b; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
 
+    /* Last sync banner */
+    .last-sync-banner {
+      display: none;
+      width: 100%;
+      max-width: 640px;
+      padding: 6px 20px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .last-sync-banner.visible { display: block; }
+    .last-sync-banner .sync-time { font-weight: 500; color: var(--text-secondary); }
+
     /* Skeleton shimmer */
     @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
     .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
@@ -316,6 +329,11 @@
     <span class="status-text" id="statusText"></span>
     <button class="sync-link" id="syncBtn" style="display:none">Sync</button>
     <button class="disconnect-link" id="disconnectBtn" style="display:none">Disconnect</button>
+  </div>
+
+  <!-- Last sync banner -->
+  <div class="last-sync-banner" id="lastSyncBanner">
+    Data last updated <span class="sync-time" id="lastSyncTime">--</span>
   </div>
 
   <!-- Empty state -->
