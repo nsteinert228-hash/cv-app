@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CV — Training AI</title>
+  <style>
+    :root {
+      --bg-page: #f7f7f8;
+      --bg-surface: #ffffff;
+      --text-primary: #1a1a1a;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --accent: #10b981;
+      --accent-light: #d1fae5;
+      --accent-dark: #059669;
+      --border: #e5e7eb;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header { padding: 16px 20px 12px; text-align: center; width: 100%; max-width: 640px; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.02em; }
+
+    /* Auth UI */
+    .auth-section { display: flex; align-items: center; gap: 8px; }
+    .auth-section.hidden { display: none; }
+    .auth-user { font-size: 0.78rem; color: var(--text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .auth-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+    .auth-btn:hover { background: var(--bg-page); }
+    .auth-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .auth-btn.primary:hover { background: var(--accent-dark); }
+
+    /* Auth Modal */
+    .auth-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    .auth-modal-backdrop.visible { display: flex; }
+    .auth-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+    .auth-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
+    .auth-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
+    .auth-modal input:focus { border-color: var(--accent); }
+    .auth-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .auth-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
+    .auth-error { color: var(--red); font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
+    .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
+    .auth-toggle a { color: var(--accent-dark); cursor: pointer; text-decoration: underline; }
+
+    /* Tabs */
+    .tab-bar { display: flex; width: 100%; max-width: 640px; padding: 0 20px; margin-bottom: 0; }
+    .tab-link { flex: 1; text-align: center; padding: 10px 0; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+    .tab-link:hover { color: var(--text-secondary); }
+    .tab-link.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+
+    /* Skeleton shimmer */
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+
+    /* Layout */
+    .dashboard { display: none; width: 100%; max-width: 640px; padding: 0 16px 40px; gap: 14px; flex-direction: column; }
+    .dashboard.visible { display: flex; }
+
+    .card { background: var(--bg-surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-sm); }
+    .card-title { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 14px; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; width: 100%; max-width: 640px; }
+    .empty-state p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px; }
+
+    /* ── Readiness Hero Bar ── */
+    .readiness-hero { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .hero-metric { display: flex; flex-direction: column; align-items: center; padding: 10px 14px; background: var(--bg-page); border-radius: 12px; min-width: 80px; flex: 1; }
+    .hero-metric .hm-val { font-size: 1.3rem; font-weight: 700; line-height: 1.2; }
+    .hero-metric .hm-label { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+    .hero-metric .hm-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; margin-top: 4px; }
+    .badge-green { background: var(--accent-light); color: var(--accent-dark); }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+
+    /* ── Preferences panel ── */
+    .prefs-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.78rem; color: var(--text-muted); padding: 4px 0; border: none; background: none; }
+    .prefs-toggle:hover { color: var(--text-secondary); }
+    .prefs-toggle svg { width: 16px; height: 16px; }
+    .prefs-panel { display: none; padding-top: 12px; }
+    .prefs-panel.visible { display: block; }
+    .prefs-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .prefs-field { flex: 1; min-width: 140px; }
+    .prefs-field label { display: block; font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+    .prefs-field select, .prefs-field input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; background: var(--bg-page); color: var(--text-primary); outline: none; }
+    .prefs-field select:focus, .prefs-field input:focus { border-color: var(--accent); }
+    .prefs-save { font-size: 0.72rem; color: var(--accent-dark); margin-top: 4px; min-height: 1em; }
+
+    /* ── View Toggle ── */
+    .view-toggle { display: flex; background: var(--border); border-radius: 10px; padding: 3px; }
+    .view-btn { flex: 1; padding: 8px 12px; border: none; border-radius: 8px; background: transparent; font-size: 0.82rem; font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+    .view-btn.active { background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+    .view-btn:hover:not(.active) { color: var(--text-secondary); }
+
+    /* ── AI Loading ── */
+    @keyframes pulse-ai { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+    .ai-loading { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; gap: 14px; }
+    .ai-loading.visible { display: flex; }
+    .ai-loading-icon { font-size: 2rem; animation: pulse-ai 1.5s ease-in-out infinite; }
+    .ai-loading-text { font-size: 0.88rem; color: var(--text-secondary); font-weight: 500; }
+    .ai-loading-sub { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* ── AI Content ── */
+    .ai-content { display: none; }
+    .ai-content.visible { display: block; }
+
+    /* Readiness assessment */
+    .readiness-banner { padding: 14px 16px; border-radius: 12px; margin-bottom: 14px; }
+    .readiness-banner.high { background: var(--accent-light); color: var(--accent-dark); }
+    .readiness-banner.moderate { background: #fef3c7; color: #92400e; }
+    .readiness-banner.low { background: #fee2e2; color: #991b1b; }
+    .readiness-banner .rb-level { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .readiness-banner .rb-summary { font-size: 0.88rem; font-weight: 500; margin-top: 4px; }
+    .readiness-factors { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .readiness-factor { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 500; background: rgba(255,255,255,0.5); }
+
+    /* Workout card */
+    .workout-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .workout-title { font-size: 1rem; font-weight: 700; }
+    .workout-meta { display: flex; gap: 8px; align-items: center; }
+    .workout-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+    .workout-badge.high { background: #fee2e2; color: #991b1b; }
+    .workout-badge.moderate { background: #fef3c7; color: #92400e; }
+    .workout-badge.low { background: var(--accent-light); color: var(--accent-dark); }
+    .workout-badge.rest { background: var(--bg-page); color: var(--text-muted); }
+    .workout-duration { font-size: 0.78rem; color: var(--text-secondary); font-weight: 500; }
+    .workout-desc { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5; }
+
+    /* Exercise table */
+    .exercise-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .exercise-table th { text-align: left; padding: 6px 8px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+    .exercise-table td { padding: 10px 8px; border-bottom: 1px solid var(--bg-page); color: var(--text-secondary); }
+    .exercise-table td:first-child { color: var(--text-primary); font-weight: 500; }
+    .exercise-table tr:last-child td { border-bottom: none; }
+    .exercise-notes { font-size: 0.7rem; color: var(--text-muted); font-style: italic; display: block; margin-top: 2px; }
+
+    /* Warmup / cooldown */
+    .phase-section { margin-bottom: 12px; }
+    .phase-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .phase-items { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6; }
+
+    /* Alerts */
+    .alerts-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .alert-pill { padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
+    .alert-pill.warning { background: #fef3c7; color: #92400e; }
+    .alert-pill.info { background: #dbeafe; color: #1e40af; }
+    .alert-pill.positive { background: var(--accent-light); color: var(--accent-dark); }
+
+    /* Nutrition tip */
+    .nutrition-card { padding: 14px 16px; background: var(--bg-page); border-radius: 12px; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; }
+    .nutrition-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+    /* ── Week View ── */
+    .week-summary-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px; }
+    .load-assessment { display: flex; gap: 14px; margin-bottom: 14px; padding: 12px; background: var(--bg-page); border-radius: 12px; }
+    .load-item { text-align: center; flex: 1; }
+    .load-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .load-value { font-size: 0.88rem; font-weight: 600; margin-top: 2px; }
+
+    .week-calendar { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; -webkit-overflow-scrolling: touch; }
+    .day-card { min-width: 110px; flex-shrink: 0; padding: 12px; background: var(--bg-surface); border-radius: 12px; text-align: center; border: 2px solid transparent; box-shadow: var(--shadow-sm); }
+    .day-card.is-today { border-color: var(--accent); }
+    .day-card.is-past { opacity: 0.6; }
+    .day-name { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .day-date { font-size: 0.65rem; color: var(--text-muted); margin-top: 1px; }
+    .day-type-icon { font-size: 1.5rem; margin: 8px 0 4px; }
+    .day-title { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); }
+    .day-focus { font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.3; }
+    .day-intensity-bar { height: 4px; border-radius: 2px; margin-top: 8px; }
+    .day-intensity-bar.high { background: var(--red); }
+    .day-intensity-bar.moderate { background: var(--yellow); }
+    .day-intensity-bar.low { background: var(--accent); }
+    .day-intensity-bar.rest { background: var(--border); }
+    .day-duration { font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; }
+
+    .weekly-goals-list { list-style: none; }
+    .weekly-goals-list li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--bg-page); font-size: 0.82rem; color: var(--text-secondary); }
+    .weekly-goals-list li:last-child { border-bottom: none; }
+    .goal-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; }
+    .goal-metric { font-weight: 600; color: var(--text-primary); }
+
+    /* ── Plan View ── */
+    .plan-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .plan-summary { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+
+    .assessment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .assessment-item { padding: 10px; background: var(--bg-page); border-radius: 10px; }
+    .assessment-label { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+    .assessment-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+    .assessment-pill { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 500; background: var(--bg-surface); color: var(--text-secondary); }
+
+    .phase-timeline { position: relative; padding-left: 24px; }
+    .phase-timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+    .phase-node { position: relative; padding: 14px 0; }
+    .phase-node::before { content: ''; position: absolute; left: -20px; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--border); border: 2px solid var(--bg-surface); }
+    .phase-node.current::before { background: var(--accent); }
+    .phase-week { font-size: 0.65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+    .phase-name-text { font-size: 0.92rem; font-weight: 600; color: var(--text-primary); }
+    .phase-focus { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    .phase-details { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+    .phase-workouts { list-style: disc; padding-left: 16px; margin-top: 4px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; }
+
+    .principles-list { list-style: decimal; padding-left: 20px; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.8; }
+
+    .milestone-list { display: flex; flex-direction: column; gap: 8px; }
+    .milestone-item { display: flex; gap: 12px; align-items: baseline; }
+    .milestone-time { font-size: 0.72rem; font-weight: 600; color: var(--accent-dark); min-width: 70px; }
+    .milestone-goal { font-size: 0.82rem; color: var(--text-secondary); }
+
+    /* ── Controls ── */
+    .controls-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 0.72rem; color: var(--text-muted); }
+    .regen-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface); font-size: 0.75rem; font-weight: 500; color: var(--text-primary); cursor: pointer; transition: background 0.2s; }
+    .regen-btn:hover { background: var(--bg-page); }
+    .regen-btn:disabled { opacity: 0.5; cursor: default; }
+    .disclaimer { font-size: 0.65rem; color: var(--text-muted); text-align: center; padding: 6px 0; line-height: 1.4; }
+
+    /* ── Quick Stats Footer ── */
+    .quick-stats { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .qs-item { display: flex; flex-direction: column; align-items: center; padding: 8px 14px; background: var(--bg-page); border-radius: 10px; min-width: 70px; }
+    .qs-val { font-size: 1.1rem; font-weight: 700; }
+    .qs-label { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; }
+
+    /* Error content */
+    .ai-error { display: none; text-align: center; padding: 30px 20px; }
+    .ai-error.visible { display: block; }
+    .ai-error-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px; }
+
+    @media (max-width: 640px) {
+      .dashboard { padding: 0 10px 40px; }
+      .tab-bar { padding: 0 10px; }
+      .assessment-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-top">
+      <h1>CV — Training AI</h1>
+      <div class="auth-section hidden" id="authSection">
+        <span class="auth-user" id="authUser"></span>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth Modal -->
+  <div class="auth-modal-backdrop" id="authModal">
+    <div class="auth-modal">
+      <h2 id="authModalTitle">Sign In</h2>
+      <input type="email" id="authEmail" placeholder="Email" autocomplete="email">
+      <input type="password" id="authPassword" placeholder="Password" autocomplete="current-password">
+      <div class="auth-modal-actions">
+        <button class="auth-btn" id="authCancel">Cancel</button>
+        <button class="auth-btn primary" id="authSubmit">Sign In</button>
+      </div>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-toggle">
+        <span id="authToggleText">Don't have an account?</span>
+        <a id="authToggleLink">Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar">
+    <a class="tab-link" href="index.html">Exercise Tracker</a>
+    <a class="tab-link" href="garmin.html">Garmin Readiness</a>
+    <a class="tab-link active" href="training.html">Training AI</a>
+  </nav>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState">
+    <p>Sign in to get AI-powered training recommendations based on your Garmin data.</p>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboardContent">
+
+    <!-- Readiness Hero Bar -->
+    <div class="card" id="readinessHero">
+      <div class="card-title">Current Readiness</div>
+      <div class="readiness-hero" id="readinessHeroContent">
+        <div class="hero-metric">
+          <div class="hm-val" id="heroSleep">--</div>
+          <div class="hm-label">Sleep</div>
+        </div>
+        <div class="hero-metric">
+          <div class="hm-val" id="heroBB">--</div>
+          <div class="hm-label">Body Battery</div>
+        </div>
+        <div class="hero-metric">
+          <div class="hm-val" id="heroHRV">--</div>
+          <div class="hm-label">HRV</div>
+          <div class="hm-badge" id="heroHRVBadge" style="display:none"></div>
+        </div>
+        <div class="hero-metric">
+          <div class="hm-val" id="heroStress">--</div>
+          <div class="hm-label">Stress</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preferences -->
+    <div class="card" id="prefsCard">
+      <button class="prefs-toggle" id="prefsToggle">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+        Training Preferences
+      </button>
+      <div class="prefs-panel" id="prefsPanel">
+        <div class="prefs-row">
+          <div class="prefs-field">
+            <label>Goals</label>
+            <select id="prefGoals">
+              <option value="">Not set</option>
+              <option value="general_fitness">General Fitness</option>
+              <option value="running_endurance">Running / Endurance</option>
+              <option value="strength_building">Strength Building</option>
+              <option value="weight_loss">Weight Loss</option>
+            </select>
+          </div>
+          <div class="prefs-field">
+            <label>Experience</label>
+            <select id="prefExperience">
+              <option value="">Not set</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+        <div class="prefs-row">
+          <div class="prefs-field" style="min-width:100%">
+            <label>Injuries / Notes</label>
+            <input type="text" id="prefInjuries" placeholder="e.g., bad left knee, recovering from surgery">
+          </div>
+        </div>
+        <div class="prefs-save" id="prefsSaveStatus"></div>
+      </div>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="view-toggle" id="viewToggle">
+      <button class="view-btn active" data-view="today">Today</button>
+      <button class="view-btn" data-view="week">This Week</button>
+      <button class="view-btn" data-view="plan">Training Plan</button>
+    </div>
+
+    <!-- AI Loading -->
+    <div class="ai-loading" id="aiLoading">
+      <div class="ai-loading-icon">&#129504;</div>
+      <div class="ai-loading-text">Analyzing your health data...</div>
+      <div class="ai-loading-sub">This may take a few seconds</div>
+    </div>
+
+    <!-- AI Error -->
+    <div class="ai-error" id="aiError">
+      <div class="ai-error-msg" id="aiErrorMsg">Something went wrong. Please try again.</div>
+      <button class="auth-btn primary" id="aiRetryBtn">Retry</button>
+    </div>
+
+    <!-- AI Content: Today -->
+    <div class="ai-content" id="contentToday">
+      <div class="readiness-banner" id="todayReadinessBanner">
+        <div class="rb-level" id="todayReadinessLevel"></div>
+        <div class="rb-summary" id="todayReadinessSummary"></div>
+        <div class="readiness-factors" id="todayReadinessFactors"></div>
+      </div>
+
+      <div class="card">
+        <div class="workout-header">
+          <div class="workout-title" id="todayWorkoutTitle">--</div>
+          <div class="workout-meta">
+            <span class="workout-badge" id="todayIntensityBadge">--</span>
+            <span class="workout-duration" id="todayDuration">--</span>
+          </div>
+        </div>
+        <div class="workout-desc" id="todayWorkoutDesc"></div>
+
+        <div class="phase-section" id="todayWarmup">
+          <div class="phase-label">Warmup</div>
+          <div class="phase-items" id="todayWarmupItems"></div>
+        </div>
+
+        <table class="exercise-table" id="todayExerciseTable">
+          <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Rest</th></tr></thead>
+          <tbody id="todayExerciseBody"></tbody>
+        </table>
+
+        <div class="phase-section" id="todayCooldown" style="margin-top:12px">
+          <div class="phase-label">Cooldown</div>
+          <div class="phase-items" id="todayCooldownItems"></div>
+        </div>
+      </div>
+
+      <div class="alerts-strip" id="todayAlerts"></div>
+
+      <div class="nutrition-card" id="todayNutrition" style="display:none">
+        <span class="nutrition-icon">&#127860;</span>
+        <span id="todayNutritionText"></span>
+      </div>
+    </div>
+
+    <!-- AI Content: Week -->
+    <div class="ai-content" id="contentWeek">
+      <div class="card">
+        <div class="card-title">Weekly Plan</div>
+        <div class="week-summary-text" id="weekSummary"></div>
+        <div class="load-assessment" id="weekLoadAssessment">
+          <div class="load-item">
+            <div class="load-label">Load</div>
+            <div class="load-value" id="weekLoad">--</div>
+          </div>
+          <div class="load-item">
+            <div class="load-label">Trend</div>
+            <div class="load-value" id="weekTrend">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="week-calendar" id="weekCalendar"></div>
+
+      <div class="card" id="weekGoalsCard" style="display:none">
+        <div class="card-title">Weekly Goals</div>
+        <ul class="weekly-goals-list" id="weekGoalsList"></ul>
+      </div>
+
+      <div class="alerts-strip" id="weekAlerts"></div>
+    </div>
+
+    <!-- AI Content: Plan -->
+    <div class="ai-content" id="contentPlan">
+      <div class="card">
+        <div class="plan-name" id="planName">--</div>
+        <div class="plan-summary" id="planSummary"></div>
+      </div>
+
+      <div class="card" id="planAssessmentCard">
+        <div class="card-title">Current Assessment</div>
+        <div class="assessment-grid" id="planAssessment"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Training Phases</div>
+        <div class="phase-timeline" id="planTimeline"></div>
+      </div>
+
+      <div class="card" id="planPrinciplesCard" style="display:none">
+        <div class="card-title">Training Principles</div>
+        <ol class="principles-list" id="planPrinciples"></ol>
+      </div>
+
+      <div class="card" id="planMilestonesCard" style="display:none">
+        <div class="card-title">Milestones</div>
+        <div class="milestone-list" id="planMilestones"></div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar" id="controlsBar" style="display:none">
+      <span id="generatedAt">--</span>
+      <button class="regen-btn" id="regenBtn">Regenerate</button>
+    </div>
+    <div class="disclaimer" id="disclaimer" style="display:none">
+      AI-generated recommendations. Consult a physician before starting a new exercise program.
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="card" id="quickStatsCard" style="display:none">
+      <div class="card-title">This Week</div>
+      <div class="quick-stats" id="quickStats"></div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" src="src/trainingDashboard.js"></script>
+</body>
+</html>
