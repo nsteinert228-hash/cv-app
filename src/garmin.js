@@ -123,8 +123,8 @@ export async function getDailySummaryDetailed() {
   if (!client) return null;
 
   const { data, error } = await client
-    .from('daily_summaries')
-    .select('date, steps, calories_total, calories_active, stress_avg, stress_max, stress_qualifier, intensity_minutes, floors_climbed, resting_heart_rate, min_heart_rate, max_heart_rate, distance_meters, rest_stress_duration, low_stress_duration, medium_stress_duration, high_stress_duration')
+    .from('daily_summary_extended')
+    .select('date, steps, calories_total, calories_active, calories_bmr, stress_avg, stress_max, stress_qualifier, intensity_minutes, floors_climbed, resting_heart_rate, min_heart_rate, max_heart_rate, distance_meters, bb_high, bb_low, bb_current, bb_charged, bb_drained, step_goal, intensity_goal, floors_goal, rhr_7d_avg, rest_stress_duration, low_stress_duration, medium_stress_duration, high_stress_duration, highly_active_seconds, sedentary_seconds, moderate_intensity_min, vigorous_intensity_min')
     .order('date', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -177,4 +177,54 @@ export async function getRespiration() {
 
   if (error) throw error;
   return data;
+}
+
+export async function getRecentActivities(limit = 5) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from('activities')
+    .select('activity_id, date, activity_type, name, start_time, duration_seconds, distance_meters, calories, avg_heart_rate, max_heart_rate, elevation_gain_meters')
+    .order('date', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getBodyCompositionTrend(days = 14) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceStr = since.toISOString().split('T')[0];
+
+  const { data, error } = await client
+    .from('body_composition')
+    .select('date, weight_kg, body_fat_pct, muscle_mass_kg')
+    .gte('date', sinceStr)
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getDailyTrend(days = 14) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceStr = since.toISOString().split('T')[0];
+
+  const { data, error } = await client
+    .from('daily_summaries')
+    .select('date, resting_heart_rate, steps')
+    .gte('date', sinceStr)
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
 }

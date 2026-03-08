@@ -17,6 +17,9 @@
       --border: #e5e7eb;
       --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
       --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --blue: #60a5fa;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -69,339 +72,15 @@
     .auth-modal input:focus { border-color: var(--accent); }
     .auth-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
     .auth-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
-    .auth-error { color: #ef4444; font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
+    .auth-error { color: var(--red); font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
     .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
     .auth-toggle a { color: var(--accent-dark); cursor: pointer; text-decoration: underline; }
 
     /* Tabs */
-    .tab-bar {
-      display: flex;
-      gap: 0;
-      width: 100%;
-      max-width: 640px;
-      padding: 0 20px;
-      margin-bottom: 16px;
-    }
-
-    .tab-link {
-      flex: 1;
-      text-align: center;
-      padding: 10px 0;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-decoration: none;
-      border-bottom: 2px solid transparent;
-      transition: color 0.2s, border-color 0.2s;
-    }
-
+    .tab-bar { display: flex; width: 100%; max-width: 640px; padding: 0 20px; margin-bottom: 0; }
+    .tab-link { flex: 1; text-align: center; padding: 10px 0; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
     .tab-link:hover { color: var(--text-secondary); }
     .tab-link.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
-
-    /* Layout */
-    .dashboard {
-      display: none;
-      width: 100%;
-      max-width: 640px;
-      padding: 0 16px 40px;
-      gap: 14px;
-      flex-direction: column;
-    }
-
-    .dashboard.visible { display: flex; }
-
-    .card {
-      background: var(--bg-surface);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .card-title {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 14px;
-    }
-
-    /* Readiness + Battery row */
-    .top-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
-    .readiness-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .readiness-card canvas {
-      width: 140px;
-      height: 140px;
-    }
-
-    /* Body battery */
-    .bb-bar-wrap {
-      margin: 10px 0 12px;
-    }
-
-    .bb-bar-wrap canvas {
-      width: 100%;
-      height: 32px;
-    }
-
-    .bb-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
-
-    .bb-stat {
-      text-align: center;
-    }
-
-    .bb-stat .val {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .bb-stat .lbl {
-      font-size: 0.68rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-
-    .bb-stat .val.charged { color: #10b981; }
-    .bb-stat .val.drained { color: #ef4444; }
-
-    /* Sleep */
-    .sleep-bar-wrap {
-      margin-bottom: 12px;
-    }
-
-    .sleep-bar-wrap canvas {
-      width: 100%;
-      height: 36px;
-    }
-
-    .sleep-total {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin-bottom: 10px;
-    }
-
-    .sleep-legend {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-    }
-
-    .sleep-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-    }
-
-    .sleep-legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 3px;
-    }
-
-    .sleep-scores {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
-
-    .sleep-score-item {
-      text-align: center;
-      padding: 8px 4px;
-      background: var(--bg-page);
-      border-radius: 10px;
-    }
-
-    .sleep-score-item .val {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .sleep-score-item .lbl {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-
-    /* HRV */
-    .hrv-chart-wrap canvas {
-      width: 100%;
-      height: 160px;
-    }
-
-    /* Stress */
-    .stress-row {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-
-    .stress-row canvas {
-      width: 120px;
-      height: 120px;
-      flex-shrink: 0;
-    }
-
-    .stress-legend {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .stress-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.82rem;
-      color: var(--text-secondary);
-    }
-
-    .stress-legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    /* Quick stats */
-    .quick-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .quick-stat {
-      text-align: center;
-      padding: 12px 8px;
-      background: var(--bg-page);
-      border-radius: 12px;
-    }
-
-    .quick-stat .val {
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .quick-stat .lbl {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin-top: 2px;
-    }
-
-    .quick-stat .unit {
-      font-size: 0.72rem;
-      font-weight: 400;
-      color: var(--text-secondary);
-    }
-
-    /* Steps progress */
-    .steps-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .steps-info {
-      flex-shrink: 0;
-    }
-
-    .steps-info .val {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .steps-info .goal {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-    }
-
-    .steps-progress {
-      flex: 1;
-      height: 10px;
-      background: var(--border);
-      border-radius: 5px;
-      overflow: hidden;
-    }
-
-    .steps-progress-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 5px;
-      transition: width 0.5s ease;
-    }
-
-    /* Empty state */
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      width: 100%;
-      max-width: 640px;
-    }
-
-    .empty-state p {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      margin-bottom: 16px;
-    }
-
-    /* Garmin connect modal */
-    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
-    .garmin-modal-backdrop.visible { display: flex; }
-    .garmin-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
-    .garmin-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
-    .garmin-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
-    .garmin-modal input:focus { border-color: var(--accent); }
-    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
-    .garmin-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
-    .garmin-error { color: #ef4444; font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
-    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
-
-    /* Skeleton shimmer */
-    @keyframes shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
-    }
-
-    .skeleton {
-      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      border-radius: 8px;
-    }
-
-    .skeleton-text {
-      display: inline-block;
-      width: 3em;
-      height: 1.2em;
-      vertical-align: middle;
-    }
 
     /* Status bar */
     .status-bar {
@@ -414,132 +93,176 @@
       align-items: center;
       gap: 8px;
     }
-
     .status-bar.visible { display: flex; }
-
-    .status-bar .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--text-muted);
-    }
-
+    .status-bar .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); }
     .status-bar .status-dot.active { background: var(--accent); }
-    .status-bar .status-dot.pending { background: #f59e0b; }
-    .status-bar .status-dot.error { background: #ef4444; }
-    .status-bar .status-dot.syncing {
-      background: #60a5fa;
-      animation: pulse-dot 1s infinite;
-    }
-
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
+    .status-bar .status-dot.pending { background: var(--yellow); }
+    .status-bar .status-dot.error { background: var(--red); }
+    .status-bar .status-dot.syncing { background: var(--blue); animation: pulse-dot 1s infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .status-bar .status-text { flex: 1; }
-
-    .status-bar .sync-link {
-      color: var(--accent-dark);
-      cursor: pointer;
-      text-decoration: underline;
-      font-weight: 500;
-      background: none;
-      border: none;
-      font-size: 0.78rem;
-      padding: 0;
-    }
-
-    .status-bar .sync-link:disabled {
-      color: var(--text-muted);
-      cursor: default;
-      text-decoration: none;
-    }
-
-    .status-bar .disconnect-link {
-      color: var(--text-muted);
-      cursor: pointer;
-      text-decoration: none;
-      font-size: 0.72rem;
-      background: none;
-      border: none;
-      padding: 0;
-      margin-left: 4px;
-    }
-
-    .status-bar .disconnect-link:hover {
-      color: #ef4444;
-      text-decoration: underline;
-    }
+    .status-bar .sync-link { color: var(--accent-dark); cursor: pointer; text-decoration: underline; font-weight: 500; background: none; border: none; font-size: 0.78rem; padding: 0; }
+    .status-bar .sync-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
+    .status-bar .disconnect-link { color: var(--text-muted); cursor: pointer; text-decoration: none; font-size: 0.72rem; background: none; border: none; padding: 0; margin-left: 4px; }
+    .status-bar .disconnect-link:hover { color: var(--red); text-decoration: underline; }
 
     /* Error banner */
-    .error-banner {
-      display: none;
-      width: 100%;
-      max-width: 640px;
-      padding: 12px 20px;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: 12px;
-      align-items: center;
-      gap: 10px;
-      font-size: 0.82rem;
-      color: #991b1b;
-      margin-bottom: 10px;
-    }
-
+    .error-banner { display: none; width: 100%; max-width: 640px; padding: 12px 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; align-items: center; gap: 10px; font-size: 0.82rem; color: #991b1b; margin-bottom: 10px; }
     .error-banner.visible { display: flex; }
-
     .error-banner .error-msg { flex: 1; }
+    .error-banner .error-action { padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff; color: #991b1b; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+    .error-banner .error-dismiss { background: none; border: none; color: #991b1b; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
 
-    .error-banner .error-action {
-      padding: 5px 12px;
-      border: 1px solid #fca5a5;
-      border-radius: 6px;
-      background: #fff;
-      color: #991b1b;
-      font-size: 0.75rem;
+    /* Skeleton shimmer */
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+
+    /* Layout */
+    .dashboard { display: none; width: 100%; max-width: 640px; padding: 0 16px 40px; gap: 14px; flex-direction: column; }
+    .dashboard.visible { display: flex; }
+
+    .card { background: var(--bg-surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-sm); }
+    .card-title { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 14px; }
+    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-muted); font-size: 0.82rem; }
+
+    /* ── Section 1: Readiness Hero ── */
+    .readiness-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .readiness-item { display: flex; flex-direction: column; align-items: center; }
+    .readiness-item canvas { width: 130px; height: 130px; }
+    .readiness-item .ri-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; }
+
+    .hrv-status-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .hrv-big { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .hrv-unit { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+    .hrv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .hrv-badge.balanced { background: var(--accent-light); color: var(--accent-dark); }
+    .hrv-badge.low { background: #fef3c7; color: #92400e; }
+    .hrv-badge.high { background: #dbeafe; color: #1e40af; }
+    .hrv-baseline { font-size: 0.68rem; color: var(--text-muted); margin-top: 6px; }
+
+    .readiness-summary {
+      text-align: center;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      padding: 10px 16px 0;
       font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
     }
 
-    .error-banner .error-action:hover { background: #fef2f2; }
-
-    .error-banner .error-dismiss {
-      background: none;
-      border: none;
-      color: #991b1b;
-      cursor: pointer;
-      font-size: 1.1rem;
-      line-height: 1;
-      padding: 0 2px;
+    /* ── Section 2: Recent Activity ── */
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
     }
+    .activity-item:last-child { border-bottom: none; }
 
-    /* Card inline error */
-    .card-error {
+    .activity-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100%;
-      min-height: 80px;
-      color: var(--text-muted);
-      font-size: 0.82rem;
-      text-align: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      background: var(--bg-page);
     }
+
+    .activity-info { flex: 1; min-width: 0; }
+    .activity-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+    .activity-stats { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
+    .activity-ago { font-size: 0.72rem; color: var(--text-muted); flex-shrink: 0; text-align: right; }
+
+    /* Activity streak */
+    .activity-streak { display: flex; gap: 4px; margin-top: 14px; align-items: center; }
+    .streak-dot { width: 18px; height: 18px; border-radius: 4px; background: var(--border); }
+    .streak-dot.active { background: var(--accent); }
+    .streak-dot.rest { background: var(--border); }
+    .streak-label { font-size: 0.65rem; color: var(--text-muted); margin-left: 6px; }
+
+    /* ── Section 3: Daily Stats ── */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-page); border-radius: 12px; }
+    .stat-item .val { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+    .stat-item .unit { font-size: 0.7rem; font-weight: 400; color: var(--text-secondary); }
+    .stat-item .lbl { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+    .stat-item .sub { font-size: 0.62rem; color: var(--text-muted); margin-top: 1px; }
+
+    .progress-row { display: flex; gap: 10px; margin-bottom: 14px; }
+    .progress-item { flex: 1; }
+    .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+    .progress-header .val { font-size: 1rem; font-weight: 600; }
+    .progress-header .goal { font-size: 0.72rem; color: var(--text-muted); }
+    .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.5s ease; }
+
+    /* ── Section 4: Sleep ── */
+    .sleep-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .sleep-total { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+    .sleep-times { font-size: 0.75rem; color: var(--text-muted); }
+
+    .sleep-bar-wrap { margin-bottom: 12px; }
+    .sleep-bar-wrap canvas { width: 100%; height: 36px; }
+
+    .sleep-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .sleep-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-secondary); }
+    .sleep-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+    .sleep-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .sleep-score-item { text-align: center; padding: 8px 4px; background: var(--bg-page); border-radius: 10px; }
+    .sleep-score-item .val { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+    .sleep-score-item .lbl { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+    /* ── Section 5: Trends ── */
+    .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .trend-card canvas { width: 100%; height: 120px; }
+    .trend-card .card-title { margin-bottom: 8px; }
+
+    /* ── Section 6: Stress ── */
+    .stress-row { display: flex; gap: 16px; align-items: center; }
+    .stress-row canvas { width: 120px; height: 120px; flex-shrink: 0; }
+    .stress-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .stress-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-secondary); }
+    .stress-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Section 7: Training Log ── */
+    .training-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .training-table th { text-align: left; padding: 6px 8px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+    .training-table td { padding: 10px 8px; border-bottom: 1px solid var(--bg-page); color: var(--text-secondary); }
+    .training-table td:first-child { color: var(--text-primary); font-weight: 500; }
+    .training-table tr:last-child td { border-bottom: none; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; width: 100%; max-width: 640px; }
+    .empty-state p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px; }
+
+    /* Garmin connect modal */
+    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    .garmin-modal-backdrop.visible { display: flex; }
+    .garmin-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+    .garmin-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
+    .garmin-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
+    .garmin-modal input:focus { border-color: var(--accent); }
+    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .garmin-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
+    .garmin-error { color: var(--red); font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
+    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
 
     @media (max-width: 640px) {
       .dashboard { padding: 0 10px 40px; }
-      .top-row { grid-template-columns: 1fr 1fr; gap: 10px; }
-      .quick-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-      .sleep-scores { grid-template-columns: repeat(4, 1fr); }
+      .readiness-row { gap: 8px; }
+      .readiness-item canvas { width: 100px; height: 100px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .trends-grid { grid-template-columns: 1fr; }
       .tab-bar { padding: 0 10px; }
     }
 
     @media (max-width: 400px) {
-      .top-row { grid-template-columns: 1fr; }
-      .quick-stats { grid-template-columns: repeat(2, 1fr); }
+      .readiness-row { grid-template-columns: 1fr; gap: 10px; }
+      .progress-row { flex-direction: column; }
       .sleep-scores { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
@@ -604,42 +327,93 @@
   <!-- Dashboard -->
   <div class="dashboard" id="dashboardContent">
 
-    <!-- Row 1: Readiness gauge + Body battery -->
-    <div class="top-row">
-      <div class="card readiness-card">
-        <div class="card-title">Sleep Score</div>
-        <canvas id="readinessGauge"></canvas>
-      </div>
-      <div class="card">
-        <div class="card-title">Daily Overview</div>
-        <div class="bb-bar-wrap">
-          <canvas id="bodyBatteryBar"></canvas>
+    <!-- 1. Readiness Hero -->
+    <div class="card" id="readinessCard">
+      <div class="card-title">Today's Readiness</div>
+      <div class="readiness-row">
+        <div class="readiness-item">
+          <canvas id="sleepGauge"></canvas>
+          <div class="ri-label">Sleep Score</div>
         </div>
-        <div class="bb-stats">
-          <div class="bb-stat">
-            <div class="val" id="bbStart">--</div>
-            <div class="lbl">Rest HR</div>
+        <div class="readiness-item">
+          <canvas id="bbGauge"></canvas>
+          <div class="ri-label">Body Battery</div>
+        </div>
+        <div class="readiness-item hrv-status-card">
+          <div class="hrv-big" id="hrvValue">--</div>
+          <div class="hrv-unit">ms HRV</div>
+          <div class="hrv-badge balanced" id="hrvBadge">--</div>
+          <div class="hrv-baseline" id="hrvBaseline"></div>
+        </div>
+      </div>
+      <div class="readiness-summary" id="readinessSummary"></div>
+    </div>
+
+    <!-- 2. Recent Activity -->
+    <div class="card" id="activityCard">
+      <div class="card-title">Recent Activity</div>
+      <div id="activityList"></div>
+      <div class="activity-streak" id="activityStreak"></div>
+    </div>
+
+    <!-- 3. Daily Stats -->
+    <div class="card" id="dailyStatsCard">
+      <div class="card-title">Today's Stats</div>
+      <div class="progress-row">
+        <div class="progress-item">
+          <div class="progress-header">
+            <span class="val" id="qSteps">--</span>
+            <span class="goal">of <span id="qStepsGoal">--</span></span>
           </div>
-          <div class="bb-stat">
-            <div class="val" id="bbEnd">--</div>
-            <div class="lbl">Avg Stress</div>
+          <div class="progress-bar"><div class="progress-fill" id="stepsProgressFill" style="width:0%"></div></div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">STEPS</div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span class="val" id="qIntensity">--</span>
+            <span class="goal">of <span id="qIntensityGoal">150</span></span>
           </div>
-          <div class="bb-stat">
-            <div class="val charged" id="bbCharged">--</div>
-            <div class="lbl">Active Cal</div>
+          <div class="progress-bar"><div class="progress-fill" id="intensityProgressFill" style="width:0%"></div></div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">INTENSITY MIN</div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span class="val" id="qFloors">--</span>
+            <span class="goal">of <span id="qFloorsGoal">10</span></span>
           </div>
-          <div class="bb-stat">
-            <div class="val drained" id="bbDrained">--</div>
-            <div class="lbl">Total Cal</div>
-          </div>
+          <div class="progress-bar"><div class="progress-fill" id="floorsProgressFill" style="width:0%"></div></div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">FLOORS</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="val"><span id="qHR">--</span> <span class="unit">bpm</span></div>
+          <div class="lbl">Resting HR</div>
+          <div class="sub" id="qHR7d"></div>
+        </div>
+        <div class="stat-item">
+          <div class="val"><span id="qActiveCal">--</span></div>
+          <div class="lbl">Active Cal</div>
+          <div class="sub" id="qTotalCal"></div>
+        </div>
+        <div class="stat-item">
+          <div class="val" id="qSpo2">--</div>
+          <div class="lbl">SpO2</div>
+        </div>
+        <div class="stat-item">
+          <div class="val"><span id="qResp">--</span> <span class="unit">brpm</span></div>
+          <div class="lbl">Respiration</div>
         </div>
       </div>
     </div>
 
-    <!-- Row 2: Sleep -->
-    <div class="card">
+    <!-- 4. Sleep -->
+    <div class="card" id="sleepCard">
       <div class="card-title">Sleep</div>
-      <div class="sleep-total" id="sleepTotal">--</div>
+      <div class="sleep-header-row">
+        <div class="sleep-total" id="sleepTotal">--</div>
+        <div class="sleep-times" id="sleepTimes"></div>
+      </div>
       <div class="sleep-bar-wrap">
         <canvas id="sleepBar"></canvas>
       </div>
@@ -664,96 +438,67 @@
       <div class="sleep-scores">
         <div class="sleep-score-item">
           <div class="val" id="scoreOverall">--</div>
-          <div class="lbl">Overall</div>
+          <div class="lbl">Score</div>
         </div>
         <div class="sleep-score-item">
-          <div class="val" id="scoreQuality">--</div>
+          <div class="val" id="scoreResp">--</div>
+          <div class="lbl">Resp</div>
+        </div>
+        <div class="sleep-score-item">
+          <div class="val" id="scoreSpo2">--</div>
           <div class="lbl">SpO2</div>
         </div>
         <div class="sleep-score-item">
           <div class="val" id="scoreDuration">--</div>
-          <div class="lbl">Total</div>
-        </div>
-        <div class="sleep-score-item">
-          <div class="val" id="scoreRecovery">--</div>
-          <div class="lbl">Resp</div>
+          <div class="lbl">Duration</div>
         </div>
       </div>
     </div>
 
-    <!-- Row 3: HRV trend -->
-    <div class="card">
-      <div class="card-title">HRV — 14 Day Trend</div>
-      <div class="hrv-chart-wrap">
+    <!-- 5. Trends -->
+    <div class="trends-grid">
+      <div class="card trend-card">
+        <div class="card-title">HRV — 14 Day</div>
         <canvas id="hrvChart"></canvas>
       </div>
+      <div class="card trend-card">
+        <div class="card-title">Resting HR — 14 Day</div>
+        <canvas id="rhrChart"></canvas>
+      </div>
+      <div class="card trend-card">
+        <div class="card-title">Weight</div>
+        <canvas id="weightChart"></canvas>
+      </div>
+      <div class="card trend-card">
+        <div class="card-title">Body Fat %</div>
+        <canvas id="bodyFatChart"></canvas>
+      </div>
     </div>
 
-    <!-- Row 4: Stress -->
-    <div class="card">
+    <!-- 6. Stress -->
+    <div class="card" id="stressCard">
       <div class="card-title">Stress Distribution</div>
       <div class="stress-row">
         <canvas id="stressDonut"></canvas>
         <div class="stress-legend">
-          <div class="stress-legend-item">
-            <div class="stress-legend-dot" style="background:#10b981"></div>
-            Rest
-          </div>
-          <div class="stress-legend-item">
-            <div class="stress-legend-dot" style="background:#60a5fa"></div>
-            Low
-          </div>
-          <div class="stress-legend-item">
-            <div class="stress-legend-dot" style="background:#f59e0b"></div>
-            Medium
-          </div>
-          <div class="stress-legend-item">
-            <div class="stress-legend-dot" style="background:#ef4444"></div>
-            High
-          </div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#10b981"></div> Rest <strong id="stressRest">--</strong></div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#60a5fa"></div> Low <strong id="stressLow">--</strong></div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#f59e0b"></div> Medium <strong id="stressMed">--</strong></div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#ef4444"></div> High <strong id="stressHigh">--</strong></div>
         </div>
       </div>
       <span id="stressAvgValue" data-value="--" style="display:none"></span>
     </div>
 
-    <!-- Row 5: Quick stats -->
-    <div class="card">
-      <div class="card-title">Today's Stats</div>
-      <div class="steps-row">
-        <div class="steps-info">
-          <div class="val" id="qSteps">--</div>
-          <div class="goal">of <span id="qStepsGoal">10,000</span> steps</div>
-        </div>
-        <div class="steps-progress">
-          <div class="steps-progress-fill" id="stepsProgressFill" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="quick-stats">
-        <div class="quick-stat">
-          <div class="val"><span id="qHR">--</span> <span class="unit">bpm</span></div>
-          <div class="lbl">Resting HR</div>
-        </div>
-        <div class="quick-stat">
-          <div class="val"><span id="qHR7d">--</span> <span class="unit">bpm</span></div>
-          <div class="lbl">Min HR</div>
-        </div>
-        <div class="quick-stat">
-          <div class="val" id="qSpo2">--</div>
-          <div class="lbl">SpO2</div>
-        </div>
-        <div class="quick-stat">
-          <div class="val"><span id="qResp">--</span> <span class="unit">brpm</span></div>
-          <div class="lbl">Respiration</div>
-        </div>
-        <div class="quick-stat">
-          <div class="val"><span id="qIntensity">--</span> <span class="unit">min</span></div>
-          <div class="lbl">Intensity Min</div>
-        </div>
-        <div class="quick-stat">
-          <div class="val" id="qFloors">--</div>
-          <div class="lbl">Floors</div>
-        </div>
-      </div>
+    <!-- 7. Training Log -->
+    <div class="card" id="trainingCard">
+      <div class="card-title">Training Log</div>
+      <table class="training-table" id="trainingTable">
+        <thead>
+          <tr><th>Activity</th><th>Dist</th><th>Time</th><th>Avg HR</th><th>Cal</th></tr>
+        </thead>
+        <tbody id="trainingBody"></tbody>
+      </table>
     </div>
 
   </div>
