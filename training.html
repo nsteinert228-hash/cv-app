@@ -245,6 +245,86 @@
     .ai-error.visible { display: block; }
     .ai-error-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px; }
 
+    /* ── Season Banner ── */
+    .season-banner { display: none; padding: 12px 16px; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow-sm); }
+    .season-banner.visible { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .season-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+    .season-progress { font-size: 0.72rem; color: var(--text-secondary); }
+    .season-adherence { font-size: 0.72rem; font-weight: 600; color: var(--accent-dark); }
+    .season-progress-bar { height: 4px; background: var(--border); border-radius: 2px; flex: 1; min-width: 60px; max-width: 120px; }
+    .season-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+    /* ── Adaptation Feed ── */
+    .adaptation-feed { display: none; }
+    .adapt-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; margin-bottom: 6px; font-size: 0.82rem; }
+    .adapt-recovery { background: #fef3c7; color: #92400e; }
+    .adapt-performance { background: #dbeafe; color: #1e40af; }
+    .adapt-schedule { background: var(--bg-page); color: var(--text-secondary); }
+    .adapt-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .adapt-content { flex: 1; }
+    .adapt-summary { font-weight: 500; }
+    .adapt-date { font-size: 0.7rem; color: inherit; opacity: 0.7; margin-top: 2px; }
+    .adapt-dismiss { padding: 4px 10px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; font-size: 0.7rem; font-weight: 500; cursor: pointer; opacity: 0.7; flex-shrink: 0; }
+    .adapt-dismiss:hover { opacity: 1; }
+
+    /* ── Workout Logger ── */
+    .workout-logger { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .logger-title { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+    .logger-exercises { display: flex; flex-direction: column; gap: 8px; }
+    .logger-row { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-page); border-radius: 8px; flex-wrap: wrap; }
+    .logger-check { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 120px; font-size: 0.82rem; font-weight: 500; cursor: pointer; }
+    .logger-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+    .logger-fields { display: flex; gap: 8px; }
+    .logger-fields label { font-size: 0.7rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+    .logger-input { width: 50px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; text-align: center; }
+    .logger-notes { margin-top: 8px; }
+    .logger-notes-input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; resize: none; font-family: inherit; }
+    .logger-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-primary { padding: 8px 16px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-secondary { padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface); color: var(--text-primary); font-size: 0.78rem; font-weight: 500; cursor: pointer; }
+    .btn-secondary:hover { background: var(--bg-page); }
+    .btn-ghost { padding: 8px 16px; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 0.78rem; font-weight: 500; cursor: pointer; }
+    .btn-ghost:hover { color: var(--text-secondary); }
+    .logger-status { font-size: 0.75rem; margin-top: 8px; min-height: 1em; }
+    .logger-status.saving { color: var(--text-muted); }
+    .logger-status.error { color: var(--red); }
+
+    /* Logged status */
+    .workout-logged { padding: 12px 16px; border-radius: 10px; margin-top: 16px; }
+    .workout-logged.logged-complete { background: var(--accent-light); }
+    .workout-logged.logged-partial { background: #fef3c7; }
+    .workout-logged.logged-skipped { background: var(--bg-page); }
+    .logged-header { display: flex; justify-content: space-between; align-items: center; }
+    .logged-badge { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
+    .logged-adherence { font-size: 0.78rem; font-weight: 600; color: var(--accent-dark); }
+    .logged-notes { font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px; }
+    .logged-source { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Garmin match */
+    .garmin-match { padding: 12px; background: #dbeafe; border-radius: 10px; margin-bottom: 12px; }
+    .garmin-match-header { font-size: 0.78rem; font-weight: 600; color: #1e40af; margin-bottom: 6px; }
+    .garmin-match-detail { display: flex; gap: 12px; font-size: 0.78rem; color: #1e40af; margin-bottom: 8px; flex-wrap: wrap; }
+    .garmin-match-none { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 12px; }
+    .logger-manual-cardio { display: flex; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+    .logger-manual-cardio label { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+    .logger-manual-cardio .logger-input { width: 80px; }
+
+    /* Week day logged status */
+    .day-log-badge { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: 8px; margin-top: 4px; display: inline-block; }
+    .day-log-badge.done { background: var(--accent-light); color: var(--accent-dark); }
+    .day-log-badge.partial { background: #fef3c7; color: #92400e; }
+    .day-log-badge.skipped { background: #fee2e2; color: #991b1b; }
+    .day-log-badge.pending { background: var(--bg-page); color: var(--text-muted); }
+
+    /* ── Season Creation / Completion Modal ── */
+    .season-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    .season-modal.visible { display: flex; }
+    .season-modal-content { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 400px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); text-align: center; }
+    .season-modal-content h2 { font-size: 1.1rem; margin-bottom: 8px; }
+    .season-modal-content p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
+    .season-modal-actions { display: flex; gap: 8px; justify-content: center; }
+
     @media (max-width: 640px) {
       .dashboard { padding: 0 10px 40px; }
       .tab-bar { padding: 0 10px; }
@@ -359,6 +439,19 @@
       </div>
     </div>
 
+    <!-- Season Banner -->
+    <div class="season-banner" id="seasonBanner">
+      <div>
+        <div class="season-name" id="seasonName">--</div>
+        <div class="season-progress" id="seasonProgress">--</div>
+      </div>
+      <div class="season-progress-bar"><div class="season-progress-fill" id="seasonProgressFill" style="width:0"></div></div>
+      <div class="season-adherence" id="seasonAdherence"></div>
+    </div>
+
+    <!-- Adaptation Feed -->
+    <div class="adaptation-feed" id="adaptationFeed"></div>
+
     <!-- View Toggle -->
     <div class="view-toggle" id="viewToggle">
       <button class="view-btn active" data-view="today">Today</button>
@@ -412,6 +505,9 @@
           <div class="phase-items" id="todayCooldownItems"></div>
         </div>
       </div>
+
+      <!-- Workout Logger -->
+      <div id="workoutLoggerContainer"></div>
 
       <div class="alerts-strip" id="todayAlerts"></div>
 
@@ -491,6 +587,17 @@
       <div class="quick-stats" id="quickStats"></div>
     </div>
 
+  </div>
+
+  <!-- Season Modal -->
+  <div class="season-modal" id="seasonModal">
+    <div class="season-modal-content">
+      <h2 id="seasonModalTitle">Start Your Training Season</h2>
+      <p id="seasonModalText">Ready to start your 8-week personalized training season? We'll analyze your health data and create a progressive plan.</p>
+      <div class="season-modal-actions" id="seasonModalActions">
+        <button class="btn-primary" id="seasonModalConfirm">Start Season</button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
