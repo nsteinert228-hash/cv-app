@@ -21,18 +21,21 @@ Rules:
 - Each daily workout must have specific exercises with sets, reps, rest times, and form cues
 - Cardio workouts should specify type (running, cycling, swimming), duration, and intensity zone
 - Rest and recovery days should include active recovery suggestions
-- If previous season data is provided, build on it — progress from where they left off`;
+- If previous season data is provided, build on it — progress from where they left off
+- IMPORTANT: Keep the response compact. Use short exercise names and brief notes.`;
 
 const SEASON_SCHEMA = `{
   "plan": {
     "name": "e.g. 8-Week Strength Foundation",
-    "summary": "2-3 sentence overview of the season goals and approach",
+    "summary": "2-3 sentence overview of the training strategy and expected outcomes",
     "phases": [
       {
         "weeks": [1, 2],
         "name": "e.g. Foundation",
-        "focus": "string",
-        "intensity_range": "e.g. Low to Moderate"
+        "focus": "1-2 sentence description of phase goals",
+        "intensity_range": "e.g. Low to Moderate",
+        "sessions_per_week": 5,
+        "key_workouts": ["e.g. Upper Body Push", "Lower Body Strength", "Easy Run"]
       }
     ],
     "principles": ["e.g. Progressive overload on compound movements"],
@@ -41,37 +44,46 @@ const SEASON_SCHEMA = `{
       "fitness_level": "beginner | intermediate | advanced",
       "strengths": ["string"],
       "areas_to_improve": ["string"],
-      "training_age_estimate": "string"
+      "training_age_estimate": "e.g. 6-12 months"
     }
   },
-  "daily_workouts": [
+  "weekly_templates": [
     {
-      "day_offset": 0,
-      "week_number": 1,
-      "day_of_week": 1,
-      "workout_type": "strength | cardio | recovery | mixed | rest",
-      "title": "e.g. Upper Body Strength",
-      "intensity": "high | moderate | low | rest",
-      "duration_minutes": 45,
-      "prescription": {
-        "description": "2-3 sentence overview",
-        "warmup": { "duration_minutes": 5, "activities": ["string"] },
-        "main_workout": [
-          {
-            "exercise": "string",
-            "sets": 3,
-            "reps": "8-12 or 30 min or 2 miles",
-            "rest_seconds": 60,
-            "notes": "form cues or zone target"
+      "phase_name": "Foundation",
+      "applies_to_weeks": [1, 2],
+      "days": [
+        {
+          "day_of_week": 1,
+          "workout_type": "strength | cardio | recovery | mixed | rest",
+          "title": "e.g. Upper Body Strength",
+          "intensity": "high | moderate | low | rest",
+          "duration_minutes": 45,
+          "prescription": {
+            "description": "1-2 sentence overview",
+            "warmup": ["5 min light cardio", "dynamic stretches"],
+            "exercises": [
+              {
+                "exercise": "string",
+                "sets": 3,
+                "reps": "8-12",
+                "rest_seconds": 60,
+                "notes": "optional brief cue"
+              }
+            ],
+            "cooldown": ["5 min stretch"]
           }
-        ],
-        "cooldown": { "duration_minutes": 5, "activities": ["string"] }
-      }
+        }
+      ]
     }
   ]
 }
 
-IMPORTANT: daily_workouts must contain exactly {TOTAL_DAYS} entries, one for each day of the season, ordered by day_offset (0 to {LAST_DAY}). day_of_week uses 1=Monday through 7=Sunday.`;
+IMPORTANT:
+- Each weekly_template must have exactly 7 days (day_of_week 1=Monday to 7=Sunday)
+- Provide one template per phase. A phase can span multiple weeks.
+- Use 2-4 phases total for an 8-week plan.
+- Progressive overload: later phases should increase volume/intensity from earlier ones.
+- Keep exercise lists concise (3-6 exercises per workout, brief notes).`;
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -84,7 +96,6 @@ function jsonResponse(body: unknown, status = 200) {
 
 function getStartDate(): Date {
   const now = new Date();
-  // Start on next Monday if today is not Monday
   const day = now.getDay();
   const daysUntilMonday = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
   const start = new Date(now);
@@ -101,6 +112,83 @@ function addDays(date: Date, days: number): Date {
 
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
+}
+
+// ── Expand weekly templates into daily workout rows ─────────
+
+interface DayTemplate {
+  day_of_week: number;
+  workout_type: string;
+  title: string;
+  intensity: string;
+  duration_minutes: number | null;
+  prescription: Record<string, unknown>;
+}
+
+interface WeeklyTemplate {
+  phase_name: string;
+  applies_to_weeks: number[];
+  days: DayTemplate[];
+}
+
+function expandTemplates(
+  templates: WeeklyTemplate[],
+  durationWeeks: number,
+  startDate: Date,
+  seasonId: string,
+  userId: string,
+): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+
+  // Build a map: weekNumber -> template
+  const weekTemplateMap = new Map<number, WeeklyTemplate>();
+  for (const tpl of templates) {
+    for (const w of tpl.applies_to_weeks) {
+      weekTemplateMap.set(w, tpl);
+    }
+  }
+
+  for (let week = 1; week <= durationWeeks; week++) {
+    const tpl = weekTemplateMap.get(week) || templates[templates.length - 1];
+    const days = tpl.days || [];
+
+    for (let dow = 1; dow <= 7; dow++) {
+      const dayOffset = (week - 1) * 7 + (dow - 1);
+      const workoutDate = addDays(startDate, dayOffset);
+      const dayTpl = days.find((d: DayTemplate) => d.day_of_week === dow);
+
+      if (dayTpl) {
+        rows.push({
+          season_id: seasonId,
+          user_id: userId,
+          date: formatDate(workoutDate),
+          week_number: week,
+          day_of_week: dow,
+          workout_type: dayTpl.workout_type || "rest",
+          title: dayTpl.title || "Rest Day",
+          intensity: dayTpl.intensity || "rest",
+          duration_minutes: dayTpl.duration_minutes || null,
+          prescription_json: dayTpl.prescription || {},
+        });
+      } else {
+        // Missing day in template — default to rest
+        rows.push({
+          season_id: seasonId,
+          user_id: userId,
+          date: formatDate(workoutDate),
+          week_number: week,
+          day_of_week: dow,
+          workout_type: "rest",
+          title: "Rest Day",
+          intensity: "rest",
+          duration_minutes: null,
+          prescription_json: {},
+        });
+      }
+    }
+  }
+
+  return rows;
 }
 
 // ── Main handler ────────────────────────────────────────────
@@ -180,20 +268,15 @@ Deno.serve(async (req) => {
     const healthPrompt = formatHealthDataForPrompt(healthData);
 
     // ── Build Claude prompt ──
-    const totalDays = durationWeeks * 7;
-    const schema = SEASON_SCHEMA
-      .replace("{TOTAL_DAYS}", String(totalDays))
-      .replace("{LAST_DAY}", String(totalDays - 1));
-
     let userMessage = `${healthPrompt}
 
 ---
 
 Today's date is ${formatDate(new Date())}.
-Create a ${durationWeeks}-week training season plan (${totalDays} days total).
+Create a ${durationWeeks}-week training season plan.
 
 Respond as JSON matching this schema:
-${schema}`;
+${SEASON_SCHEMA}`;
 
     if (previousSeasonSummary) {
       userMessage += `
@@ -233,22 +316,30 @@ Build on the previous season — progress from where the client left off.`;
 
     const claudeData = await claudeRes.json();
     const rawText = claudeData.content?.[0]?.text || "";
+    const stopReason = claudeData.stop_reason;
+
+    if (stopReason === "max_tokens") {
+      console.error("Claude response truncated (hit max_tokens). Length:", rawText.length);
+      return jsonResponse({ error: "AI response was truncated. Try again." }, 502);
+    }
 
     // ── Parse response ──
-    let parsed: { plan: Record<string, unknown>; daily_workouts: Record<string, unknown>[] };
+    let parsed: { plan: Record<string, unknown>; weekly_templates: WeeklyTemplate[] };
     try {
       const cleaned = rawText.replace(/^```json?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
       parsed = JSON.parse(cleaned);
     } catch {
-      console.error("Failed to parse season plan:", rawText.substring(0, 500));
+      console.error("Failed to parse season plan. Stop:", stopReason, "Raw:", rawText.substring(0, 1000));
       return jsonResponse({ error: "Failed to parse AI-generated plan" }, 502);
     }
 
-    if (!parsed.plan || !parsed.daily_workouts || !Array.isArray(parsed.daily_workouts)) {
+    if (!parsed.plan || !parsed.weekly_templates || !Array.isArray(parsed.weekly_templates)) {
+      console.error("Invalid plan structure. Keys:", Object.keys(parsed));
       return jsonResponse({ error: "Invalid plan structure from AI" }, 502);
     }
 
     // ── Compute dates ──
+    const totalDays = durationWeeks * 7;
     const startDate = getStartDate();
     const endDate = addDays(startDate, totalDays - 1);
 
@@ -276,25 +367,14 @@ Build on the previous season — progress from where the client left off.`;
       return jsonResponse({ error: "Failed to save season" }, 500);
     }
 
-    // ── Insert daily workouts ──
-    const workoutRows = parsed.daily_workouts.map((w: Record<string, unknown>) => {
-      const dayOffset = (w.day_offset as number) || 0;
-      const workoutDate = addDays(startDate, dayOffset);
-      const prescription = w.prescription || {};
-
-      return {
-        season_id: season.id,
-        user_id: user.id,
-        date: formatDate(workoutDate),
-        week_number: (w.week_number as number) || Math.floor(dayOffset / 7) + 1,
-        day_of_week: (w.day_of_week as number) || (workoutDate.getDay() === 0 ? 7 : workoutDate.getDay()),
-        workout_type: w.workout_type || "rest",
-        title: (w.title as string) || "Rest Day",
-        intensity: (w.intensity as string) || "rest",
-        duration_minutes: (w.duration_minutes as number) || null,
-        prescription_json: prescription,
-      };
-    });
+    // ── Expand templates into daily workout rows ──
+    const workoutRows = expandTemplates(
+      parsed.weekly_templates,
+      durationWeeks,
+      startDate,
+      season.id,
+      user.id,
+    );
 
     const { error: workoutsError } = await serviceClient
       .from("season_workouts")
@@ -302,7 +382,6 @@ Build on the previous season — progress from where the client left off.`;
 
     if (workoutsError) {
       console.error("Workouts insert error:", workoutsError);
-      // Clean up the season since workouts failed
       await serviceClient.from("training_seasons").delete().eq("id", season.id);
       return jsonResponse({ error: "Failed to save workout plan" }, 500);
     }

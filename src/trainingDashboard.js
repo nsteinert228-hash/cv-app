@@ -18,6 +18,7 @@ import {
 import {
   getTodayWorkout,
   getThisWeekWorkouts,
+  getSeasonWorkouts,
   getWorkoutLog,
   getWorkoutLogsForSeason,
 } from './seasonData.js';
@@ -316,16 +317,30 @@ function showNewSeasonPrompt(previousSeasonId) {
   });
 }
 
-function renderSeasonBanner() {
+async function renderSeasonBanner() {
   if (!activeSeason || !seasonState) {
     seasonBanner.classList.remove('visible');
     return;
   }
 
+  const plan = activeSeason.plan_json || {};
+  const phase = getCurrentPhase(plan, seasonState.currentWeek);
+  const phaseLabel = phase ? ` · ${phase.name}` : '';
+
   seasonNameEl.textContent = activeSeason.name;
-  seasonProgressEl.textContent = `Week ${seasonState.currentWeek} of ${activeSeason.duration_weeks} · ${seasonState.daysRemaining} days left`;
+  seasonProgressEl.textContent = `Week ${seasonState.currentWeek} of ${activeSeason.duration_weeks}${phaseLabel} · ${seasonState.daysRemaining} days left`;
   seasonProgressFill.style.width = `${seasonState.progressPct}%`;
   seasonBanner.classList.add('visible');
+
+  // Load adherence stats asynchronously
+  try {
+    const logs = await getWorkoutLogsForSeason(activeSeason.id);
+    if (logs.length > 0) {
+      const completed = logs.filter(l => l.status === 'completed').length;
+      const avgAdherence = logs.reduce((s, l) => s + (l.adherence_score || 0), 0) / logs.length;
+      seasonAdherenceEl.textContent = `${completed} logged · ${Math.round(avgAdherence)}% adherence`;
+    }
+  } catch { /* silent */ }
 }
 
 // ── Readiness Hero Bar ───────────────────────────────────────
@@ -405,32 +420,78 @@ async function loadView(view, force = false) {
   }
 }
 
+function normalizePrescription(rx) {
+  if (!rx) return { warmup: null, main_workout: [], cooldown: null };
+
+  // Handle warmup: array of strings → { activities: [...] }
+  const warmup = Array.isArray(rx.warmup)
+    ? { duration_minutes: 5, activities: rx.warmup }
+    : rx.warmup || null;
+
+  // Handle exercises vs main_workout
+  const main_workout = rx.exercises || rx.main_workout || [];
+
+  // Handle cooldown: array of strings → { activities: [...] }
+  const cooldown = Array.isArray(rx.cooldown)
+    ? { duration_minutes: 5, activities: rx.cooldown }
+    : rx.cooldown || null;
+
+  return { warmup, main_workout, cooldown };
+}
+
+function computeWeekStats(workouts) {
+  const activeDays = workouts.filter(w => w.workout_type !== 'rest').length;
+  const totalMin = workouts.reduce((s, w) => s + (w.duration_minutes || 0), 0);
+  const typeCounts = {};
+  for (const w of workouts) {
+    if (w.workout_type !== 'rest') {
+      typeCounts[w.workout_type] = (typeCounts[w.workout_type] || 0) + 1;
+    }
+  }
+  return { activeDays, totalMin, typeCounts };
+}
+
+function getCurrentPhase(plan, currentWeek) {
+  const phases = plan.phases || [];
+  for (const p of phases) {
+    const weeks = p.weeks || [p.week];
+    if (weeks.includes(currentWeek)) return p;
+  }
+  return phases[0] || null;
+}
+
 async function loadSeasonView(view) {
   if (view === 'today') {
     const workout = await getTodayWorkout(activeSeason.id);
     if (!workout) {
-      // No workout for today (might be before season start)
       const data = await getTrainingRecommendation(view, preferences);
       viewCache[view] = { data, fetchedAt: Date.now() };
       renderView(view, data);
       return;
     }
 
-    const prescription = workout.prescription_json || {};
+    const rx = normalizePrescription(workout.prescription_json);
+    const plan = activeSeason.plan_json || {};
+    const phase = getCurrentPhase(plan, seasonState.currentWeek);
+
     const data = {
       view: 'today',
       _from_season: true,
       _workout: workout,
-      readiness_assessment: { level: 'moderate', summary: '', key_factors: [] },
+      readiness_assessment: {
+        level: workout.intensity === 'rest' ? 'low' : workout.intensity === 'high' ? 'high' : 'moderate',
+        summary: phase ? `${phase.name} phase — ${phase.focus || ''}` : '',
+        key_factors: phase ? [`Week ${seasonState.currentWeek}`, phase.intensity_range || ''].filter(Boolean) : [],
+      },
       recommendation: {
         type: workout.workout_type,
         title: workout.title,
         intensity: workout.intensity,
         duration_minutes: workout.duration_minutes,
-        description: prescription.description || '',
-        warmup: prescription.warmup,
-        main_workout: prescription.main_workout || [],
-        cooldown: prescription.cooldown,
+        description: (workout.prescription_json || {}).description || '',
+        warmup: rx.warmup,
+        main_workout: rx.main_workout,
+        cooldown: rx.cooldown,
       },
       alerts: workout.is_adapted ? [{ type: 'info', message: 'This workout was adapted based on your recent health data' }] : [],
     };
@@ -444,12 +505,29 @@ async function loadSeasonView(view) {
 
     const today = new Date().toISOString().split('T')[0];
     const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const plan = activeSeason.plan_json || {};
+    const phase = getCurrentPhase(plan, seasonState.currentWeek);
+    const weekStats = computeWeekStats(workouts);
+
+    // Compute logged stats for the week
+    const weekLogs = workouts.map(w => logMap.get(w.id)).filter(Boolean);
+    const completedCount = weekLogs.filter(l => l.status === 'completed').length;
+
+    // Training load label
+    const loadLabel = weekStats.activeDays >= 6 ? 'High' : weekStats.activeDays >= 4 ? 'Moderate' : 'Low';
+    const typeLabels = Object.entries(weekStats.typeCounts).map(([t, c]) => `${c} ${t}`).join(', ');
 
     const data = {
       view: 'week',
       _from_season: true,
-      weekly_summary: `Week ${seasonState.currentWeek} of your ${activeSeason.name} season`,
-      training_load_assessment: { recent_load: '--', trend: '--' },
+      weekly_summary: phase
+        ? `Week ${seasonState.currentWeek} · ${phase.name} — ${phase.focus || ''}`
+        : `Week ${seasonState.currentWeek} of your ${activeSeason.name} season`,
+      training_load_assessment: {
+        recent_load: loadLabel,
+        trend: phase ? phase.intensity_range || '--' : '--',
+        phase_name: phase ? phase.name : '--',
+      },
       days: workouts.map(w => {
         const log = logMap.get(w.id);
         return {
@@ -465,7 +543,11 @@ async function loadSeasonView(view) {
           _is_adapted: w.is_adapted,
         };
       }),
-      weekly_goals: [],
+      weekly_goals: [
+        { metric: 'Active Days', target: `${weekStats.activeDays} planned (${typeLabels})` },
+        { metric: 'Total Training Time', target: `${weekStats.totalMin} minutes` },
+        ...(completedCount > 0 ? [{ metric: 'Completed So Far', target: `${completedCount} of ${weekStats.activeDays} workouts` }] : []),
+      ],
       alerts: [],
     };
 
@@ -473,13 +555,39 @@ async function loadSeasonView(view) {
     renderView(view, data);
   } else if (view === 'plan') {
     const plan = activeSeason.plan_json || {};
+    const allWorkouts = await getSeasonWorkouts(activeSeason.id);
+
+    // Compute per-phase stats from actual workout rows
+    const enrichedPhases = (plan.phases || []).map(p => {
+      const weeks = p.weeks || [p.week];
+      const phaseWorkouts = allWorkouts.filter(w => weeks.includes(w.week_number));
+      const activePerWeek = phaseWorkouts.filter(w => w.workout_type !== 'rest').length / (weeks.length || 1);
+      const typeSet = new Set(phaseWorkouts.filter(w => w.workout_type !== 'rest').map(w => w.workout_type));
+      const typeSummaries = [...typeSet].map(t => {
+        const count = phaseWorkouts.filter(w => w.workout_type === t).length / (weeks.length || 1);
+        return `${Math.round(count)}x ${t}/week`;
+      });
+
+      // Get representative workout titles (unique, non-rest, first week)
+      const firstWeek = weeks[0];
+      const sampleWorkouts = phaseWorkouts
+        .filter(w => w.week_number === firstWeek && w.workout_type !== 'rest')
+        .map(w => w.title);
+
+      return {
+        ...p,
+        sessions_per_week: Math.round(activePerWeek),
+        key_workouts: sampleWorkouts.length ? sampleWorkouts : typeSummaries,
+      };
+    });
+
     const data = {
       view: 'plan',
       _from_season: true,
       plan_name: activeSeason.name,
       plan_summary: plan.summary || '',
       current_assessment: plan.current_assessment || {},
-      phases: plan.phases || [],
+      phases: enrichedPhases,
       principles: plan.principles || [],
       milestones: plan.milestones || [],
     };
@@ -622,6 +730,7 @@ function renderWeek(data) {
   const tla = data.training_load_assessment || {};
   document.getElementById('weekLoad').textContent = tla.recent_load || '--';
   document.getElementById('weekTrend').textContent = tla.trend || '--';
+  document.getElementById('weekPhase').textContent = tla.phase_name || '--';
 
   const cal = document.getElementById('weekCalendar');
   const today = new Date().toISOString().split('T')[0];
@@ -706,12 +815,14 @@ function renderPlan(data) {
   timeline.innerHTML = (data.phases || []).map((p) => {
     const weeks = p.weeks || [p.week];
     const isCurrent = weeks.some(w => w === currentWeek);
+    const sessionsText = p.sessions_per_week ? `${p.sessions_per_week} sessions/week` : '';
+    const detailParts = [p.intensity_range, sessionsText].filter(Boolean).join(' · ');
     return `
       <div class="phase-node${isCurrent ? ' current' : ''}">
-        <div class="phase-week">Week${weeks.length > 1 ? 's' : ''} ${weeks.join('-')}</div>
+        <div class="phase-week">Week${weeks.length > 1 ? 's' : ''} ${weeks.join('-')}${isCurrent ? ' (current)' : ''}</div>
         <div class="phase-name-text">${esc(p.name || '')}</div>
         <div class="phase-focus">${esc(p.focus || '')}</div>
-        <div class="phase-details">${esc(p.intensity_range || '')} · ${p.sessions_per_week || '?'} sessions/week</div>
+        ${detailParts ? `<div class="phase-details">${esc(detailParts)}</div>` : ''}
         ${p.key_workouts && p.key_workouts.length ? `<ul class="phase-workouts">${p.key_workouts.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
       </div>
     `;
