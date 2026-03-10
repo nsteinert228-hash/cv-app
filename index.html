@@ -2,201 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CV — Exercise Tracker</title>
+  <link rel="stylesheet" href="src/styles.css">
   <style>
-    :root {
-      --bg-page: #f7f7f8;
-      --bg-surface: #ffffff;
-      --bg-camera: #000000;
-      --text-primary: #1a1a1a;
-      --text-secondary: #6b7280;
-      --text-muted: #9ca3af;
-      --accent: #10b981;
-      --accent-light: #d1fae5;
-      --accent-dark: #059669;
-      --border: #e5e7eb;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg-page);
-      color: var(--text-primary);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    header {
-      padding: 16px 20px 12px;
-      text-align: center;
-      width: 100%;
-      max-width: 640px;
-    }
-
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    header h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      letter-spacing: 0.02em;
-    }
-
     .intro-msg {
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
       margin-top: 4px;
     }
 
-    /* Auth UI */
-    .auth-section {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .auth-section.hidden {
-      display: none;
-    }
-
-    .auth-user {
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-      max-width: 140px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .auth-btn {
-      padding: 5px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg-surface);
-      color: var(--text-primary);
-      font-size: 0.75rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .auth-btn:hover {
-      background: var(--bg-page);
-    }
-
-    .auth-btn.primary {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-
-    .auth-btn.primary:hover {
-      background: var(--accent-dark);
-    }
-
-    /* Auth Modal */
-    .auth-modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .auth-modal-backdrop.visible {
-      display: flex;
-    }
-
-    .auth-modal {
-      background: var(--bg-surface);
-      border-radius: 16px;
-      padding: 28px 24px;
-      width: 100%;
-      max-width: 360px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-    }
-
-    .auth-modal h2 {
-      font-size: 1.1rem;
-      margin-bottom: 16px;
-      color: var(--text-primary);
-    }
-
-    .auth-modal input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-      outline: none;
-    }
-
-    .auth-modal input:focus {
-      border-color: var(--accent);
-    }
-
-    .auth-modal-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 6px;
-    }
-
-    .auth-modal-actions .auth-btn {
-      flex: 1;
-      padding: 10px;
-      font-size: 0.85rem;
-    }
-
-    .auth-error {
-      color: #ef4444;
-      font-size: 0.78rem;
-      margin-top: 8px;
-      min-height: 1.2em;
-    }
-
-    .auth-toggle {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 12px;
-      text-align: center;
-    }
-
-    .auth-toggle a {
-      color: var(--accent-dark);
-      cursor: pointer;
-      text-decoration: underline;
-    }
-
     main {
+      position: relative;
+      z-index: 1;
       width: 100%;
-      max-width: 640px;
+      max-width: var(--max-width);
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
-    /* Camera Stage */
+    /* ── Camera Stage ── */
     .camera-stage {
       position: relative;
       width: 100%;
       aspect-ratio: 4/3;
-      background: var(--bg-camera);
-      border-radius: 16px 16px 0 0;
+      background: #000;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
       overflow: hidden;
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--glass-border);
+      border-bottom: none;
     }
 
     .camera-stage canvas {
@@ -210,7 +46,7 @@
       display: none;
     }
 
-    /* Loading Overlay */
+    /* ── Loading Overlay ── */
     .loading-overlay {
       position: absolute;
       inset: 0;
@@ -220,7 +56,7 @@
       justify-content: center;
       background: var(--bg-page);
       z-index: 20;
-      transition: opacity 0.4s ease;
+      transition: opacity 0.4s var(--ease-out);
     }
 
     .loading-overlay.fade-out {
@@ -232,19 +68,10 @@
       display: none;
     }
 
-    .loading-spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 14px;
-    }
-
     .loading-overlay p {
       font-size: 0.85rem;
       color: var(--text-secondary);
+      margin-top: 14px;
     }
 
     .loading-overlay .fallback-controls {
@@ -259,16 +86,19 @@
 
     .fallback-btn {
       padding: 10px 20px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
       background: var(--bg-surface);
       color: var(--text-primary);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: background var(--duration-fast);
+      font-family: inherit;
     }
 
     .fallback-btn:hover {
-      background: var(--bg-page);
+      background: var(--bg-surface-hover);
     }
 
     .fallback-btn input[type="file"] {
@@ -279,11 +109,7 @@
       pointer-events: none;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Rep Overlay */
+    /* ── Rep Overlay ── */
     .rep-overlay {
       display: none;
       position: absolute;
@@ -296,27 +122,28 @@
 
     .rep-count {
       font-size: 56px;
-      font-weight: 700;
+      font-weight: 800;
       color: #ffffff;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 40px var(--accent-glow);
       line-height: 1;
-      transition: transform 0.15s ease, color 0.15s ease;
+      transition: transform var(--duration-fast) var(--ease-spring), color var(--duration-fast);
     }
 
     .rep-count.flash {
-      transform: scale(1.2);
+      transform: scale(1.25);
       color: var(--accent);
     }
 
     .rep-label {
       font-size: 14px;
-      color: rgba(255,255,255,0.8);
-      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
       margin-top: 4px;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
 
-    /* Mode Selector (collapsible) */
+    /* ── Mode Selector ── */
     .mode-selector {
       position: absolute;
       bottom: 12px;
@@ -334,21 +161,22 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      padding: 6px 10px 6px 14px;
+      padding: 7px 12px 7px 14px;
       border: none;
-      border-radius: 20px;
-      background: rgba(0,0,0,0.3);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: rgba(255,255,255,0.9);
+      border-radius: var(--radius-full);
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: rgba(255, 255, 255, 0.9);
       font-size: 0.78rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background var(--duration-fast);
+      font-family: inherit;
     }
 
     .mode-trigger:hover {
-      background: rgba(0,0,0,0.45);
+      background: rgba(0, 0, 0, 0.55);
     }
 
     .trigger-chevron {
@@ -359,7 +187,7 @@
       stroke-width: 1.5;
       stroke-linecap: round;
       stroke-linejoin: round;
-      transition: transform 0.2s ease;
+      transition: transform var(--duration-fast) var(--ease-out);
     }
 
     .mode-selector.open .trigger-chevron {
@@ -371,15 +199,16 @@
       flex-direction: column;
       gap: 2px;
       padding: 4px;
-      background: rgba(0,0,0,0.3);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       margin-bottom: 6px;
       transform: scaleY(0);
       transform-origin: bottom left;
       opacity: 0;
-      transition: transform 0.2s ease, opacity 0.15s ease;
+      transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast);
       pointer-events: none;
     }
 
@@ -392,49 +221,52 @@
     .exercise-btn {
       padding: 8px 16px;
       border: none;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: transparent;
-      color: rgba(255,255,255,0.8);
+      color: rgba(255, 255, 255, 0.7);
       font-size: 0.8rem;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.2s, color 0.2s;
+      transition: background var(--duration-fast), color var(--duration-fast);
       white-space: nowrap;
       text-align: left;
+      font-family: inherit;
     }
 
     .exercise-btn:hover {
-      background: rgba(255,255,255,0.12);
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .exercise-btn.active {
-      background: rgba(16,185,129,0.85);
+      background: var(--accent-dark);
       color: #ffffff;
+      font-weight: 600;
     }
 
     .exercise-btn.active[data-exercise="off"] {
-      background: rgba(255,255,255,0.18);
-      color: rgba(255,255,255,0.7);
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.6);
     }
 
     #resetBtn {
       display: none;
       padding: 6px 12px;
       border: none;
-      border-radius: 20px;
-      background: rgba(239,68,68,0.65);
+      border-radius: var(--radius-full);
+      background: rgba(248, 113, 113, 0.6);
       color: #ffffff;
       font-size: 0.75rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background var(--duration-fast);
+      font-family: inherit;
     }
 
     #resetBtn:hover {
-      background: rgba(239,68,68,0.85);
+      background: rgba(248, 113, 113, 0.8);
     }
 
-    /* Secondary Controls */
+    /* ── Secondary Controls ── */
     .secondary-controls {
       position: absolute;
       bottom: 12px;
@@ -448,21 +280,21 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: rgba(0,0,0,0.35);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border: none;
-      color: rgba(255,255,255,0.8);
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.8);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background var(--duration-fast);
       position: relative;
     }
 
     .icon-btn:hover {
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.55);
     }
 
     .icon-btn input[type="file"] {
@@ -483,14 +315,17 @@
       stroke-linejoin: round;
     }
 
-    /* Session Log */
+    /* ── Session Log ── */
     .session-log {
       display: none;
       width: 100%;
       background: var(--bg-surface);
-      border-radius: 0 0 16px 16px;
+      border: 1px solid var(--glass-border);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
       padding: 16px 20px 20px;
-      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
     }
 
     .session-header {
@@ -501,13 +336,13 @@
     }
 
     .session-header h3 {
-      font-size: 0.9rem;
-      font-weight: 600;
+      font-size: 0.88rem;
+      font-weight: 700;
       color: var(--text-primary);
     }
 
     .session-summary {
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       color: var(--text-secondary);
     }
 
@@ -524,102 +359,89 @@
       justify-content: space-between;
       align-items: center;
       padding: 10px 14px;
-      background: var(--bg-page);
-      border-radius: 10px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-sm);
       font-size: 0.85rem;
+      border: 1px solid var(--border-light);
     }
 
     .log-entry.new {
-      animation: slideIn 0.35s ease-out forwards;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateY(-8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      animation: slideUp 0.35s var(--ease-out) forwards;
     }
 
     .log-exercise {
-      font-weight: 500;
+      font-weight: 600;
       color: var(--text-primary);
       flex: 1;
     }
 
     .log-reps {
-      color: var(--accent-dark);
-      font-weight: 600;
+      color: var(--accent);
+      font-weight: 700;
       margin: 0 12px;
     }
 
     .log-time {
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: 0.72rem;
     }
 
-    /* Empty state for session log when visible with no entries yet */
     .session-log-empty {
       display: none;
       width: 100%;
       background: var(--bg-surface);
-      border-radius: 0 0 16px 16px;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
       padding: 20px;
-      box-shadow: var(--shadow-md);
+      border: 1px solid var(--glass-border);
+      border-top: none;
       text-align: center;
+      backdrop-filter: blur(var(--glass-blur));
     }
 
-    /* Tabs */
-    .tab-bar {
-      display: flex;
-      gap: 0;
-      width: 100%;
-      max-width: 640px;
-      padding: 0 20px;
-      margin-bottom: 4px;
+    #clearSessionBtn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--red);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      font-weight: 600;
+      font-family: inherit;
+      transition: opacity var(--duration-fast);
     }
 
-    .tab-link {
-      flex: 1;
-      text-align: center;
-      padding: 10px 0;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-decoration: none;
-      border-bottom: 2px solid transparent;
-      transition: color 0.2s, border-color 0.2s;
+    #clearSessionBtn:hover {
+      opacity: 0.7;
     }
 
-    .tab-link:hover { color: var(--text-secondary); }
-    .tab-link.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
-
-    /* Responsive */
+    /* ── Responsive ── */
     @media (max-width: 640px) {
       main {
         max-width: 100%;
       }
       .camera-stage {
         border-radius: 0;
+        border-left: none;
+        border-right: none;
       }
       .session-log {
         border-radius: 0;
+        border-left: none;
+        border-right: none;
       }
       .exercise-btn {
         font-size: 0.75rem;
         padding: 7px 14px;
       }
-}
+    }
   </style>
 </head>
 <body>
 
   <header>
     <div class="header-top">
-      <h1>CV — Exercise Tracker</h1>
+      <h1>CV <span>Exercise Tracker</span></h1>
       <div class="auth-section hidden" id="authSection">
         <span class="auth-user" id="authUser"></span>
         <button class="auth-btn" id="authBtn">Sign In</button>
@@ -646,11 +468,20 @@
     </div>
   </div>
 
-  <!-- Tab bar -->
+  <!-- Bottom Tab Bar -->
   <nav class="tab-bar">
-    <a class="tab-link active" href="index.html">Exercise Tracker</a>
-    <a class="tab-link" href="garmin.html">Garmin Readiness</a>
-    <a class="tab-link" href="training.html">Training AI</a>
+    <a class="tab-link active" href="index.html">
+      <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v5m-3 3l3-3 3 3m-6 3v2m6-2v2"/></svg>
+      Tracker
+    </a>
+    <a class="tab-link" href="garmin.html">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Garmin
+    </a>
+    <a class="tab-link" href="training.html">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Training AI
+    </a>
   </nav>
 
   <main>
@@ -699,7 +530,7 @@
         </div>
       </div>
 
-      <!-- Secondary controls (upload, photo, stop camera) -->
+      <!-- Secondary controls -->
       <div class="secondary-controls" id="uploadControls">
         <label class="icon-btn" title="Upload Photo">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -717,7 +548,7 @@
         <h3>Session</h3>
         <div style="display:flex;align-items:baseline;gap:10px">
           <span id="sessionSummary" class="session-summary"></span>
-          <button id="clearSessionBtn" style="display:none;background:none;border:none;color:#ef4444;font-size:0.78rem;cursor:pointer;padding:0;font-weight:500">Clear Session</button>
+          <button id="clearSessionBtn">Clear Session</button>
         </div>
       </div>
       <div id="sessionEntries" class="session-entries"></div>

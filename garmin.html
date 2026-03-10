@@ -2,219 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CV — Garmin Readiness</title>
+  <link rel="stylesheet" href="src/styles.css">
   <style>
-    :root {
-      --bg-page: #f7f7f8;
-      --bg-surface: #ffffff;
-      --text-primary: #1a1a1a;
-      --text-secondary: #6b7280;
-      --text-muted: #9ca3af;
-      --accent: #10b981;
-      --accent-light: #d1fae5;
-      --accent-dark: #059669;
-      --border: #e5e7eb;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-      --yellow: #f59e0b;
-      --red: #ef4444;
-      --blue: #60a5fa;
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg-page);
-      color: var(--text-primary);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    header {
-      padding: 16px 20px 12px;
-      text-align: center;
-      width: 100%;
-      max-width: 640px;
-    }
-
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    header h1 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      letter-spacing: 0.02em;
-    }
-
-    /* Auth UI */
-    .auth-section { display: flex; align-items: center; gap: 8px; }
-    .auth-section.hidden { display: none; }
-    .auth-user { font-size: 0.78rem; color: var(--text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .auth-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-primary); font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
-    .auth-btn:hover { background: var(--bg-page); }
-    .auth-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .auth-btn.primary:hover { background: var(--accent-dark); }
-
-    /* Auth Modal */
-    .auth-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
-    .auth-modal-backdrop.visible { display: flex; }
-    .auth-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
-    .auth-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
-    .auth-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
-    .auth-modal input:focus { border-color: var(--accent); }
-    .auth-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
-    .auth-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
-    .auth-error { color: var(--red); font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
-    .auth-toggle { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
-    .auth-toggle a { color: var(--accent-dark); cursor: pointer; text-decoration: underline; }
-
-    /* Tabs */
-    .tab-bar { display: flex; width: 100%; max-width: 640px; padding: 0 20px; margin-bottom: 0; }
-    .tab-link { flex: 1; text-align: center; padding: 10px 0; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); text-decoration: none; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
-    .tab-link:hover { color: var(--text-secondary); }
-    .tab-link.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
-
-    /* Status bar */
+    /* ── Status bar ── */
     .status-bar {
       display: none;
       width: 100%;
-      max-width: 640px;
+      max-width: var(--max-width);
       padding: 8px 20px;
       font-size: 0.78rem;
       color: var(--text-secondary);
       align-items: center;
       gap: 8px;
+      position: relative;
+      z-index: 1;
     }
     .status-bar.visible { display: flex; }
     .status-bar .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); }
-    .status-bar .status-dot.active { background: var(--accent); }
-    .status-bar .status-dot.pending { background: var(--yellow); }
-    .status-bar .status-dot.error { background: var(--red); }
-    .status-bar .status-dot.syncing { background: var(--blue); animation: pulse-dot 1s infinite; }
+    .status-bar .status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+    .status-bar .status-dot.pending { background: var(--yellow); box-shadow: 0 0 6px var(--yellow-soft); }
+    .status-bar .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red-soft); }
+    .status-bar .status-dot.syncing { background: var(--blue); animation: pulse-dot 1s infinite; box-shadow: 0 0 6px var(--blue-soft); }
     @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .status-bar .status-text { flex: 1; }
-    .status-bar .sync-link { color: var(--accent-dark); cursor: pointer; text-decoration: underline; font-weight: 500; background: none; border: none; font-size: 0.78rem; padding: 0; }
-    .status-bar .sync-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
-    .status-bar .disconnect-link { color: var(--text-muted); cursor: pointer; text-decoration: none; font-size: 0.72rem; background: none; border: none; padding: 0; margin-left: 4px; }
-    .status-bar .disconnect-link:hover { color: var(--red); text-decoration: underline; }
+    .status-bar .sync-link { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; background: none; border: none; font-size: 0.78rem; padding: 0; font-family: inherit; transition: opacity var(--duration-fast); }
+    .status-bar .sync-link:hover { opacity: 0.8; }
+    .status-bar .sync-link:disabled { color: var(--text-muted); cursor: default; }
+    .status-bar .disconnect-link { color: var(--text-muted); cursor: pointer; text-decoration: none; font-size: 0.72rem; background: none; border: none; padding: 0; margin-left: 4px; font-family: inherit; transition: color var(--duration-fast); }
+    .status-bar .disconnect-link:hover { color: var(--red); }
 
-    /* Error banner */
-    .error-banner { display: none; width: 100%; max-width: 640px; padding: 12px 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; align-items: center; gap: 10px; font-size: 0.82rem; color: #991b1b; margin-bottom: 10px; }
+    /* ── Error banner ── */
+    .error-banner { display: none; width: 100%; max-width: var(--max-width); padding: 12px 20px; background: var(--red-soft); border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-md); align-items: center; gap: 10px; font-size: 0.82rem; color: var(--red); margin-bottom: 10px; position: relative; z-index: 1; }
     .error-banner.visible { display: flex; }
     .error-banner .error-msg { flex: 1; }
-    .error-banner .error-action { padding: 5px 12px; border: 1px solid #fca5a5; border-radius: 6px; background: #fff; color: #991b1b; font-size: 0.75rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
-    .error-banner .error-dismiss { background: none; border: none; color: #991b1b; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
+    .error-banner .error-action { padding: 5px 12px; border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius-sm); background: rgba(248,113,113,0.1); color: var(--red); font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
+    .error-banner .error-dismiss { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
 
-    /* Last sync banner */
-    .last-sync-banner {
-      display: none;
-      width: 100%;
-      max-width: 640px;
-      padding: 6px 20px;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      text-align: center;
-    }
+    /* ── Last sync banner ── */
+    .last-sync-banner { display: none; width: 100%; max-width: var(--max-width); padding: 6px 20px; font-size: 0.72rem; color: var(--text-muted); text-align: center; position: relative; z-index: 1; }
     .last-sync-banner.visible { display: block; }
-    .last-sync-banner .sync-time { font-weight: 500; color: var(--text-secondary); }
+    .last-sync-banner .sync-time { font-weight: 600; color: var(--text-secondary); }
 
-    /* Skeleton shimmer */
-    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-    .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
-
-    /* Layout */
-    .dashboard { display: none; width: 100%; max-width: 640px; padding: 0 16px 40px; gap: 14px; flex-direction: column; }
-    .dashboard.visible { display: flex; }
-
-    .card { background: var(--bg-surface); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-sm); }
-    .card-title { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 14px; }
-    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-muted); font-size: 0.82rem; }
-
-    /* ── Section 1: Readiness Hero ── */
+    /* ── Readiness Hero ── */
     .readiness-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
     .readiness-item { display: flex; flex-direction: column; align-items: center; }
     .readiness-item canvas { width: 130px; height: 130px; }
-    .readiness-item .ri-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; }
+    .readiness-item .ri-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; font-weight: 600; }
 
     .hrv-status-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .hrv-big { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .hrv-big { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--accent); }
     .hrv-unit { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-    .hrv-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.03em; }
-    .hrv-badge.balanced { background: var(--accent-light); color: var(--accent-dark); }
-    .hrv-badge.low { background: #fef3c7; color: #92400e; }
-    .hrv-badge.high { background: #dbeafe; color: #1e40af; }
+    .hrv-badge { display: inline-block; padding: 3px 10px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 700; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .hrv-badge.balanced { background: var(--accent-light); color: var(--accent); }
+    .hrv-badge.low { background: var(--yellow-soft); color: var(--yellow); }
+    .hrv-badge.high { background: var(--blue-soft); color: var(--blue); }
     .hrv-baseline { font-size: 0.68rem; color: var(--text-muted); margin-top: 6px; }
 
-    .readiness-summary {
-      text-align: center;
-      font-size: 0.88rem;
-      color: var(--text-secondary);
-      padding: 10px 16px 0;
-      font-weight: 500;
-    }
+    .readiness-summary { text-align: center; font-size: 0.88rem; color: var(--text-secondary); padding: 10px 16px 0; font-weight: 500; }
 
-    /* ── Section 2: Recent Activity ── */
-    .activity-item {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
+    /* ── Recent Activity ── */
+    .activity-item { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
     .activity-item:last-child { border-bottom: none; }
-
-    .activity-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      flex-shrink: 0;
-      background: var(--bg-page);
-    }
-
+    .activity-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; background: var(--bg-elevated); border: 1px solid var(--border-light); }
     .activity-info { flex: 1; min-width: 0; }
-    .activity-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-name { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .activity-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
     .activity-stats { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
     .activity-ago { font-size: 0.72rem; color: var(--text-muted); flex-shrink: 0; text-align: right; }
 
-    /* Activity streak */
     .activity-streak { display: flex; gap: 4px; margin-top: 14px; align-items: center; }
-    .streak-dot { width: 18px; height: 18px; border-radius: 4px; background: var(--border); }
-    .streak-dot.active { background: var(--accent); }
+    .streak-dot { width: 18px; height: 18px; border-radius: 4px; background: var(--border); transition: background var(--duration-fast); }
+    .streak-dot.active { background: var(--accent); box-shadow: 0 0 4px var(--accent-glow); }
     .streak-dot.rest { background: var(--border); }
     .streak-label { font-size: 0.65rem; color: var(--text-muted); margin-left: 6px; }
 
-    /* ── Section 3: Daily Stats ── */
+    /* ── Daily Stats ── */
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-page); border-radius: 12px; }
-    .stat-item .val { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+    .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
+    .stat-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
     .stat-item .unit { font-size: 0.7rem; font-weight: 400; color: var(--text-secondary); }
-    .stat-item .lbl { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
-    .stat-item .sub { font-size: 0.62rem; color: var(--text-muted); margin-top: 1px; }
+    .stat-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; font-weight: 600; }
+    .stat-item .sub { font-size: 0.6rem; color: var(--text-muted); margin-top: 1px; }
 
     .progress-row { display: flex; gap: 10px; margin-bottom: 14px; }
     .progress-item { flex: 1; }
     .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .progress-header .val { font-size: 1rem; font-weight: 600; }
+    .progress-header .val { font-size: 1rem; font-weight: 700; }
     .progress-header .goal { font-size: 0.72rem; color: var(--text-muted); }
-    .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.5s ease; }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.5s var(--ease-out); }
 
-    /* ── Section 4: Sleep ── */
+    /* ── Sleep ── */
     .sleep-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-    .sleep-total { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+    .sleep-total { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
     .sleep-times { font-size: 0.75rem; color: var(--text-muted); }
 
     .sleep-bar-wrap { margin-bottom: 12px; }
@@ -225,52 +107,49 @@
     .sleep-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
     .sleep-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    .sleep-score-item { text-align: center; padding: 8px 4px; background: var(--bg-page); border-radius: 10px; }
-    .sleep-score-item .val { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
-    .sleep-score-item .lbl { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .sleep-score-item { text-align: center; padding: 8px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
+    .sleep-score-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+    .sleep-score-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
 
-    /* ── Section 5: Trends ── */
+    /* ── Trends ── */
     .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .trend-card canvas { width: 100%; height: 120px; }
     .trend-card .card-title { margin-bottom: 8px; }
 
-    /* ── Section 6: Stress ── */
+    /* ── Stress ── */
     .stress-row { display: flex; gap: 16px; align-items: center; }
     .stress-row canvas { width: 120px; height: 120px; flex-shrink: 0; }
     .stress-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
     .stress-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-secondary); }
     .stress-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-    /* ── Section 7: Training Log ── */
+    /* ── Training Log ── */
     .training-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .training-table th { text-align: left; padding: 6px 8px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
-    .training-table td { padding: 10px 8px; border-bottom: 1px solid var(--bg-page); color: var(--text-secondary); }
-    .training-table td:first-child { color: var(--text-primary); font-weight: 500; }
+    .training-table th { text-align: left; padding: 8px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+    .training-table td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); }
+    .training-table td:first-child { color: var(--text-primary); font-weight: 600; }
     .training-table tr:last-child td { border-bottom: none; }
 
-    /* Empty state */
-    .empty-state { text-align: center; padding: 60px 20px; width: 100%; max-width: 640px; }
-    .empty-state p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 16px; }
+    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-muted); font-size: 0.82rem; }
 
-    /* Garmin connect modal */
-    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    /* ── Garmin Connect Modal ── */
+    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
     .garmin-modal-backdrop.visible { display: flex; }
-    .garmin-modal { background: var(--bg-surface); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
-    .garmin-modal h2 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-primary); }
-    .garmin-modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; outline: none; }
-    .garmin-modal input:focus { border-color: var(--accent); }
-    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
-    .garmin-modal-actions .auth-btn { flex: 1; padding: 10px; font-size: 0.85rem; }
-    .garmin-error { color: var(--red); font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; }
-    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 12px; text-align: center; }
+    .garmin-modal { background: rgba(20,20,30,0.95); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px 28px; width: 100%; max-width: 360px; box-shadow: var(--shadow-lg); backdrop-filter: blur(40px); }
+    .garmin-modal h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-primary); }
+    .garmin-modal input { width: 100%; padding: 12px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.88rem; margin-bottom: 10px; outline: none; background: var(--bg-input); color: var(--text-primary); font-family: inherit; transition: border-color var(--duration-fast); }
+    .garmin-modal input::placeholder { color: var(--text-muted); }
+    .garmin-modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .garmin-modal-actions .auth-btn { flex: 1; padding: 12px; font-size: 0.85rem; }
+    .garmin-error { color: var(--red); font-size: 0.78rem; margin-top: 10px; min-height: 1.2em; }
+    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 14px; text-align: center; }
 
     @media (max-width: 640px) {
-      .dashboard { padding: 0 10px 40px; }
       .readiness-row { gap: 8px; }
       .readiness-item canvas { width: 100px; height: 100px; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .trends-grid { grid-template-columns: 1fr; }
-      .tab-bar { padding: 0 10px; }
     }
 
     @media (max-width: 400px) {
@@ -284,7 +163,7 @@
 
   <header>
     <div class="header-top">
-      <h1>CV — Garmin Readiness</h1>
+      <h1>CV <span>Garmin Readiness</span></h1>
       <div class="auth-section hidden" id="authSection">
         <span class="auth-user" id="authUser"></span>
         <button class="auth-btn" id="authBtn">Sign In</button>
@@ -309,13 +188,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Tab bar -->
-  <nav class="tab-bar">
-    <a class="tab-link" href="index.html">Exercise Tracker</a>
-    <a class="tab-link active" href="garmin.html">Garmin Readiness</a>
-    <a class="tab-link" href="training.html">Training AI</a>
-  </nav>
 
   <!-- Error banner -->
   <div class="error-banner" id="errorBanner">
@@ -385,7 +257,7 @@
             <span class="goal">of <span id="qStepsGoal">--</span></span>
           </div>
           <div class="progress-bar"><div class="progress-fill" id="stepsProgressFill" style="width:0%"></div></div>
-          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">STEPS</div>
+          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">STEPS</div>
         </div>
         <div class="progress-item">
           <div class="progress-header">
@@ -393,7 +265,7 @@
             <span class="goal">of <span id="qIntensityGoal">150</span></span>
           </div>
           <div class="progress-bar"><div class="progress-fill" id="intensityProgressFill" style="width:0%"></div></div>
-          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">INTENSITY MIN</div>
+          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">INTENSITY MIN</div>
         </div>
         <div class="progress-item">
           <div class="progress-header">
@@ -401,7 +273,7 @@
             <span class="goal">of <span id="qFloorsGoal">10</span></span>
           </div>
           <div class="progress-bar"><div class="progress-fill" id="floorsProgressFill" style="width:0%"></div></div>
-          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px">FLOORS</div>
+          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">FLOORS</div>
         </div>
       </div>
       <div class="stats-grid">
@@ -500,10 +372,10 @@
       <div class="stress-row">
         <canvas id="stressDonut"></canvas>
         <div class="stress-legend">
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#10b981"></div> Rest <strong id="stressRest">--</strong></div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#34d399"></div> Rest <strong id="stressRest">--</strong></div>
           <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#60a5fa"></div> Low <strong id="stressLow">--</strong></div>
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#f59e0b"></div> Medium <strong id="stressMed">--</strong></div>
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#ef4444"></div> High <strong id="stressHigh">--</strong></div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#fbbf24"></div> Medium <strong id="stressMed">--</strong></div>
+          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#f87171"></div> High <strong id="stressHigh">--</strong></div>
         </div>
       </div>
       <span id="stressAvgValue" data-value="--" style="display:none"></span>
@@ -536,6 +408,22 @@
       <div class="garmin-privacy">Your password is encrypted at rest and used only for initial authentication.</div>
     </div>
   </div>
+
+  <!-- Bottom Tab Bar -->
+  <nav class="tab-bar">
+    <a class="tab-link" href="index.html">
+      <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v5m-3 3l3-3 3 3m-6 3v2m6-2v2"/></svg>
+      Tracker
+    </a>
+    <a class="tab-link active" href="garmin.html">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Garmin
+    </a>
+    <a class="tab-link" href="training.html">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Training AI
+    </a>
+  </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script type="module" src="src/garminDashboard.js"></script>

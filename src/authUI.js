@@ -118,7 +118,7 @@ export function createAuthUI() {
           hideAuthModal();
           if (onSignIn) onSignIn(user);
         } catch (err) {
-          authError.style.color = '#ef4444';
+          authError.style.color = '';
           authError.textContent = err.message;
         }
         authSubmit.disabled = false;
