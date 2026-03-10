@@ -461,9 +461,13 @@ function getCurrentPhase(plan, currentWeek) {
 }
 
 async function loadSeasonView(view) {
+  const plan = activeSeason.plan_json || {};
+  const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
   if (view === 'today') {
     const workout = await getTodayWorkout(activeSeason.id);
     if (!workout) {
+      // Before season start or no workout today — fall back to AI
       const data = await getTrainingRecommendation(view, preferences);
       viewCache[view] = { data, fetchedAt: Date.now() };
       renderView(view, data);
@@ -471,7 +475,6 @@ async function loadSeasonView(view) {
     }
 
     const rx = normalizePrescription(workout.prescription_json);
-    const plan = activeSeason.plan_json || {};
     const phase = getCurrentPhase(plan, seasonState.currentWeek);
 
     const data = {
@@ -498,88 +501,139 @@ async function loadSeasonView(view) {
 
     viewCache[view] = { data, fetchedAt: Date.now() };
     renderView(view, data);
+
   } else if (view === 'week') {
-    const workouts = await getThisWeekWorkouts(activeSeason.id);
+    // Get this calendar week's workouts; if empty (season not started), show week 1
+    let workouts = await getThisWeekWorkouts(activeSeason.id);
+    let weekLabel = seasonState.currentWeek;
+    let isUpcoming = false;
+
+    if (!workouts.length) {
+      workouts = await getSeasonWorkouts(activeSeason.id, 1);
+      weekLabel = 1;
+      isUpcoming = !seasonState.hasStarted;
+    }
+
     const logs = await getWorkoutLogsForSeason(activeSeason.id);
     const logMap = new Map(logs.map(l => [l.workout_id, l]));
-
     const today = new Date().toISOString().split('T')[0];
-    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const plan = activeSeason.plan_json || {};
-    const phase = getCurrentPhase(plan, seasonState.currentWeek);
+    const phase = getCurrentPhase(plan, weekLabel);
     const weekStats = computeWeekStats(workouts);
 
-    // Compute logged stats for the week
     const weekLogs = workouts.map(w => logMap.get(w.id)).filter(Boolean);
     const completedCount = weekLogs.filter(l => l.status === 'completed').length;
-
-    // Training load label
     const loadLabel = weekStats.activeDays >= 6 ? 'High' : weekStats.activeDays >= 4 ? 'Moderate' : 'Low';
-    const typeLabels = Object.entries(weekStats.typeCounts).map(([t, c]) => `${c} ${t}`).join(', ');
+    const typeLabels = Object.entries(weekStats.typeCounts).map(([t, c]) => `${c}x ${t}`).join(', ');
 
+    const summaryPrefix = isUpcoming ? 'Upcoming: ' : '';
     const data = {
       view: 'week',
       _from_season: true,
+      _isUpcoming: isUpcoming,
       weekly_summary: phase
-        ? `Week ${seasonState.currentWeek} · ${phase.name} — ${phase.focus || ''}`
-        : `Week ${seasonState.currentWeek} of your ${activeSeason.name} season`,
+        ? `${summaryPrefix}Week ${weekLabel} · ${phase.name} — ${phase.focus || ''}`
+        : `${summaryPrefix}Week ${weekLabel} of ${activeSeason.name}`,
       training_load_assessment: {
         recent_load: loadLabel,
         trend: phase ? phase.intensity_range || '--' : '--',
         phase_name: phase ? phase.name : '--',
+        total_minutes: weekStats.totalMin,
+        active_days: weekStats.activeDays,
       },
       days: workouts.map(w => {
         const log = logMap.get(w.id);
+        const rx = w.prescription_json || {};
+        const exercises = rx.exercises || rx.main_workout || [];
+        const exercisePreview = exercises.slice(0, 3).map(e => e.exercise).filter(Boolean);
         return {
           date: w.date,
-          day_name: dayNames[w.day_of_week - 1] || '',
+          day_name: DAY_NAMES[w.day_of_week - 1] || '',
           type: w.workout_type,
           title: w.title,
           intensity: w.intensity,
           duration_minutes: w.duration_minutes,
-          focus: (w.prescription_json || {}).description || '',
+          focus: rx.description || '',
+          exercisePreview,
           is_today: w.date === today,
           _log: log || null,
           _is_adapted: w.is_adapted,
         };
       }),
       weekly_goals: [
-        { metric: 'Active Days', target: `${weekStats.activeDays} planned (${typeLabels})` },
-        { metric: 'Total Training Time', target: `${weekStats.totalMin} minutes` },
-        ...(completedCount > 0 ? [{ metric: 'Completed So Far', target: `${completedCount} of ${weekStats.activeDays} workouts` }] : []),
+        { metric: 'Active Days', target: `${weekStats.activeDays} sessions (${typeLabels || 'rest week'})` },
+        { metric: 'Training Volume', target: `${weekStats.totalMin} minutes total` },
+        ...(completedCount > 0 ? [{ metric: 'Progress', target: `${completedCount} of ${weekStats.activeDays} completed` }] : []),
+        ...(phase && phase.focus ? [{ metric: 'Phase Focus', target: phase.focus }] : []),
       ],
-      alerts: [],
+      alerts: isUpcoming ? [{ type: 'info', message: `Season starts ${activeSeason.start_date} — showing your first week preview` }] : [],
     };
 
     viewCache[view] = { data, fetchedAt: Date.now() };
     renderView(view, data);
+
   } else if (view === 'plan') {
-    const plan = activeSeason.plan_json || {};
     const allWorkouts = await getSeasonWorkouts(activeSeason.id);
 
-    // Compute per-phase stats from actual workout rows
+    // Build per-phase data from actual workout rows
     const enrichedPhases = (plan.phases || []).map(p => {
       const weeks = p.weeks || [p.week];
       const phaseWorkouts = allWorkouts.filter(w => weeks.includes(w.week_number));
-      const activePerWeek = phaseWorkouts.filter(w => w.workout_type !== 'rest').length / (weeks.length || 1);
-      const typeSet = new Set(phaseWorkouts.filter(w => w.workout_type !== 'rest').map(w => w.workout_type));
-      const typeSummaries = [...typeSet].map(t => {
-        const count = phaseWorkouts.filter(w => w.workout_type === t).length / (weeks.length || 1);
-        return `${Math.round(count)}x ${t}/week`;
-      });
+      const activeWorkouts = phaseWorkouts.filter(w => w.workout_type !== 'rest');
+      const activePerWeek = activeWorkouts.length / (weeks.length || 1);
 
-      // Get representative workout titles (unique, non-rest, first week)
+      // Type distribution
+      const typeCounts = {};
+      for (const w of activeWorkouts) {
+        typeCounts[w.workout_type] = (typeCounts[w.workout_type] || 0) + 1;
+      }
+      const typeSummary = Object.entries(typeCounts)
+        .map(([t, c]) => `${Math.round(c / (weeks.length || 1))}x ${t}`)
+        .join(', ');
+
+      // Weekly schedule from first week in phase
       const firstWeek = weeks[0];
-      const sampleWorkouts = phaseWorkouts
-        .filter(w => w.week_number === firstWeek && w.workout_type !== 'rest')
-        .map(w => w.title);
+      const scheduleWorkouts = phaseWorkouts
+        .filter(w => w.week_number === firstWeek)
+        .sort((a, b) => a.day_of_week - b.day_of_week);
+
+      const weeklySchedule = scheduleWorkouts.map(w => ({
+        day: DAY_NAMES[w.day_of_week - 1] || '',
+        dayShort: (DAY_NAMES[w.day_of_week - 1] || '').slice(0, 3),
+        title: w.title,
+        type: w.workout_type,
+        intensity: w.intensity,
+        duration: w.duration_minutes,
+      }));
+
+      // Key exercises (unique, across all workouts in phase)
+      const allExercises = new Set();
+      for (const w of activeWorkouts) {
+        const rx = w.prescription_json || {};
+        const exList = rx.exercises || rx.main_workout || [];
+        for (const ex of exList) {
+          if (ex.exercise) allExercises.add(ex.exercise);
+        }
+      }
+      const keyExercises = [...allExercises].slice(0, 8);
+
+      // Total volume
+      const totalMin = phaseWorkouts.reduce((s, w) => s + (w.duration_minutes || 0), 0);
 
       return {
         ...p,
         sessions_per_week: Math.round(activePerWeek),
-        key_workouts: sampleWorkouts.length ? sampleWorkouts : typeSummaries,
+        type_summary: typeSummary,
+        key_workouts: p.key_workouts || weeklySchedule.filter(w => w.type !== 'rest').map(w => w.title),
+        weekly_schedule: weeklySchedule,
+        key_exercises: keyExercises,
+        total_minutes: totalMin,
+        total_sessions: activeWorkouts.length,
       };
     });
+
+    // Season-level stats
+    const totalActive = allWorkouts.filter(w => w.workout_type !== 'rest').length;
+    const totalMinutes = allWorkouts.reduce((s, w) => s + (w.duration_minutes || 0), 0);
 
     const data = {
       view: 'plan',
@@ -590,6 +644,11 @@ async function loadSeasonView(view) {
       phases: enrichedPhases,
       principles: plan.principles || [],
       milestones: plan.milestones || [],
+      season_stats: {
+        total_sessions: totalActive,
+        total_minutes: totalMinutes,
+        duration_weeks: activeSeason.duration_weeks,
+      },
     };
 
     viewCache[view] = { data, fetchedAt: Date.now() };
@@ -739,7 +798,7 @@ function renderWeek(data) {
     const isToday = d.date === today || d.is_today;
 
     let logBadge = '';
-    if (data._from_season) {
+    if (data._from_season && !data._isUpcoming) {
       if (d._log) {
         const cls = d._log.status === 'completed' ? 'done' : d._log.status === 'skipped' ? 'skipped' : 'partial';
         logBadge = `<div class="day-log-badge ${cls}">${d._log.status}${d._log.adherence_score != null ? ` ${Math.round(d._log.adherence_score)}%` : ''}</div>`;
@@ -748,6 +807,11 @@ function renderWeek(data) {
       }
     }
 
+    // Exercise preview for non-rest days
+    const previewHtml = (d.exercisePreview && d.exercisePreview.length)
+      ? `<div class="day-exercises">${d.exercisePreview.map(e => `<span class="day-ex-pill">${esc(e)}</span>`).join('')}</div>`
+      : '';
+
     return `
       <div class="day-card${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}">
         <div class="day-name">${esc(d.day_name || '')}</div>
@@ -755,6 +819,7 @@ function renderWeek(data) {
         <div class="day-type-icon">${TYPE_ICONS[d.type] || '\u{1F3CB}'}</div>
         <div class="day-title">${esc(d.title || '')}</div>
         <div class="day-focus">${esc(d.focus || '')}</div>
+        ${previewHtml}
         <div class="day-intensity-bar ${d.intensity || 'moderate'}"></div>
         <div class="day-duration">${d.duration_minutes ? `${d.duration_minutes} min` : ''}</div>
         ${d._is_adapted ? '<div class="day-log-badge" style="background:#dbeafe;color:#1e40af">adapted</div>' : ''}
@@ -789,6 +854,19 @@ function renderPlan(data) {
   document.getElementById('planName').textContent = data.plan_name || 'Training Plan';
   document.getElementById('planSummary').textContent = data.plan_summary || '';
 
+  // Season overview stats
+  const ss = data.season_stats || {};
+  const overviewEl = document.getElementById('planOverview');
+  if (overviewEl && ss.total_sessions) {
+    overviewEl.style.display = '';
+    overviewEl.innerHTML = `
+      <div class="plan-stat"><div class="plan-stat-val">${ss.duration_weeks}</div><div class="plan-stat-label">Weeks</div></div>
+      <div class="plan-stat"><div class="plan-stat-val">${ss.total_sessions}</div><div class="plan-stat-label">Workouts</div></div>
+      <div class="plan-stat"><div class="plan-stat-val">${Math.round(ss.total_minutes / 60)}h</div><div class="plan-stat-label">Total Time</div></div>
+      <div class="plan-stat"><div class="plan-stat-val">${(data.phases || []).length}</div><div class="plan-stat-label">Phases</div></div>
+    `;
+  }
+
   const ca = data.current_assessment || {};
   const grid = document.getElementById('planAssessment');
   grid.innerHTML = `
@@ -816,14 +894,39 @@ function renderPlan(data) {
     const weeks = p.weeks || [p.week];
     const isCurrent = weeks.some(w => w === currentWeek);
     const sessionsText = p.sessions_per_week ? `${p.sessions_per_week} sessions/week` : '';
-    const detailParts = [p.intensity_range, sessionsText].filter(Boolean).join(' · ');
+    const detailParts = [p.intensity_range, sessionsText, p.type_summary].filter(Boolean).join(' · ');
+
+    // Weekly schedule mini-table
+    const schedule = p.weekly_schedule || [];
+    const scheduleHtml = schedule.length ? `
+      <div class="phase-schedule">
+        ${schedule.map(s => `
+          <div class="phase-sched-day">
+            <span class="phase-sched-label">${esc(s.dayShort)}</span>
+            <span class="phase-sched-type ${s.type}">${TYPE_ICONS[s.type] || ''}</span>
+            <span class="phase-sched-title">${esc(s.title)}</span>
+            ${s.duration ? `<span class="phase-sched-dur">${s.duration}m</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
+    // Key exercises
+    const exercisesHtml = (p.key_exercises && p.key_exercises.length) ? `
+      <div class="phase-exercises">
+        <span class="phase-ex-label">Key exercises:</span>
+        ${p.key_exercises.map(e => `<span class="phase-ex-pill">${esc(e)}</span>`).join('')}
+      </div>
+    ` : '';
+
     return `
       <div class="phase-node${isCurrent ? ' current' : ''}">
         <div class="phase-week">Week${weeks.length > 1 ? 's' : ''} ${weeks.join('-')}${isCurrent ? ' (current)' : ''}</div>
         <div class="phase-name-text">${esc(p.name || '')}</div>
         <div class="phase-focus">${esc(p.focus || '')}</div>
         ${detailParts ? `<div class="phase-details">${esc(detailParts)}</div>` : ''}
-        ${p.key_workouts && p.key_workouts.length ? `<ul class="phase-workouts">${p.key_workouts.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+        ${scheduleHtml}
+        ${exercisesHtml}
       </div>
     `;
   }).join('');

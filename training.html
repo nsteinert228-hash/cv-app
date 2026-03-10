@@ -220,6 +220,29 @@
     .phase-details { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
     .phase-workouts { list-style: disc; padding-left: 16px; margin-top: 4px; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.6; }
 
+    /* Phase weekly schedule */
+    .phase-schedule { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .phase-sched-day { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; padding: 3px 0; }
+    .phase-sched-label { font-weight: 600; color: var(--text-muted); min-width: 30px; text-transform: uppercase; font-size: 0.6rem; }
+    .phase-sched-type { font-size: 0.8rem; }
+    .phase-sched-title { color: var(--text-secondary); flex: 1; }
+    .phase-sched-dur { color: var(--text-muted); font-size: 0.65rem; }
+
+    /* Phase exercise pills */
+    .phase-exercises { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .phase-ex-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-right: 2px; }
+    .phase-ex-pill { padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; background: var(--bg-page); color: var(--text-secondary); }
+
+    /* Day card exercise preview */
+    .day-exercises { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; justify-content: center; }
+    .day-ex-pill { padding: 1px 6px; border-radius: 8px; font-size: 0.6rem; background: var(--bg-page); color: var(--text-muted); }
+
+    /* Plan overview stats */
+    .plan-overview { display: flex; gap: 8px; margin-top: 12px; }
+    .plan-stat { flex: 1; text-align: center; padding: 10px 8px; background: var(--bg-page); border-radius: 10px; }
+    .plan-stat-val { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); }
+    .plan-stat-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+
     .principles-list { list-style: decimal; padding-left: 20px; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.8; }
 
     .milestone-list { display: flex; flex-direction: column; gap: 8px; }
@@ -553,6 +576,7 @@
       <div class="card">
         <div class="plan-name" id="planName">--</div>
         <div class="plan-summary" id="planSummary"></div>
+        <div class="plan-overview" id="planOverview" style="display:none"></div>
       </div>
 
       <div class="card" id="planAssessmentCard">
@@ -605,6 +629,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script type="module" src="src/trainingDashboard.js"></script>
+  <script type="module" src="src/trainingDashboard.js?v=2"></script>
 </body>
 </html>
