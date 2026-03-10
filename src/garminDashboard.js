@@ -114,7 +114,7 @@ if (syncBtn) {
     try {
       await garmin.requestSync();
       syncBtn.textContent = 'Requested!';
-      syncBtn.style.color = '#10b981';
+      syncBtn.style.color = '#34d399';
       setTimeout(() => { syncBtn.textContent = 'Sync'; syncBtn.style.color = ''; syncBtn.disabled = false; }, 2000);
       let pollCount = 0;
       clearInterval(syncPollTimer);
@@ -206,7 +206,7 @@ function drawArcGauge(canvas, value, max, color, label) {
   const pct = Math.min(value / max, 1);
 
   ctx.beginPath(); ctx.arc(cx, cy, r, sa, ea);
-  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();
 
   if (pct > 0) {
     ctx.beginPath(); ctx.arc(cx, cy, r, sa, sa + pct * (ea - sa));
@@ -219,7 +219,7 @@ function drawArcGauge(canvas, value, max, color, label) {
   ctx.fillText(value, cx, cy - size * 0.02);
 
   if (label) {
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = '#5a5a72';
     ctx.font = `500 ${size * 0.08}px -apple-system, BlinkMacSystemFont, sans-serif`;
     ctx.fillText(label, cx, cy + size * 0.16);
   }
@@ -233,8 +233,8 @@ function drawSkeletonGauge(canvas) {
   ctx.scale(dpr, dpr);
   const cx = size / 2, cy = size / 2;
   ctx.beginPath(); ctx.arc(cx, cy, size * 0.38, 0.75 * Math.PI, 2.25 * Math.PI);
-  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = size * 0.09; ctx.lineCap = 'round'; ctx.stroke();
-  ctx.fillStyle = '#d1d5db';
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = size * 0.09; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.fillStyle = '#5a5a72';
   ctx.font = `700 ${size * 0.24}px -apple-system, BlinkMacSystemFont, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('--', cx, cy);
@@ -242,7 +242,7 @@ function drawSkeletonGauge(canvas) {
 
 // ── Canvas: Sparkline (generic) ──────────────────────────────
 
-function drawSparkline(canvas, data, { valueKey, color = '#10b981', bandLow, bandHigh, yLabel, emptyMsg = 'No data' } = {}) {
+function drawSparkline(canvas, data, { valueKey, color = '#34d399', bandLow, bandHigh, yLabel, emptyMsg = 'No data' } = {}) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -251,7 +251,7 @@ function drawSparkline(canvas, data, { valueKey, color = '#10b981', bandLow, ban
 
   const values = data.map(d => d[valueKey]).filter(v => v != null);
   if (!values.length) {
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = '#5a5a72';
     ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(emptyMsg, w / 2, h / 2);
@@ -298,7 +298,7 @@ function drawSparkline(canvas, data, { valueKey, color = '#10b981', bandLow, ban
   }
 
   // X labels
-  ctx.fillStyle = '#9ca3af'; ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#5a5a72'; ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif'; ctx.textAlign = 'center';
   const every = Math.max(1, Math.floor(data.length / 5));
   for (let i = 0; i < data.length; i += every) {
     const d = new Date(data[i].date + 'T00:00:00');
@@ -329,7 +329,7 @@ function drawSleepBar(canvas, deep, light, rem, awake) {
     { val: rem || 0, color: '#a78bfa' }, { val: awake || 0, color: '#f59e0b' },
   ];
 
-  ctx.fillStyle = '#e5e7eb'; ctx.beginPath(); ctx.roundRect(0, y, w, barH, radius); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); ctx.roundRect(0, y, w, barH, radius); ctx.fill();
   ctx.save(); ctx.beginPath(); ctx.roundRect(0, y, w, barH, radius); ctx.clip();
   let x = 0;
   for (const s of segs) { if (s.val <= 0) continue; const sw = (s.val / total) * w; ctx.fillStyle = s.color; ctx.fillRect(x, y, sw, barH); x += sw; }
@@ -347,14 +347,14 @@ function drawStressDonut(canvas, rest, low, med, high, avgLabel) {
 
   const total = (rest || 0) + (low || 0) + (med || 0) + (high || 0);
   if (total === 0) {
-    ctx.fillStyle = '#9ca3af'; ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = '#5a5a72'; ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign = 'center'; ctx.fillText('No data', size / 2, size / 2); return;
   }
 
   const cx = size / 2, cy = size / 2, r = size * 0.36, lw = size * 0.14;
   const segs = [
-    { val: rest || 0, color: '#10b981' }, { val: low || 0, color: '#60a5fa' },
-    { val: med || 0, color: '#f59e0b' }, { val: high || 0, color: '#ef4444' },
+    { val: rest || 0, color: '#34d399' }, { val: low || 0, color: '#60a5fa' },
+    { val: med || 0, color: '#fbbf24' }, { val: high || 0, color: '#f87171' },
   ];
 
   let angle = -Math.PI / 2;
@@ -366,11 +366,11 @@ function drawStressDonut(canvas, rest, low, med, high, avgLabel) {
     angle += sweep;
   }
 
-  ctx.fillStyle = '#1a1a1a';
+  ctx.fillStyle = '#f0f0f5';
   ctx.font = `700 ${size * 0.16}px -apple-system, BlinkMacSystemFont, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(avgLabel || '--', cx, cy - size * 0.02);
-  ctx.fillStyle = '#9ca3af';
+  ctx.fillStyle = '#5a5a72';
   ctx.font = `500 ${size * 0.07}px -apple-system, BlinkMacSystemFont, sans-serif`;
   ctx.fillText('AVG STRESS', cx, cy + size * 0.12);
 }
@@ -392,9 +392,9 @@ function computeReadinessSummary(sleepScore, bbCurrent, hrvStatus) {
 }
 
 function gaugeColor(val, thresholds = [70, 40]) {
-  if (val >= thresholds[0]) return '#10b981';
-  if (val >= thresholds[1]) return '#f59e0b';
-  return '#ef4444';
+  if (val >= thresholds[0]) return '#34d399';
+  if (val >= thresholds[1]) return '#fbbf24';
+  return '#f87171';
 }
 
 // ── State machine ────────────────────────────────────────────
@@ -567,7 +567,7 @@ async function refreshDashboard() {
   // ── 5. Trends ──
   const hrvMapped = (hrv || []).map(d => ({ ...d, baseline_high: d.baseline_upper }));
   drawSparkline(document.getElementById('hrvChart'), hrvMapped, {
-    valueKey: 'last_night_avg', color: '#10b981', bandLow: 'baseline_low', bandHigh: 'baseline_high', emptyMsg: 'No HRV data yet',
+    valueKey: 'last_night_avg', color: '#34d399', bandLow: 'baseline_low', bandHigh: 'baseline_high', emptyMsg: 'No HRV data yet',
   });
 
   drawSparkline(document.getElementById('rhrChart'), dailyTrend, {
