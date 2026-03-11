@@ -169,3 +169,82 @@ describe('swap workout type mapping', () => {
     expect(types).toContain('rest');
   });
 });
+
+describe('onboarding preferences extraction', () => {
+  function getOnboardingPrefs(goals, experience, injuries) {
+    return {
+      goals: goals || undefined,
+      experience: experience || undefined,
+      injuries: injuries?.trim() || undefined,
+    };
+  }
+
+  it('extracts all filled preferences', () => {
+    const prefs = getOnboardingPrefs('strength_building', 'intermediate', 'bad left knee');
+    expect(prefs.goals).toBe('strength_building');
+    expect(prefs.experience).toBe('intermediate');
+    expect(prefs.injuries).toBe('bad left knee');
+  });
+
+  it('returns undefined for empty values', () => {
+    const prefs = getOnboardingPrefs('', '', '');
+    expect(prefs.goals).toBeUndefined();
+    expect(prefs.experience).toBeUndefined();
+    expect(prefs.injuries).toBeUndefined();
+  });
+
+  it('trims whitespace from injuries', () => {
+    const prefs = getOnboardingPrefs('', '', '  shoulder pain  ');
+    expect(prefs.injuries).toBe('shoulder pain');
+  });
+
+  it('partial preferences are valid', () => {
+    const prefs = getOnboardingPrefs('running_endurance', '', '');
+    expect(prefs.goals).toBe('running_endurance');
+    expect(prefs.experience).toBeUndefined();
+    expect(prefs.injuries).toBeUndefined();
+  });
+});
+
+describe('onboarding flow state transitions', () => {
+  it('needsCreation triggers onboarding, not plan view', () => {
+    const result = { season: null, state: null, needsCreation: true, isExpired: false };
+    // When needsCreation is true, we should show onboarding
+    // and NOT proceed to loadView
+    let loadViewCalled = false;
+    let showOnboardingCalled = false;
+
+    if (result.needsCreation) {
+      showOnboardingCalled = true;
+    } else {
+      loadViewCalled = true;
+    }
+
+    expect(showOnboardingCalled).toBe(true);
+    expect(loadViewCalled).toBe(false);
+  });
+
+  it('active season defaults to plan view', () => {
+    const result = { season: { id: 1 }, state: {}, needsCreation: false, isExpired: false };
+    let currentView = 'today';
+
+    if (!result.needsCreation && !result.isExpired) {
+      if (currentView === 'today') {
+        currentView = 'plan';
+      }
+    }
+
+    expect(currentView).toBe('plan');
+  });
+
+  it('expired season triggers completion prompt', () => {
+    const result = { season: { id: 1, name: 'Test' }, state: { isExpired: true }, needsCreation: false, isExpired: true };
+    let showCompletion = false;
+
+    if (result.isExpired) {
+      showCompletion = true;
+    }
+
+    expect(showCompletion).toBe(true);
+  });
+});

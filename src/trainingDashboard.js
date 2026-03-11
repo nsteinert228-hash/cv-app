@@ -65,6 +65,20 @@ const seasonModalTitle = document.getElementById('seasonModalTitle');
 const seasonModalText = document.getElementById('seasonModalText');
 const seasonModalActions = document.getElementById('seasonModalActions');
 
+const onboardingBlock = document.getElementById('onboardingBlock');
+const onboardingPrefs = document.getElementById('onboardingPrefs');
+const onboardingCTA = document.getElementById('onboardingCTA');
+const onboardingProgress = document.getElementById('onboardingProgress');
+const onboardingError = document.getElementById('onboardingError');
+const obGoals = document.getElementById('obGoals');
+const obExperience = document.getElementById('obExperience');
+const obInjuries = document.getElementById('obInjuries');
+const obGenerateBtn = document.getElementById('obGenerateBtn');
+const obSkipBtn = document.getElementById('obSkipBtn');
+
+const viewToggle = document.getElementById('viewToggle');
+const prefsCard = document.getElementById('prefsCard');
+
 // ── State ────────────────────────────────────────────────────
 
 let currentView = 'today'; // will be overridden to 'plan' when season exists
@@ -208,7 +222,12 @@ async function loadSeasonState() {
       return;
     }
 
-    // Active season — default to Training Plan view
+    // Active season — ensure onboarding is hidden and controls visible
+    onboardingBlock.classList.remove('visible');
+    viewToggle.style.display = '';
+    prefsCard.style.display = '';
+
+    // Default to Training Plan view
     if (currentView === 'today') {
       currentView = 'plan';
       document.querySelectorAll('.view-btn').forEach(b => {
@@ -232,39 +251,76 @@ async function loadSeasonState() {
 }
 
 function showSeasonCreationPrompt() {
-  seasonModalTitle.textContent = 'Start Your Training Season';
-  seasonModalText.textContent = 'Ready to start your 8-week personalized training season? We\'ll analyze your health data and create a progressive plan tailored to your goals.';
-  seasonModalActions.innerHTML = `
-    <button class="btn-primary" id="seasonStartBtn">Start Season</button>
-    <button class="btn-ghost" id="seasonSkipBtn">Use without a season</button>
-  `;
-  seasonModal.classList.add('visible');
+  // Show inline onboarding block, hide season-only UI
+  onboardingBlock.classList.add('visible');
+  onboardingPrefs.style.display = '';
+  onboardingCTA.style.display = '';
+  onboardingProgress.classList.remove('visible');
+  onboardingError.textContent = '';
+  viewToggle.style.display = 'none';
+  prefsCard.style.display = 'none';
+  seasonBanner.classList.remove('visible');
 
-  document.getElementById('seasonStartBtn').addEventListener('click', async () => {
-    seasonModalText.textContent = 'Creating your training season... This may take a moment.';
-    seasonModalActions.innerHTML = '<div class="ai-loading-icon" style="animation:pulse-ai 1.5s infinite">&#129504;</div>';
+  // Pre-fill from saved preferences
+  obGoals.value = preferences.goals || '';
+  obExperience.value = preferences.experience || '';
+  obInjuries.value = preferences.injuries || '';
+}
+
+// ── Onboarding Event Handlers ──────────────────────────────
+
+if (obGenerateBtn) {
+  obGenerateBtn.addEventListener('click', async () => {
+    // Save preferences from onboarding form before creating season
+    const obPrefs = {
+      goals: obGoals.value || undefined,
+      experience: obExperience.value || undefined,
+      injuries: obInjuries.value.trim() || undefined,
+    };
+    preferences = obPrefs;
+    setPrefsUI(obPrefs);
+
+    // Save prefs (non-blocking)
+    saveTrainingPreferences(obPrefs).catch(() => {});
+
+    // Show progress
+    onboardingPrefs.style.display = 'none';
+    onboardingCTA.style.display = 'none';
+    onboardingProgress.classList.add('visible');
+    onboardingError.textContent = '';
+
     try {
       await startNewSeason();
-      seasonModal.classList.remove('visible');
+      onboardingBlock.classList.remove('visible');
+      viewToggle.style.display = '';
+      prefsCard.style.display = '';
       await loadSeasonState();
     } catch (err) {
-      seasonModalText.textContent = `Failed to create season: ${err.message}`;
-      seasonModalActions.innerHTML = `
-        <button class="btn-primary" id="seasonRetryBtn">Retry</button>
-        <button class="btn-ghost" id="seasonSkipBtn2">Skip</button>
-      `;
-      document.getElementById('seasonRetryBtn').addEventListener('click', () => {
-        showSeasonCreationPrompt();
-      });
-      document.getElementById('seasonSkipBtn2').addEventListener('click', () => {
-        seasonModal.classList.remove('visible');
-        loadView(currentView);
-      });
+      onboardingProgress.classList.remove('visible');
+      onboardingPrefs.style.display = '';
+      onboardingCTA.style.display = '';
+      onboardingError.textContent = `Failed to create season: ${err.message}`;
     }
   });
+}
 
-  document.getElementById('seasonSkipBtn').addEventListener('click', () => {
-    seasonModal.classList.remove('visible');
+if (obSkipBtn) {
+  obSkipBtn.addEventListener('click', () => {
+    // Save any preferences they entered
+    const obPrefs = {
+      goals: obGoals.value || undefined,
+      experience: obExperience.value || undefined,
+      injuries: obInjuries.value.trim() || undefined,
+    };
+    if (obPrefs.goals || obPrefs.experience || obPrefs.injuries) {
+      preferences = obPrefs;
+      setPrefsUI(obPrefs);
+      saveTrainingPreferences(obPrefs).catch(() => {});
+    }
+
+    onboardingBlock.classList.remove('visible');
+    viewToggle.style.display = '';
+    prefsCard.style.display = '';
     loadView(currentView);
   });
 }

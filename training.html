@@ -305,6 +305,31 @@
     .logger-manual-cardio label { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
     .logger-manual-cardio .logger-input { width: 80px; }
 
+    /* ── Onboarding Block ── */
+    .onboarding-block { display: none; }
+    .onboarding-block.visible { display: block; }
+    .onboarding-hero { text-align: center; padding: 24px 20px 16px; }
+    .onboarding-hero h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
+    .onboarding-hero p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+    .onboarding-prefs { padding: 0 0 8px; }
+    .onboarding-prefs .prefs-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .onboarding-prefs .prefs-field { flex: 1; min-width: 140px; }
+    .onboarding-prefs .prefs-field label { display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .onboarding-prefs .prefs-field select,
+    .onboarding-prefs .prefs-field input { width: 100%; padding: 9px 12px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); outline: none; font-family: inherit; transition: border-color var(--duration-fast); }
+    .onboarding-prefs .prefs-field select:focus,
+    .onboarding-prefs .prefs-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .onboarding-prefs .prefs-field select option { background: #1a1a2e; color: var(--text-primary); }
+    .onboarding-cta { text-align: center; padding: 4px 0 8px; }
+    .onboarding-cta .btn-primary { padding: 12px 28px; font-size: 0.88rem; }
+    .onboarding-cta .btn-ghost { margin-top: 8px; }
+    .onboarding-progress { display: none; text-align: center; padding: 24px 0; }
+    .onboarding-progress.visible { display: block; }
+    .onboarding-progress-icon { font-size: 2rem; animation: pulse-ai 1.5s ease-in-out infinite; }
+    .onboarding-progress-text { font-size: 0.88rem; color: var(--text-secondary); font-weight: 600; margin-top: 10px; }
+    .onboarding-progress-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+    .onboarding-error { text-align: center; font-size: 0.82rem; color: var(--red); margin-top: 8px; min-height: 1em; }
+
     /* ── Season Modal ── */
     .season-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
     .season-modal.visible { display: flex; }
@@ -416,6 +441,53 @@
         </div>
         <div class="prefs-save" id="prefsSaveStatus"></div>
       </div>
+    </div>
+
+    <!-- Onboarding Block (first-time users) -->
+    <div class="onboarding-block card" id="onboardingBlock">
+      <div class="onboarding-hero">
+        <h2>Set Up Your Training Plan</h2>
+        <p>Tell us about your goals and we'll create an 8-week personalized training season based on your Garmin data.</p>
+      </div>
+      <div class="onboarding-prefs" id="onboardingPrefs">
+        <div class="prefs-row">
+          <div class="prefs-field">
+            <label>Goal</label>
+            <select id="obGoals">
+              <option value="">Select a goal...</option>
+              <option value="general_fitness">General Fitness</option>
+              <option value="running_endurance">Running / Endurance</option>
+              <option value="strength_building">Strength Building</option>
+              <option value="weight_loss">Weight Loss</option>
+            </select>
+          </div>
+          <div class="prefs-field">
+            <label>Experience</label>
+            <select id="obExperience">
+              <option value="">Select level...</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+        <div class="prefs-row">
+          <div class="prefs-field" style="min-width:100%">
+            <label>Injuries / Notes</label>
+            <input type="text" id="obInjuries" placeholder="e.g., bad left knee, recovering from surgery">
+          </div>
+        </div>
+      </div>
+      <div class="onboarding-cta" id="onboardingCTA">
+        <button class="btn-primary" id="obGenerateBtn">Generate Plan</button><br>
+        <button class="btn-ghost" id="obSkipBtn">Skip for now</button>
+      </div>
+      <div class="onboarding-progress" id="onboardingProgress">
+        <div class="onboarding-progress-icon">&#129504;</div>
+        <div class="onboarding-progress-text">Creating your training season...</div>
+        <div class="onboarding-progress-sub">Analyzing your health data and building a personalized plan</div>
+      </div>
+      <div class="onboarding-error" id="onboardingError"></div>
     </div>
 
     <!-- Season Banner -->
