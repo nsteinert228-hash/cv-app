@@ -4,6 +4,14 @@ import { onAuthStateChange, getUser } from './auth.js';
 import { createAuthUI } from './authUI.js';
 import * as garmin from './garmin.js';
 
+// ── Helpers ──────────────────────────────────────────────────
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 // ── DOM refs ─────────────────────────────────────────────────
 
 const authSection = document.getElementById('authSection');
@@ -240,9 +248,16 @@ function drawSkeletonGauge(canvas) {
   ctx.fillText('--', cx, cy);
 }
 
-// ── Canvas: Sparkline (generic) ──────────────────────────────
+// ── Canvas: Sparkline (generic, supports shared date domain) ─
 
-function drawSparkline(canvas, data, { valueKey, color = '#34d399', bandLow, bandHigh, yLabel, emptyMsg = 'No data' } = {}) {
+/**
+ * Draw a sparkline chart.
+ * @param {HTMLCanvasElement} canvas
+ * @param {Array} data - array of { date, [valueKey], ... }
+ * @param {Object} opts
+ * @param {string[]} [opts.sharedDomain] - optional array of ISO date strings for aligned x-axis
+ */
+function drawSparkline(canvas, data, { valueKey, color = '#34d399', bandLow, bandHigh, yLabel, emptyMsg = 'No data', sharedDomain } = {}) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -268,16 +283,31 @@ function drawSparkline(canvas, data, { valueKey, color = '#34d399', bandLow, ban
   const maxV = Math.ceil(Math.max(...allVals) * 1.08);
   const range = maxV - minV || 1;
 
-  const xStep = data.length > 1 ? cw / (data.length - 1) : cw / 2;
-  const toX = i => pad.left + i * xStep;
+  // Build date→index map from shared domain for aligned x-axis
+  const domain = sharedDomain || data.map(d => d.date);
+  const domainLen = domain.length;
+  const dateIndexMap = new Map(domain.map((d, i) => [d, i]));
+  const xStep = domainLen > 1 ? cw / (domainLen - 1) : cw / 2;
+  const toX = (dateStr) => {
+    const idx = dateIndexMap.get(dateStr);
+    return idx != null ? pad.left + idx * xStep : null;
+  };
   const toY = v => pad.top + ch - ((v - minV) / range) * ch;
 
   // Band
   if (bandLow && bandHigh) {
     ctx.fillStyle = `${color}18`;
     ctx.beginPath();
-    for (let i = 0; i < data.length; i++) { const v = data[i][bandHigh]; if (v != null) ctx.lineTo(toX(i), toY(v)); }
-    for (let i = data.length - 1; i >= 0; i--) { const v = data[i][bandLow]; if (v != null) ctx.lineTo(toX(i), toY(v)); }
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i][bandHigh]; if (v == null) continue;
+      const x = toX(data[i].date); if (x == null) continue;
+      ctx.lineTo(x, toY(v));
+    }
+    for (let i = data.length - 1; i >= 0; i--) {
+      const v = data[i][bandLow]; if (v == null) continue;
+      const x = toX(data[i].date); if (x == null) continue;
+      ctx.lineTo(x, toY(v));
+    }
     ctx.closePath(); ctx.fill();
   }
 
@@ -286,23 +316,26 @@ function drawSparkline(canvas, data, { valueKey, color = '#34d399', bandLow, ban
   let started = false;
   for (let i = 0; i < data.length; i++) {
     const v = data[i][valueKey]; if (v == null) continue;
-    if (!started) { ctx.moveTo(toX(i), toY(v)); started = true; } else ctx.lineTo(toX(i), toY(v));
+    const x = toX(data[i].date); if (x == null) continue;
+    if (!started) { ctx.moveTo(x, toY(v)); started = true; } else ctx.lineTo(x, toY(v));
   }
   ctx.stroke();
 
   // Dots
   for (let i = 0; i < data.length; i++) {
     const v = data[i][valueKey]; if (v == null) continue;
-    ctx.beginPath(); ctx.arc(toX(i), toY(v), 2.5, 0, Math.PI * 2);
+    const x = toX(data[i].date); if (x == null) continue;
+    ctx.beginPath(); ctx.arc(x, toY(v), 2.5, 0, Math.PI * 2);
     ctx.fillStyle = color; ctx.fill();
   }
 
-  // X labels
+  // X labels — use shared domain for aligned tick positions
   ctx.fillStyle = '#5a5a72'; ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif'; ctx.textAlign = 'center';
-  const every = Math.max(1, Math.floor(data.length / 5));
-  for (let i = 0; i < data.length; i += every) {
-    const d = new Date(data[i].date + 'T00:00:00');
-    ctx.fillText(`${d.getMonth() + 1}/${d.getDate()}`, toX(i), h - 4);
+  const every = Math.max(1, Math.floor(domainLen / 5));
+  for (let i = 0; i < domainLen; i += every) {
+    const d = new Date(domain[i] + 'T00:00:00');
+    const x = pad.left + i * xStep;
+    ctx.fillText(`${d.getMonth() + 1}/${d.getDate()}`, x, h - 4);
   }
 
   // Y labels
@@ -461,11 +494,10 @@ async function refreshDashboard() {
   showLastSyncBanner(lastSyncAt);
 
   // ── Fetch all data in parallel ──
-  const [sleep, hrv, daily, spo2, resp, activities, bodyComp, dailyTrend] = await Promise.all([
+  const [sleep, hrv, daily, resp, activities, bodyComp, dailyTrend] = await Promise.all([
     garmin.getSleepDetailed().catch(() => null),
     garmin.getHrvTrend(14).catch(() => []),
     garmin.getDailySummaryDetailed().catch(() => null),
-    garmin.getSpo2().catch(() => null),
     garmin.getRespiration().catch(() => null),
     garmin.getRecentActivities(5).catch(() => []),
     garmin.getBodyCompositionTrend(30).catch(() => []),
@@ -493,53 +525,68 @@ async function refreshDashboard() {
 
   document.getElementById('readinessSummary').textContent = computeReadinessSummary(sleepScore, bbVal, hrvStatusStr);
 
-  // ── 2. Recent Activity ──
-  const activityList = document.getElementById('activityList');
-  const activityStreak = document.getElementById('activityStreak');
-  if (activities.length) {
-    activityList.innerHTML = activities.slice(0, 3).map(a => `
-      <div class="activity-item">
-        <div class="activity-icon">${activityIcon(a.activity_type)}</div>
-        <div class="activity-info">
-          <div class="activity-name">${a.name || a.activity_type}</div>
-          <div class="activity-stats">
-            <span>${fmtMiles(a.distance_meters)}</span>
-            <span>${fmtDuration(a.duration_seconds)}</span>
-            <span>${a.avg_heart_rate ? a.avg_heart_rate + ' bpm' : ''}</span>
-            <span>${fmtPace(a.duration_seconds, a.distance_meters)}</span>
-          </div>
-        </div>
-        <div class="activity-ago">${timeAgo(a.start_time || a.date + 'T12:00:00Z')}</div>
-      </div>
-    `).join('');
+  // ── 2. Recent Activity — 7-day Calendar Grid ──
+  const activityCalendar = document.getElementById('activityCalendar');
+  const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const localDate = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  const todayStr = localDate(new Date());
+  const calTiles = [];
 
-    // 7-day streak
-    const today = new Date();
-    const streakDots = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today); d.setDate(d.getDate() - i);
-      const ds = d.toISOString().split('T')[0];
-      const had = activities.some(a => a.date === ds);
-      streakDots.push(`<div class="streak-dot ${had ? 'active' : 'rest'}" title="${ds}"></div>`);
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = localDate(d);
+    const isToday = ds === todayStr;
+    const dayActivities = activities.filter(a => a.date === ds);
+
+    if (dayActivities.length > 0) {
+      const a = dayActivities[0]; // show primary activity
+      const stats = [
+        a.duration_seconds ? fmtDuration(a.duration_seconds) : '',
+        a.distance_meters ? fmtMiles(a.distance_meters) : '',
+        a.avg_heart_rate ? `${a.avg_heart_rate} bpm` : '',
+      ].filter(Boolean).join('<br>');
+
+      calTiles.push(`
+        <div class="cal-tile${isToday ? ' is-today' : ''}">
+          <div class="cal-tile-day">${DAY_LABELS[d.getDay()]}</div>
+          <div class="cal-tile-date">${d.getMonth() + 1}/${d.getDate()}</div>
+          <div class="cal-tile-icon">${activityIcon(a.activity_type)}</div>
+          <div class="cal-tile-name">${esc(a.name || a.activity_type)}</div>
+          <div class="cal-tile-stats">${stats}</div>
+        </div>
+      `);
+    } else {
+      calTiles.push(`
+        <div class="cal-tile${isToday ? ' is-today' : ''}">
+          <div class="cal-tile-day">${DAY_LABELS[d.getDay()]}</div>
+          <div class="cal-tile-date">${d.getMonth() + 1}/${d.getDate()}</div>
+          <div class="cal-tile-rest">Rest day</div>
+        </div>
+      `);
     }
-    activityStreak.innerHTML = streakDots.join('') + '<span class="streak-label">Last 7 days</span>';
-  } else {
-    activityList.innerHTML = '<div class="card-error">No recent activities</div>';
-    activityStreak.innerHTML = '';
   }
+  activityCalendar.innerHTML = calTiles.join('');
 
   // ── 3. Daily Stats ──
   const stepGoal = daily?.step_goal || 10000;
-  const intGoal = daily?.intensity_goal || 150;
+  const intGoal = daily?.intensity_goal; // null if Garmin doesn't provide
   const flrGoal = daily?.floors_goal || 10;
 
   document.getElementById('qSteps').textContent = daily?.steps?.toLocaleString() ?? '--';
   document.getElementById('qStepsGoal').textContent = stepGoal.toLocaleString();
   document.getElementById('stepsProgressFill').style.width = `${Math.min((daily?.steps || 0) / stepGoal * 100, 100)}%`;
 
+  // Intensity: only show goal/progress if Garmin provides a goal
   document.getElementById('qIntensity').textContent = daily?.intensity_minutes ?? '--';
-  document.getElementById('qIntensityGoal').textContent = intGoal;
-  document.getElementById('intensityProgressFill').style.width = `${Math.min((daily?.intensity_minutes || 0) / intGoal * 100, 100)}%`;
+  const intensityGoalLabel = document.getElementById('intensityGoalLabel');
+  if (intGoal) {
+    document.getElementById('qIntensityGoal').textContent = intGoal;
+    intensityGoalLabel.style.display = '';
+    document.getElementById('intensityProgressFill').style.width = `${Math.min((daily?.intensity_minutes || 0) / intGoal * 100, 100)}%`;
+  } else {
+    intensityGoalLabel.style.display = 'none';
+    document.getElementById('intensityProgressFill').style.width = '0%';
+  }
 
   document.getElementById('qFloors').textContent = daily?.floors_climbed ?? '--';
   document.getElementById('qFloorsGoal').textContent = flrGoal;
@@ -549,7 +596,6 @@ async function refreshDashboard() {
   document.getElementById('qHR7d').textContent = daily?.rhr_7d_avg ? `7d avg: ${daily.rhr_7d_avg}` : '';
   document.getElementById('qActiveCal').textContent = daily?.calories_active?.toLocaleString() ?? '--';
   document.getElementById('qTotalCal').textContent = daily?.calories_total ? `${daily.calories_total.toLocaleString()} total` : '';
-  document.getElementById('qSpo2').textContent = spo2?.avg_spo2 ? `${Math.round(spo2.avg_spo2)}%` : '--';
   document.getElementById('qResp').textContent = resp?.avg_waking ? Math.round(resp.avg_waking) : '--';
 
   // ── 4. Sleep ──
@@ -561,25 +607,31 @@ async function refreshDashboard() {
   document.getElementById('sleepAwake').textContent = fmtDuration(sleep?.awake_seconds);
   document.getElementById('scoreOverall').textContent = sleep?.sleep_score ?? '--';
   document.getElementById('scoreResp').textContent = sleep?.avg_respiration ? Math.round(sleep.avg_respiration) : (resp?.avg_sleeping ? Math.round(resp.avg_sleeping) : '--');
-  document.getElementById('scoreSpo2').textContent = sleep?.avg_spo2 ? `${Math.round(sleep.avg_spo2)}%` : (spo2?.avg_spo2 ? `${Math.round(spo2.avg_spo2)}%` : '--');
   document.getElementById('scoreDuration').textContent = fmtDuration(sleep?.total_sleep_seconds);
 
-  // ── 5. Trends ──
+  // ── 5. Trends (shared x-axis domain across all 4 charts) ──
+  // Compute a shared 14-day date domain so all charts align
+  const sharedDomain = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    sharedDomain.push(d.toISOString().split('T')[0]);
+  }
+
   const hrvMapped = (hrv || []).map(d => ({ ...d, baseline_high: d.baseline_upper }));
   drawSparkline(document.getElementById('hrvChart'), hrvMapped, {
-    valueKey: 'last_night_avg', color: '#34d399', bandLow: 'baseline_low', bandHigh: 'baseline_high', emptyMsg: 'No HRV data yet',
+    valueKey: 'last_night_avg', color: '#34d399', bandLow: 'baseline_low', bandHigh: 'baseline_high', emptyMsg: 'No HRV data yet', sharedDomain,
   });
 
   drawSparkline(document.getElementById('rhrChart'), dailyTrend, {
-    valueKey: 'resting_heart_rate', color: '#ef4444', emptyMsg: 'No HR data yet',
+    valueKey: 'resting_heart_rate', color: '#ef4444', emptyMsg: 'No HR data yet', sharedDomain,
   });
 
   drawSparkline(document.getElementById('weightChart'), bodyComp, {
-    valueKey: 'weight_kg', color: '#6366f1', emptyMsg: 'No weight data',
+    valueKey: 'weight_kg', color: '#6366f1', emptyMsg: 'No weight data', sharedDomain,
   });
 
   drawSparkline(document.getElementById('bodyFatChart'), bodyComp, {
-    valueKey: 'body_fat_pct', color: '#f59e0b', emptyMsg: 'No body fat data',
+    valueKey: 'body_fat_pct', color: '#f59e0b', emptyMsg: 'No body fat data', sharedDomain,
   });
 
   // ── 6. Stress ──
@@ -594,13 +646,15 @@ async function refreshDashboard() {
   document.getElementById('stressMed').textContent = medS != null ? fmtDuration(medS) : '--';
   document.getElementById('stressHigh').textContent = highS != null ? fmtDuration(highS) : '--';
 
-  // ── 7. Training Log ──
+  // ── 7. Training Log (collapsed, only show card if activities exist) ──
+  const trainingCard = document.getElementById('trainingCard');
   const tbody = document.getElementById('trainingBody');
   if (activities.length) {
+    trainingCard.style.display = '';
     tbody.innerHTML = activities.map(a => {
       const d = new Date(a.date + 'T00:00:00');
       const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-      const label = a.name || a.activity_type;
+      const label = esc(a.name || a.activity_type);
       return `<tr>
         <td>${activityIcon(a.activity_type)} ${label}<br><span style="font-size:0.65rem;color:var(--text-muted)">${dateStr}</span></td>
         <td>${fmtMiles(a.distance_meters)}</td>
@@ -610,8 +664,20 @@ async function refreshDashboard() {
       </tr>`;
     }).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px">No activities recorded</td></tr>';
+    trainingCard.style.display = 'none';
   }
+}
+
+// ── Training Log toggle ──────────────────────────────────────
+
+const trainingLogToggle = document.getElementById('trainingLogToggle');
+const trainingLogContent = document.getElementById('trainingLogContent');
+if (trainingLogToggle) {
+  trainingLogToggle.addEventListener('click', () => {
+    const isOpen = trainingLogContent.style.display !== 'none';
+    trainingLogContent.style.display = isOpen ? 'none' : '';
+    trainingLogToggle.classList.toggle('expanded', !isOpen);
+  });
 }
 
 // ── Init ─────────────────────────────────────────────────────

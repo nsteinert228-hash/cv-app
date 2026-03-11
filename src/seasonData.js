@@ -226,6 +226,65 @@ export async function triggerAdaptation(force = false) {
   return _callEdgeFunction('season-adapt', { force });
 }
 
+// ── Workout Swap ─────────────────────────────────────────────
+
+export async function swapWorkout(workoutId, newType, newTitle, newPrescription) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase not configured');
+
+  const { data: original, error: fetchErr } = await client
+    .from('season_workouts')
+    .select('*')
+    .eq('id', workoutId)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+
+  // Update the workout
+  const { error: updateErr } = await client
+    .from('season_workouts')
+    .update({
+      workout_type: newType,
+      title: newTitle,
+      prescription_json: newPrescription,
+      is_adapted: true,
+    })
+    .eq('id', workoutId);
+
+  if (updateErr) throw updateErr;
+
+  // Record the swap as an adaptation for transparency
+  const { error: adaptErr } = await client
+    .from('season_adaptations')
+    .insert({
+      season_id: original.season_id,
+      trigger: 'schedule',
+      summary: `Swapped "${original.title}" (${original.workout_type}) → "${newTitle}" (${newType})`,
+      affected_date: original.date,
+      proximity: 'near_term',
+      acknowledged: true,
+    });
+
+  if (adaptErr) console.warn('Failed to log swap adaptation:', adaptErr);
+
+  return { ...original, workout_type: newType, title: newTitle, prescription_json: newPrescription, is_adapted: true };
+}
+
+export async function getWeekWorkoutsByWeekNumber(seasonId, weekNumber) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from('season_workouts')
+    .select('*')
+    .eq('season_id', seasonId)
+    .eq('week_number', weekNumber)
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
 // ── Garmin Activity Matching ─────────────────────────────────
 
 const GARMIN_TYPE_MAP = {

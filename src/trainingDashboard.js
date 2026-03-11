@@ -21,9 +21,12 @@ import {
   getSeasonWorkouts,
   getWorkoutLog,
   getWorkoutLogsForSeason,
+  getWeekWorkoutsByWeekNumber,
 } from './seasonData.js';
 import { renderWorkoutConfirmation } from './workoutLogger.js';
 import { renderAdaptationFeed } from './adaptationFeed.js';
+import { renderSeasonHistory } from './seasonHistory.js';
+import { open as openDayDetail, close as closeDayDetail } from './dayDetail.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -64,7 +67,8 @@ const seasonModalActions = document.getElementById('seasonModalActions');
 
 // ── State ────────────────────────────────────────────────────
 
-let currentView = 'today';
+let currentView = 'today'; // will be overridden to 'plan' when season exists
+let viewingWeekNumber = null; // for browsing past weeks
 let currentUser = null;
 let activeSeason = null;
 let seasonState = null;
@@ -204,10 +208,18 @@ async function loadSeasonState() {
       return;
     }
 
-    // Active season — render banner and load view
+    // Active season — default to Training Plan view
+    if (currentView === 'today') {
+      currentView = 'plan';
+      document.querySelectorAll('.view-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === 'plan');
+      });
+    }
+
     renderSeasonBanner();
     renderAdaptationFeed(adaptationFeedEl, activeSeason.id);
     checkAdaptations().catch(() => {}); // background
+    initSeasonHistory();
     loadView(currentView);
   } catch (err) {
     console.error('Season init error:', err);
@@ -540,6 +552,7 @@ async function loadSeasonView(view) {
         total_minutes: weekStats.totalMin,
         active_days: weekStats.activeDays,
       },
+      _weekNumber: weekLabel,
       days: workouts.map(w => {
         const log = logMap.get(w.id);
         const rx = w.prescription_json || {};
@@ -557,6 +570,7 @@ async function loadSeasonView(view) {
           is_today: w.date === today,
           _log: log || null,
           _is_adapted: w.is_adapted,
+          _workout_id: w.id,
         };
       }),
       weekly_goals: [
@@ -653,6 +667,78 @@ async function loadSeasonView(view) {
 
     viewCache[view] = { data, fetchedAt: Date.now() };
     renderView(view, data);
+  }
+}
+
+async function loadWeekByNumber(weekNumber) {
+  if (!activeSeason) return;
+  showLoading();
+
+  try {
+    const plan = activeSeason.plan_json || {};
+    const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const workouts = await getWeekWorkoutsByWeekNumber(activeSeason.id, weekNumber);
+    const logs = await getWorkoutLogsForSeason(activeSeason.id);
+    const logMap = new Map(logs.map(l => [l.workout_id, l]));
+    const today = new Date().toISOString().split('T')[0];
+    const phase = getCurrentPhase(plan, weekNumber);
+    const weekStats = computeWeekStats(workouts);
+
+    const weekLogs = workouts.map(w => logMap.get(w.id)).filter(Boolean);
+    const completedCount = weekLogs.filter(l => l.status === 'completed').length;
+    const loadLabel = weekStats.activeDays >= 6 ? 'High' : weekStats.activeDays >= 4 ? 'Moderate' : 'Low';
+    const typeLabels = Object.entries(weekStats.typeCounts).map(([t, c]) => `${c}x ${t}`).join(', ');
+
+    const data = {
+      view: 'week',
+      _from_season: true,
+      _weekNumber: weekNumber,
+      weekly_summary: phase
+        ? `Week ${weekNumber} · ${phase.name} — ${phase.focus || ''}`
+        : `Week ${weekNumber} of ${activeSeason.name}`,
+      training_load_assessment: {
+        recent_load: loadLabel,
+        trend: phase ? phase.intensity_range || '--' : '--',
+        phase_name: phase ? phase.name : '--',
+        total_minutes: weekStats.totalMin,
+        active_days: weekStats.activeDays,
+      },
+      days: workouts.map(w => {
+        const log = logMap.get(w.id);
+        const rx = w.prescription_json || {};
+        const exercises = rx.exercises || rx.main_workout || [];
+        const exercisePreview = exercises.slice(0, 3).map(e => e.exercise).filter(Boolean);
+        return {
+          date: w.date,
+          day_name: DAY_NAMES[w.day_of_week - 1] || '',
+          type: w.workout_type,
+          title: w.title,
+          intensity: w.intensity,
+          duration_minutes: w.duration_minutes,
+          focus: rx.description || '',
+          exercisePreview,
+          is_today: w.date === today,
+          _log: log || null,
+          _is_adapted: w.is_adapted,
+          _workout_id: w.id,
+        };
+      }),
+      weekly_goals: [
+        { metric: 'Active Days', target: `${weekStats.activeDays} sessions (${typeLabels || 'rest week'})` },
+        { metric: 'Training Volume', target: `${weekStats.totalMin} minutes total` },
+        ...(completedCount > 0 ? [{ metric: 'Progress', target: `${completedCount} of ${weekStats.activeDays} completed` }] : []),
+        ...(phase && phase.focus ? [{ metric: 'Phase Focus', target: phase.focus }] : []),
+      ],
+      alerts: [],
+    };
+
+    // Clean up previous week nav
+    const existingNav = document.querySelector('#weekNavContainer');
+    if (existingNav) existingNav.remove();
+
+    renderView('week', data);
+  } catch (err) {
+    console.error('Week load error:', err);
   }
 }
 
@@ -791,9 +877,30 @@ function renderWeek(data) {
   document.getElementById('weekTrend').textContent = tla.trend || '--';
   document.getElementById('weekPhase').textContent = tla.phase_name || '--';
 
+  // Week navigation for browsing past weeks
+  const weekNavHtml = (activeSeason && seasonState) ? `
+    <div class="week-nav">
+      <div class="week-nav-label">Week ${data._weekNumber || seasonState.currentWeek} of ${activeSeason.duration_weeks}</div>
+      <div class="week-nav-btns">
+        <button class="week-nav-btn" id="weekPrevBtn" ${(data._weekNumber || seasonState.currentWeek) <= 1 ? 'disabled' : ''}>&larr; Prev</button>
+        <button class="week-nav-btn" id="weekNextBtn" ${(data._weekNumber || seasonState.currentWeek) >= seasonState.currentWeek ? 'disabled' : ''}>Next &rarr;</button>
+      </div>
+    </div>
+  ` : '';
+
   const cal = document.getElementById('weekCalendar');
   const today = new Date().toISOString().split('T')[0];
-  cal.innerHTML = (data.days || []).map(d => {
+
+  // Insert week nav before calendar (replace any previous)
+  let navContainer = container.querySelector('#weekNavContainer');
+  if (!navContainer) {
+    navContainer = document.createElement('div');
+    navContainer.id = 'weekNavContainer';
+    cal.parentElement.insertBefore(navContainer, cal);
+  }
+  navContainer.innerHTML = weekNavHtml;
+
+  cal.innerHTML = (data.days || []).map((d, idx) => {
     const isPast = d.date < today;
     const isToday = d.date === today || d.is_today;
 
@@ -813,7 +920,7 @@ function renderWeek(data) {
       : '';
 
     return `
-      <div class="day-card${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}">
+      <div class="day-card${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}" data-day-index="${idx}" style="cursor:pointer">
         <div class="day-name">${esc(d.day_name || '')}</div>
         <div class="day-date">${esc(d.date || '')}</div>
         <div class="day-type-icon">${TYPE_ICONS[d.type] || '\u{1F3CB}'}</div>
@@ -827,6 +934,47 @@ function renderWeek(data) {
       </div>
     `;
   }).join('');
+
+  // Day card click → open day detail
+  cal.querySelectorAll('.day-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const idx = parseInt(card.dataset.dayIndex);
+      const dayData = (data.days || [])[idx];
+      if (!dayData || !dayData._workout_id) return;
+
+      // Fetch the full workout from the season
+      try {
+        const { getSupabaseClient } = await import('./supabase.js');
+        const client = getSupabaseClient();
+        if (!client) return;
+        const { data: workout } = await client
+          .from('season_workouts')
+          .select('*')
+          .eq('id', dayData._workout_id)
+          .single();
+
+        if (workout) openDayDetail(workout, getDayDetailContext());
+      } catch (err) {
+        console.error('Day detail fetch error:', err);
+      }
+    });
+  });
+
+  // Week navigation handlers
+  const prevBtn = container.querySelector('#weekPrevBtn');
+  const nextBtn = container.querySelector('#weekNextBtn');
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      const targetWeek = (data._weekNumber || seasonState.currentWeek) - 1;
+      if (targetWeek >= 1) loadWeekByNumber(targetWeek);
+    });
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const targetWeek = (data._weekNumber || seasonState.currentWeek) + 1;
+      if (targetWeek <= seasonState.currentWeek) loadWeekByNumber(targetWeek);
+    });
+  }
 
   const goalsCard = document.getElementById('weekGoalsCard');
   const goalsList = document.getElementById('weekGoalsList');
@@ -972,6 +1120,39 @@ function esc(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
+}
+
+// ── Season History ───────────────────────────────────────────
+
+function initSeasonHistory() {
+  const section = document.getElementById('seasonHistorySection');
+  const toggle = document.getElementById('historyToggle');
+  const container = document.getElementById('historyContainer');
+
+  if (!section || !toggle || !container) return;
+  section.style.display = '';
+
+  toggle.addEventListener('click', () => {
+    const isOpen = container.classList.contains('visible');
+    container.classList.toggle('visible', !isOpen);
+    if (!isOpen && !container.dataset.loaded) {
+      renderSeasonHistory(container);
+      container.dataset.loaded = 'true';
+    }
+  });
+}
+
+// ── Day Detail Helper ────────────────────────────────────────
+
+function getDayDetailContext() {
+  return {
+    normalizePrescription,
+    esc,
+    activeSeason,
+    viewCache,
+    loadView,
+    get currentView() { return currentView; },
+  };
 }
 
 // ── Init ─────────────────────────────────────────────────────

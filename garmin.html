@@ -62,24 +62,26 @@
 
     .readiness-summary { text-align: center; font-size: 0.88rem; color: var(--text-secondary); padding: 10px 16px 0; font-weight: 500; }
 
-    /* ── Recent Activity ── */
-    .activity-item { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
-    .activity-item:last-child { border-bottom: none; }
-    .activity-icon { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; background: var(--bg-elevated); border: 1px solid var(--border-light); }
-    .activity-info { flex: 1; min-width: 0; }
-    .activity-name { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .activity-meta { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
-    .activity-stats { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
-    .activity-ago { font-size: 0.72rem; color: var(--text-muted); flex-shrink: 0; text-align: right; }
+    /* ── Recent Activity — 7-day Calendar Grid ── */
+    .activity-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-tile { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); text-align: center; min-height: 90px; transition: border-color var(--duration-fast); }
+    .cal-tile:hover { border-color: var(--glass-border); }
+    .cal-tile.is-today { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+    .cal-tile-day { font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .cal-tile-date { font-size: 0.68rem; font-weight: 600; color: var(--text-secondary); margin-top: 1px; }
+    .cal-tile-icon { font-size: 1.2rem; margin-top: 6px; }
+    .cal-tile-name { font-size: 0.62rem; font-weight: 600; color: var(--text-primary); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .cal-tile-stats { font-size: 0.55rem; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
+    .cal-tile-rest { font-size: 0.62rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
 
-    .activity-streak { display: flex; gap: 4px; margin-top: 14px; align-items: center; }
-    .streak-dot { width: 18px; height: 18px; border-radius: 4px; background: var(--border); transition: background var(--duration-fast); }
-    .streak-dot.active { background: var(--accent); box-shadow: 0 0 4px var(--accent-glow); }
-    .streak-dot.rest { background: var(--border); }
-    .streak-label { font-size: 0.65rem; color: var(--text-muted); margin-left: 6px; }
+    /* ── Training Log Toggle ── */
+    .training-log-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: none; background: transparent; color: var(--text-muted); font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: color var(--duration-fast); }
+    .training-log-toggle:hover { color: var(--text-secondary); }
+    .training-log-toggle svg { transition: transform var(--duration-fast); }
+    .training-log-toggle.expanded svg { transform: rotate(180deg); }
 
     /* ── Daily Stats ── */
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
     .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
     .stat-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
     .stat-item .unit { font-size: 0.7rem; font-weight: 400; color: var(--text-secondary); }
@@ -106,7 +108,7 @@
     .sleep-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-secondary); }
     .sleep-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
-    .sleep-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .sleep-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .sleep-score-item { text-align: center; padding: 8px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
     .sleep-score-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
     .sleep-score-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
@@ -148,11 +150,13 @@
     @media (max-width: 640px) {
       .readiness-row { gap: 8px; }
       .readiness-item canvas { width: 100px; height: 100px; }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
       .trends-grid { grid-template-columns: 1fr; }
+      .activity-calendar { grid-template-columns: repeat(4, 1fr); }
     }
 
     @media (max-width: 400px) {
+      .activity-calendar { grid-template-columns: repeat(3, 1fr); }
       .readiness-row { grid-template-columns: 1fr; gap: 10px; }
       .progress-row { flex-direction: column; }
       .sleep-scores { grid-template-columns: repeat(2, 1fr); }
@@ -240,11 +244,10 @@
       <div class="readiness-summary" id="readinessSummary"></div>
     </div>
 
-    <!-- 2. Recent Activity -->
+    <!-- 2. Recent Activity — 7-day calendar grid -->
     <div class="card" id="activityCard">
-      <div class="card-title">Recent Activity</div>
-      <div id="activityList"></div>
-      <div class="activity-streak" id="activityStreak"></div>
+      <div class="card-title">Last 7 Days</div>
+      <div class="activity-calendar" id="activityCalendar"></div>
     </div>
 
     <!-- 3. Daily Stats -->
@@ -259,10 +262,10 @@
           <div class="progress-bar"><div class="progress-fill" id="stepsProgressFill" style="width:0%"></div></div>
           <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">STEPS</div>
         </div>
-        <div class="progress-item">
+        <div class="progress-item" id="intensityProgressItem">
           <div class="progress-header">
             <span class="val" id="qIntensity">--</span>
-            <span class="goal">of <span id="qIntensityGoal">150</span></span>
+            <span class="goal" id="intensityGoalLabel">of <span id="qIntensityGoal">--</span></span>
           </div>
           <div class="progress-bar"><div class="progress-fill" id="intensityProgressFill" style="width:0%"></div></div>
           <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">INTENSITY MIN</div>
@@ -286,10 +289,6 @@
           <div class="val"><span id="qActiveCal">--</span></div>
           <div class="lbl">Active Cal</div>
           <div class="sub" id="qTotalCal"></div>
-        </div>
-        <div class="stat-item">
-          <div class="val" id="qSpo2">--</div>
-          <div class="lbl">SpO2</div>
         </div>
         <div class="stat-item">
           <div class="val"><span id="qResp">--</span> <span class="unit">brpm</span></div>
@@ -336,10 +335,6 @@
           <div class="lbl">Resp</div>
         </div>
         <div class="sleep-score-item">
-          <div class="val" id="scoreSpo2">--</div>
-          <div class="lbl">SpO2</div>
-        </div>
-        <div class="sleep-score-item">
           <div class="val" id="scoreDuration">--</div>
           <div class="lbl">Duration</div>
         </div>
@@ -381,15 +376,20 @@
       <span id="stressAvgValue" data-value="--" style="display:none"></span>
     </div>
 
-    <!-- 7. Training Log -->
-    <div class="card" id="trainingCard">
-      <div class="card-title">Training Log</div>
-      <table class="training-table" id="trainingTable">
-        <thead>
-          <tr><th>Activity</th><th>Dist</th><th>Time</th><th>Avg HR</th><th>Cal</th></tr>
-        </thead>
-        <tbody id="trainingBody"></tbody>
-      </table>
+    <!-- 7. Training Log (collapsed by default) -->
+    <div class="card" id="trainingCard" style="display:none">
+      <button class="training-log-toggle" id="trainingLogToggle">
+        View all activities
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div id="trainingLogContent" style="display:none">
+        <table class="training-table" id="trainingTable">
+          <thead>
+            <tr><th>Activity</th><th>Dist</th><th>Time</th><th>Avg HR</th><th>Cal</th></tr>
+          </thead>
+          <tbody id="trainingBody"></tbody>
+        </table>
+      </div>
     </div>
 
   </div>

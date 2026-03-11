@@ -95,11 +95,10 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function getStartDate(): Date {
+  // Start tomorrow so the user can begin right away
   const now = new Date();
-  const day = now.getDay();
-  const daysUntilMonday = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
   const start = new Date(now);
-  start.setDate(now.getDate() + daysUntilMonday);
+  start.setDate(now.getDate() + 1);
   start.setHours(0, 0, 0, 0);
   return start;
 }

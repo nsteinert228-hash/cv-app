@@ -169,6 +169,65 @@
     .milestone-time { font-size: 0.72rem; font-weight: 700; color: var(--accent); min-width: 70px; }
     .milestone-goal { font-size: 0.82rem; color: var(--text-secondary); }
 
+    /* ── Day Detail Panel ── */
+    .day-detail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 80; }
+    .day-detail-backdrop.visible { display: flex; align-items: flex-end; justify-content: center; }
+    .day-detail-panel { background: rgba(20,20,30,0.98); border: 1px solid var(--glass-border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); width: 100%; max-width: var(--max-width); max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); backdrop-filter: blur(40px); }
+    .day-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .day-detail-title { font-size: 1rem; font-weight: 800; }
+    .day-detail-date { font-size: 0.72rem; color: var(--text-muted); }
+    .day-detail-close { background: none; border: none; color: var(--text-muted); font-size: 1.3rem; cursor: pointer; padding: 4px; }
+    .day-detail-close:hover { color: var(--text-primary); }
+    .day-detail-rx { margin-top: 12px; }
+    .day-detail-swap { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+    /* ── Swap Preview ── */
+    .swap-options { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .swap-option { padding: 8px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: var(--bg-elevated); font-size: 0.78rem; font-weight: 600; color: var(--text-primary); cursor: pointer; font-family: inherit; transition: all var(--duration-fast); }
+    .swap-option:hover { border-color: var(--accent); background: var(--accent-light); }
+    .swap-option.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+    .swap-preview { margin-top: 12px; padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); font-size: 0.78rem; color: var(--text-secondary); }
+    .swap-preview-title { font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+    .swap-confirm-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+    /* ── Season History Toggle ── */
+    .history-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.72rem; color: var(--text-muted); border: none; background: none; font-family: inherit; padding: 8px 0; transition: color var(--duration-fast); }
+    .history-toggle:hover { color: var(--text-secondary); }
+    .history-container { display: none; }
+    .history-container.visible { display: block; }
+    .history-card { padding: 14px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); margin-bottom: 8px; }
+    .history-active { border-color: var(--accent); }
+    .history-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .history-name { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
+    .history-dates { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+    .history-status-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); text-transform: uppercase; }
+    .history-status-badge.active { background: var(--accent-light); color: var(--accent); }
+    .history-status-badge.completed { background: var(--blue-soft); color: var(--blue); }
+    .history-stats { display: flex; gap: 12px; margin-top: 10px; }
+    .history-stat { text-align: center; }
+    .history-stat-val { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+    .history-stat-label { font-size: 0.58rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+    .history-summary { font-size: 0.78rem; color: var(--text-secondary); margin-top: 8px; line-height: 1.5; }
+    .history-highlights { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+    .history-pill { padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.62rem; font-weight: 600; }
+    .history-pill.positive { background: var(--accent-light); color: var(--accent); }
+    .history-pill.improve { background: var(--yellow-soft); color: var(--yellow); }
+    .history-empty { text-align: center; padding: 20px; font-size: 0.82rem; color: var(--text-muted); }
+
+    /* ── Week Navigation (previous weeks) ── */
+    .week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .week-nav-label { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); }
+    .week-nav-btns { display: flex; gap: 6px; }
+    .week-nav-btn { padding: 4px 10px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-secondary); font-size: 0.72rem; cursor: pointer; font-family: inherit; }
+    .week-nav-btn:hover { border-color: var(--accent); }
+    .week-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+    /* ── Garmin Auto-Detect ── */
+    .garmin-auto-detect { padding: 10px 14px; background: var(--blue-soft); border: 1px solid rgba(96,165,250,0.15); border-radius: var(--radius-md); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--blue); }
+    .garmin-auto-detect-icon { font-size: 1.1rem; }
+    .garmin-auto-detect-info { flex: 1; }
+    .garmin-auto-detect-btn { padding: 5px 12px; border: 1px solid rgba(96,165,250,0.3); border-radius: var(--radius-sm); background: rgba(96,165,250,0.1); color: var(--blue); font-size: 0.72rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+
     /* ── Controls ── */
     .controls-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 0.72rem; color: var(--text-muted); }
     .regen-btn { padding: 7px 16px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer; backdrop-filter: blur(10px); transition: all var(--duration-fast); font-family: inherit; }
@@ -497,6 +556,15 @@
       </div>
     </div>
 
+    <!-- Season History (discoverable) -->
+    <div id="seasonHistorySection" style="display:none">
+      <button class="history-toggle" id="historyToggle">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+        Past Seasons
+      </button>
+      <div class="history-container" id="historyContainer"></div>
+    </div>
+
     <!-- Controls -->
     <div class="controls-bar" id="controlsBar" style="display:none">
       <span id="generatedAt">--</span>
@@ -512,6 +580,20 @@
       <div class="quick-stats" id="quickStats"></div>
     </div>
 
+  </div>
+
+  <!-- Day Detail Panel -->
+  <div class="day-detail-backdrop" id="dayDetailBackdrop">
+    <div class="day-detail-panel" id="dayDetailPanel">
+      <div class="day-detail-header">
+        <div>
+          <div class="day-detail-title" id="dayDetailTitle">--</div>
+          <div class="day-detail-date" id="dayDetailDate">--</div>
+        </div>
+        <button class="day-detail-close" id="dayDetailClose">&times;</button>
+      </div>
+      <div id="dayDetailContent"></div>
+    </div>
   </div>
 
   <!-- Season Modal -->
