@@ -599,7 +599,6 @@ header h1 span {
 
 /* ── Utility classes ── */
 .hidden { display: none !important; }
-.visible { display: flex !important; }
 .text-accent { color: var(--accent); }
 .text-muted { color: var(--text-muted); }
 .text-center { text-align: center; }
