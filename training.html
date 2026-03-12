@@ -505,8 +505,7 @@
 
     <!-- View Toggle -->
     <div class="view-toggle" id="viewToggle">
-      <button class="view-btn active" data-view="today">Today</button>
-      <button class="view-btn" data-view="week">This Week</button>
+      <button class="view-btn active" data-view="week">This Week</button>
       <button class="view-btn" data-view="plan">Training Plan</button>
     </div>
 
@@ -523,53 +522,55 @@
       <button class="auth-btn primary" id="aiRetryBtn">Retry</button>
     </div>
 
-    <!-- AI Content: Today -->
-    <div class="ai-content" id="contentToday">
-      <div class="readiness-banner" id="todayReadinessBanner">
-        <div class="rb-level" id="todayReadinessLevel"></div>
-        <div class="rb-summary" id="todayReadinessSummary"></div>
-        <div class="readiness-factors" id="todayReadinessFactors"></div>
-      </div>
+    <!-- AI Content: Week (includes Today's workout) -->
+    <div class="ai-content" id="contentWeek">
+      <!-- Today's Workout Section -->
+      <div id="todaySection">
+        <div class="readiness-banner" id="todayReadinessBanner">
+          <div class="rb-level" id="todayReadinessLevel"></div>
+          <div class="rb-summary" id="todayReadinessSummary"></div>
+          <div class="readiness-factors" id="todayReadinessFactors"></div>
+        </div>
 
-      <div class="card">
-        <div class="workout-header">
-          <div class="workout-title" id="todayWorkoutTitle">--</div>
-          <div class="workout-meta">
-            <span class="workout-badge" id="todayIntensityBadge">--</span>
-            <span class="workout-duration" id="todayDuration">--</span>
+        <div class="card">
+          <div class="card-title">Today's Workout</div>
+          <div class="workout-header">
+            <div class="workout-title" id="todayWorkoutTitle">--</div>
+            <div class="workout-meta">
+              <span class="workout-badge" id="todayIntensityBadge">--</span>
+              <span class="workout-duration" id="todayDuration">--</span>
+            </div>
+          </div>
+          <div class="workout-desc" id="todayWorkoutDesc"></div>
+
+          <div class="phase-section" id="todayWarmup">
+            <div class="phase-label">Warmup</div>
+            <div class="phase-items" id="todayWarmupItems"></div>
+          </div>
+
+          <table class="exercise-table" id="todayExerciseTable">
+            <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Rest</th></tr></thead>
+            <tbody id="todayExerciseBody"></tbody>
+          </table>
+
+          <div class="phase-section" id="todayCooldown" style="margin-top:12px">
+            <div class="phase-label">Cooldown</div>
+            <div class="phase-items" id="todayCooldownItems"></div>
           </div>
         </div>
-        <div class="workout-desc" id="todayWorkoutDesc"></div>
 
-        <div class="phase-section" id="todayWarmup">
-          <div class="phase-label">Warmup</div>
-          <div class="phase-items" id="todayWarmupItems"></div>
-        </div>
+        <!-- Workout Logger -->
+        <div id="workoutLoggerContainer"></div>
 
-        <table class="exercise-table" id="todayExerciseTable">
-          <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Rest</th></tr></thead>
-          <tbody id="todayExerciseBody"></tbody>
-        </table>
+        <div class="alerts-strip" id="todayAlerts"></div>
 
-        <div class="phase-section" id="todayCooldown" style="margin-top:12px">
-          <div class="phase-label">Cooldown</div>
-          <div class="phase-items" id="todayCooldownItems"></div>
+        <div class="nutrition-card" id="todayNutrition" style="display:none">
+          <span class="nutrition-icon">&#127860;</span>
+          <span id="todayNutritionText"></span>
         </div>
       </div>
 
-      <!-- Workout Logger -->
-      <div id="workoutLoggerContainer"></div>
-
-      <div class="alerts-strip" id="todayAlerts"></div>
-
-      <div class="nutrition-card" id="todayNutrition" style="display:none">
-        <span class="nutrition-icon">&#127860;</span>
-        <span id="todayNutritionText"></span>
-      </div>
-    </div>
-
-    <!-- AI Content: Week -->
-    <div class="ai-content" id="contentWeek">
+      <!-- Weekly Plan Section -->
       <div class="card">
         <div class="card-title">Weekly Plan</div>
         <div class="week-summary-text" id="weekSummary"></div>
