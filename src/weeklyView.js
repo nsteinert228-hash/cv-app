@@ -99,6 +99,9 @@ export async function renderWeekByNumber(container, weekNumber, { season, season
 function renderWeek(container, ctx) {
   const { workouts, logMap, garminActivities, season, seasonState, displayWeek, phase, today, onWeekChange } = ctx;
 
+  // Ensure today always has a card, even if no workout exists in the DB
+  const workoutsWithToday = ensureTodayIncluded(workouts, today, season, displayWeek);
+
   // Adaptation banner
   const adaptBannerHtml = phase ? `
     <div class="wv-phase-banner">
@@ -133,7 +136,7 @@ function renderWeek(container, ctx) {
 
   // Render day cards
   const daysContainer = document.getElementById('wvDays');
-  for (const workout of workouts) {
+  for (const workout of workoutsWithToday) {
     const log = logMap.get(workout.id);
     const garminMatch = findGarminMatch(garminActivities, workout);
     const dayState = getDayState(workout.date, today);
@@ -141,6 +144,52 @@ function renderWeek(container, ctx) {
     const dayEl = createDayCard(workout, log, garminMatch, dayState, ctx);
     daysContainer.appendChild(dayEl);
   }
+}
+
+/** Ensure today always appears in the week's workout list, inserting a rest-day placeholder if needed */
+function ensureTodayIncluded(workouts, today, season, displayWeek) {
+  // Only inject if today falls within the displayed week's date range
+  if (!workouts.length) {
+    // No workouts at all — check if today belongs to this week via season dates
+    const startDate = new Date(season.start_date + 'T00:00:00');
+    const daysSinceStart = Math.floor((new Date(today + 'T00:00:00') - startDate) / (1000 * 60 * 60 * 24));
+    const todayWeek = Math.floor(daysSinceStart / 7) + 1;
+    if (todayWeek !== displayWeek) return workouts;
+  } else {
+    // Check if today falls within the date range of existing workouts for this week
+    const minDate = workouts[0].date;
+    const maxDate = workouts[workouts.length - 1].date;
+    // Compute the Monday-Sunday range that covers the existing workouts
+    const mondayOfWeek = new Date(minDate + 'T00:00:00');
+    const dayOfWeek = mondayOfWeek.getDay();
+    mondayOfWeek.setDate(mondayOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    const sundayOfWeek = new Date(mondayOfWeek);
+    sundayOfWeek.setDate(mondayOfWeek.getDate() + 6);
+    const mondayStr = mondayOfWeek.toISOString().split('T')[0];
+    const sundayStr = sundayOfWeek.toISOString().split('T')[0];
+    if (today < mondayStr || today > sundayStr) return workouts;
+  }
+
+  // Check if today already has a workout
+  if (workouts.some(w => w.date === today)) return workouts;
+
+  // Insert a synthetic rest-day placeholder for today
+  const restPlaceholder = {
+    id: `rest-placeholder-${today}`,
+    date: today,
+    workout_type: 'rest',
+    title: 'Rest Day',
+    intensity: 'low',
+    duration_minutes: 0,
+    is_adapted: false,
+    prescription_json: { description: 'Scheduled rest day — recover and recharge.' },
+    week_number: displayWeek,
+    season_id: season.id,
+    _isPlaceholder: true,
+  };
+
+  const merged = [...workouts, restPlaceholder].sort((a, b) => a.date.localeCompare(b.date));
+  return merged;
 }
 
 function getDayState(date, today) {
@@ -172,7 +221,7 @@ function createDayCard(workout, log, garminMatch, dayState, ctx) {
         ${workout.is_adapted ? '<span class="wv-adapted-badge">adapted</span>' : ''}
         ${renderLogBadge(log, dayState)}
       </div>
-      ${dayState !== 'future' ? '<div class="wv-day-chevron">\u25BC</div>' : ''}
+      <div class="wv-day-chevron">${dayState === 'future' ? '\u25B6' : '\u25BC'}</div>
     </div>
   `;
 
@@ -182,27 +231,27 @@ function createDayCard(workout, log, garminMatch, dayState, ctx) {
     expandedHtml = renderPastDayContent(workout, log, garminMatch, rx, exercises);
   } else if (dayState === 'today') {
     expandedHtml = renderTodayContent(workout, log, garminMatch, rx, exercises);
+  } else {
+    // Future days: show prescription preview when expanded
+    expandedHtml = renderFutureContent(workout, rx, exercises);
   }
-  // future days: no expanded content
 
   el.innerHTML = `
     ${headerHtml}
-    <div class="wv-day-body ${dayState === 'future' ? 'hidden' : ''}" id="wvBody-${workout.id}">
+    <div class="wv-day-body ${dayState === 'future' ? 'collapsed' : ''}" id="wvBody-${workout.id}">
       ${expandedHtml}
     </div>
   `;
 
-  // Toggle expand/collapse for past/today
-  if (dayState !== 'future') {
-    const header = el.querySelector('.wv-day-header');
-    const body = el.querySelector('.wv-day-body');
-    header.style.cursor = 'pointer';
-    header.addEventListener('click', () => {
-      body.classList.toggle('collapsed');
-      const chevron = header.querySelector('.wv-day-chevron');
-      if (chevron) chevron.textContent = body.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
-    });
-  }
+  // Toggle expand/collapse for all day states
+  const header = el.querySelector('.wv-day-header');
+  const body = el.querySelector('.wv-day-body');
+  header.style.cursor = 'pointer';
+  header.addEventListener('click', () => {
+    body.classList.toggle('collapsed');
+    const chevron = header.querySelector('.wv-day-chevron');
+    if (chevron) chevron.textContent = body.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
+  });
 
   // Initialize workout modifier for today
   if (dayState === 'today') {
@@ -294,6 +343,19 @@ function renderTodayContent(workout, log, garminMatch, rx, exercises) {
     </div>
     ${actualSection}
     <div class="wv-modifier-container" id="wvModifier-${workout.id}"></div>
+  `;
+}
+
+// ── Future Day Content (preview) ─────────────────────────────
+
+function renderFutureContent(workout, rx, exercises) {
+  const prescribedHtml = renderPrescription(rx, exercises);
+
+  return `
+    <div class="wv-future-preview">
+      <div class="wv-col-label">Preview</div>
+      ${prescribedHtml}
+    </div>
   `;
 }
 
