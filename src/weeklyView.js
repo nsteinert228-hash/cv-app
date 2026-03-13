@@ -16,8 +16,18 @@ const TYPE_LABELS = {
   rest: 'REST',
 };
 
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_NAMES_JS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_SHORT_JS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function dayNameFromDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return DAY_NAMES_JS[d.getDay()];
+}
+
+function dayShortFromDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return DAY_SHORT_JS[d.getDay()];
+}
 
 // ── Public API ──────────────────────────────────────────────
 
@@ -145,8 +155,8 @@ function createDayCard(workout, log, garminMatch, dayState, ctx) {
 
   const rx = workout.prescription_json || {};
   const exercises = rx.exercises || rx.main_workout || [];
-  const dayName = DAY_NAMES[workout.day_of_week - 1] || '';
-  const dayShort = DAY_SHORT[workout.day_of_week - 1] || '';
+  const dayName = dayNameFromDate(workout.date);
+  const dayShort = dayShortFromDate(workout.date);
 
   // Collapsed header (always visible)
   const headerHtml = `
