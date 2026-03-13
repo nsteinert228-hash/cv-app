@@ -3,6 +3,7 @@ import {
   getActiveSeason,
   createSeason,
   completeSeason,
+  abandonSeason,
   triggerAdaptation,
 } from './seasonData.js';
 import { getTrainingPreferences } from './trainingData.js';
@@ -60,6 +61,19 @@ export async function finishSeason() {
   _seasonState = null;
 
   return result;
+}
+
+/**
+ * Stop (abandon) the current season.
+ * After calling this, initSeason() will return needsCreation: true,
+ * which lets the dashboard show the plan builder wizard.
+ */
+export async function stopCurrentSeason() {
+  if (!_activeSeason) throw new Error('No active season');
+
+  await abandonSeason(_activeSeason.id);
+  _activeSeason = null;
+  _seasonState = null;
 }
 
 /**

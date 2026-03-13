@@ -12,6 +12,7 @@ import {
   initSeason,
   startNewSeason,
   finishSeason,
+  stopCurrentSeason,
   checkAdaptations,
   getSeasonState,
 } from './seasonManager.js';
@@ -61,6 +62,7 @@ const seasonProgressEl = document.getElementById('seasonProgress');
 const seasonProgressFill = document.getElementById('seasonProgressFill');
 const seasonAdherenceEl = document.getElementById('seasonAdherence');
 const adaptationFeedEl = document.getElementById('adaptationFeed');
+const stopRestartBtn = document.getElementById('stopRestartBtn');
 
 const seasonModal = document.getElementById('seasonModal');
 const seasonModalTitle = document.getElementById('seasonModalTitle');
@@ -441,6 +443,45 @@ async function renderSeasonBanner() {
     }
   } catch { /* silent */ }
 }
+
+// ── Stop & Restart Season ────────────────────────────────────
+
+stopRestartBtn.addEventListener('click', () => {
+  if (!activeSeason) return;
+
+  seasonModalTitle.textContent = 'Stop & New Plan?';
+  seasonModalText.textContent = `This will abandon "${activeSeason.name}" and let you build a brand-new training plan from scratch. Your workout logs from this season will be preserved in history. This cannot be undone.`;
+  seasonModalActions.innerHTML = `
+    <button class="btn-danger" id="confirmStopRestart">Stop & New Plan</button>
+    <button class="btn-ghost" id="cancelStopRestart">Cancel</button>
+  `;
+  seasonModal.classList.add('visible');
+
+  document.getElementById('cancelStopRestart').addEventListener('click', () => {
+    seasonModal.classList.remove('visible');
+  });
+
+  document.getElementById('confirmStopRestart').addEventListener('click', async () => {
+    seasonModalText.textContent = 'Stopping current season...';
+    seasonModalActions.innerHTML = '<div class="loading-spinner" style="margin:0 auto"></div>';
+
+    try {
+      await stopCurrentSeason();
+      seasonModal.classList.remove('visible');
+      activeSeason = null;
+      seasonState = null;
+      Object.keys(viewCache).forEach(k => delete viewCache[k]);
+      // loadSeasonState will detect no active season and show the plan builder wizard
+      await loadSeasonState();
+    } catch (err) {
+      seasonModalText.textContent = `Failed: ${err.message}`;
+      seasonModalActions.innerHTML = '<button class="btn-ghost" id="closeStopRestartErr">Close</button>';
+      document.getElementById('closeStopRestartErr').addEventListener('click', () => {
+        seasonModal.classList.remove('visible');
+      });
+    }
+  });
+});
 
 // ── Readiness Hero Bar ───────────────────────────────────────
 
