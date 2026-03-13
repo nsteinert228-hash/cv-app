@@ -213,7 +213,11 @@ export async function getActivityMetrics(activityId) {
     .eq('activity_id', activityId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    // Table may not exist yet if migration 006 hasn't been applied
+    if (error.message && error.message.includes('schema cache')) return null;
+    throw error;
+  }
   return data;
 }
 

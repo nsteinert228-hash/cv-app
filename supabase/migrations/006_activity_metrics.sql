@@ -47,3 +47,6 @@ create policy "Users can read own activity metrics" on activity_metrics
 create trigger trg_activity_metrics_updated_at
   before update on activity_metrics
   for each row execute function update_updated_at();
+
+-- Refresh PostgREST schema cache so the new table is immediately queryable
+notify pgrst, 'reload schema';
