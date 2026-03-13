@@ -341,6 +341,184 @@
     @media (max-width: 640px) {
       .assessment-grid { grid-template-columns: 1fr; }
     }
+
+    /* ═══════════════════════════════════════════════
+       Plan Builder Wizard
+       ═══════════════════════════════════════════════ */
+    .plan-builder { padding: 8px 0; }
+    .pb-header { text-align: center; margin-bottom: 20px; }
+    .pb-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 14px; }
+    .pb-steps { display: flex; justify-content: center; gap: 4px; }
+    .pb-step { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.65rem; font-weight: 600; color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border-light); }
+    .pb-step.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+    .pb-step.done { background: var(--accent-light); color: var(--accent); border-color: transparent; }
+    .pb-step-num { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 800; }
+    .pb-step-label { display: none; }
+    .pb-step.active .pb-step-label { display: inline; }
+    .pb-body { min-height: 200px; padding: 12px 0; }
+    .pb-nav { display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--border); }
+    .pb-section-title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); margin-bottom: 14px; }
+
+    /* Training Type cards */
+    .pb-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pb-type-card { padding: 16px 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer; text-align: center; transition: all var(--duration-fast); font-family: inherit; color: var(--text-primary); }
+    .pb-type-card:hover { border-color: var(--accent); background: var(--accent-light); }
+    .pb-type-card.selected { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 12px var(--accent-glow); }
+    .pb-type-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .pb-type-label { font-size: 0.82rem; font-weight: 700; }
+    .pb-type-desc { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+    /* Skill Level */
+    .pb-level-grid { display: flex; flex-direction: column; gap: 10px; }
+    .pb-level-card { padding: 16px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer; text-align: left; transition: all var(--duration-fast); font-family: inherit; color: var(--text-primary); }
+    .pb-level-card:hover { border-color: var(--accent); }
+    .pb-level-card.selected { border-color: var(--accent); background: var(--accent-light); }
+    .pb-level-label { font-size: 0.92rem; font-weight: 700; }
+    .pb-level-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+
+    /* Preferences pills */
+    .pb-pill-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pb-pill { padding: 6px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-full); background: var(--bg-surface); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: all var(--duration-fast); font-family: inherit; }
+    .pb-pill:hover { border-color: var(--accent); }
+    .pb-pill.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+    .pb-pill.avoid.selected { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+
+    /* Schedule */
+    .pb-duration-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pb-duration-btn { padding: 10px 18px; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: var(--bg-surface); font-size: 0.82rem; font-weight: 600; color: var(--text-primary); cursor: pointer; font-family: inherit; transition: all var(--duration-fast); }
+    .pb-duration-btn:hover { border-color: var(--accent); }
+    .pb-duration-btn.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+    .pb-schedule-fields { display: flex; flex-direction: column; gap: 14px; }
+    .pb-field label { display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .pb-field input[type="date"] { padding: 10px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); font-family: inherit; outline: none; }
+    .pb-field input[type="date"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .pb-days-selector { display: flex; gap: 6px; }
+    .pb-day-btn { width: 40px; height: 40px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); font-size: 0.88rem; font-weight: 700; color: var(--text-primary); cursor: pointer; font-family: inherit; transition: all var(--duration-fast); }
+    .pb-day-btn:hover { border-color: var(--accent); }
+    .pb-day-btn.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+    /* Review */
+    .pb-review { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .pb-review-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 0.82rem; }
+    .pb-review-label { color: var(--text-muted); font-weight: 600; }
+    .pb-review-value { color: var(--text-primary); font-weight: 700; text-align: right; max-width: 60%; }
+    .pb-create-cta { text-align: center; }
+    .pb-create-cta .btn-primary { padding: 14px 32px; font-size: 0.92rem; }
+    .pb-create-status { font-size: 0.78rem; color: var(--text-secondary); margin-top: 10px; min-height: 1em; }
+    .pb-create-status.success { color: var(--accent); }
+    .pb-create-status.error { color: var(--red); }
+
+    /* ═══════════════════════════════════════════════
+       Weekly View (redesigned)
+       ═══════════════════════════════════════════════ */
+    .weekly-view { }
+    .wv-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .wv-header-center { flex: 1; text-align: center; }
+    .wv-week-label { font-size: 0.92rem; font-weight: 800; color: var(--text-primary); }
+    .wv-nav-btn { width: 36px; height: 36px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font-size: 1rem; cursor: pointer; font-family: inherit; transition: all var(--duration-fast); display: flex; align-items: center; justify-content: center; }
+    .wv-nav-btn:hover { border-color: var(--accent); }
+    .wv-nav-btn:disabled { opacity: 0.3; cursor: default; }
+    .wv-phase-banner { margin-top: 4px; }
+    .wv-phase-name { font-size: 0.72rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+    .wv-phase-focus { font-size: 0.68rem; color: var(--text-muted); margin-left: 6px; }
+
+    /* Day Cards */
+    .wv-days { display: flex; flex-direction: column; gap: 8px; }
+    .wv-day-card { background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden; backdrop-filter: blur(var(--glass-blur)); transition: border-color var(--duration-fast); }
+    .wv-day-card:hover { border-color: rgba(255,255,255,0.1); }
+    .wv-day-today { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .wv-day-future { opacity: 0.5; }
+    .wv-day-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+    .wv-day-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .wv-day-info { flex: 1; min-width: 0; }
+    .wv-day-name { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .wv-day-date { font-size: 0.62rem; color: var(--text-muted); margin-left: 6px; font-weight: 400; text-transform: none; }
+    .wv-day-title { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-top: 2px; }
+    .wv-day-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; flex-shrink: 0; }
+    .wv-intensity-badge { padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.6rem; font-weight: 700; text-transform: uppercase; }
+    .wv-intensity-badge.high { background: var(--red-soft); color: var(--red); }
+    .wv-intensity-badge.moderate { background: var(--yellow-soft); color: var(--yellow); }
+    .wv-intensity-badge.low { background: var(--accent-light); color: var(--accent); }
+    .wv-intensity-badge.rest { background: var(--bg-elevated); color: var(--text-muted); }
+    .wv-day-dur { font-size: 0.65rem; color: var(--text-muted); }
+    .wv-adapted-badge { font-size: 0.58rem; font-weight: 700; padding: 2px 6px; border-radius: var(--radius-sm); background: var(--blue-soft); color: var(--blue); text-transform: uppercase; }
+    .wv-day-chevron { font-size: 0.6rem; color: var(--text-muted); flex-shrink: 0; transition: transform var(--duration-fast); }
+    .wv-log-badge { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-sm); }
+    .wv-log-badge.done { background: var(--accent-light); color: var(--accent); }
+    .wv-log-badge.partial { background: var(--yellow-soft); color: var(--yellow); }
+    .wv-log-badge.skipped { background: var(--red-soft); color: var(--red); }
+    .wv-log-badge.missed { background: var(--bg-elevated); color: var(--text-muted); }
+
+    /* Day Body (expandable) */
+    .wv-day-body { padding: 0 14px 14px; }
+    .wv-day-body.hidden { display: none; }
+    .wv-day-body.collapsed { display: none; }
+
+    /* Side-by-side Comparison */
+    .wv-comparison { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; }
+    .wv-comparison-col { min-width: 0; }
+    .wv-col-label { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+    .wv-comparison-divider { display: flex; align-items: center; padding: 0 4px; }
+    .wv-match-indicator { width: 3px; height: 100%; border-radius: 2px; min-height: 40px; }
+    .wv-match-indicator.matched { background: var(--accent); }
+    .wv-match-indicator.substituted { background: var(--yellow); }
+    .wv-match-indicator.missed { background: var(--red); }
+    .wv-match-indicator.partial { background: var(--yellow); }
+
+    /* Prescription display */
+    .wv-rx-desc { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.5; }
+    .wv-rx-phase { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px; }
+    .wv-rx-phase-label { font-weight: 700; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.04em; }
+    .wv-rx-exercises { display: flex; flex-direction: column; gap: 4px; }
+    .wv-rx-exercise { font-size: 0.75rem; padding: 4px 0; border-bottom: 1px solid var(--border-light); }
+    .wv-rx-exercise:last-child { border-bottom: none; }
+    .wv-rx-ex-name { font-weight: 600; color: var(--text-primary); }
+    .wv-rx-ex-detail { color: var(--text-muted); margin-left: 6px; font-size: 0.68rem; }
+    .wv-rx-ex-notes { display: block; font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
+
+    /* Garmin activity display */
+    .wv-garmin-activity { padding: 8px; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+    .wv-garmin-activity.matched { border-color: rgba(52,211,153,0.15); }
+    .wv-garmin-activity.substituted { border-color: rgba(251,191,36,0.15); }
+    .wv-garmin-name { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); }
+    .wv-garmin-stats { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.68rem; color: var(--text-secondary); margin-top: 4px; }
+    .wv-garmin-match-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; margin-top: 4px; }
+    .wv-garmin-activity.matched .wv-garmin-match-label { color: var(--accent); }
+    .wv-garmin-activity.substituted .wv-garmin-match-label { color: var(--yellow); }
+
+    .wv-log-summary { font-size: 0.78rem; color: var(--text-secondary); }
+    .wv-log-status { font-weight: 700; }
+    .wv-log-adherence { color: var(--accent); font-weight: 700; margin-top: 2px; }
+    .wv-log-notes { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; }
+    .wv-no-data { font-size: 0.78rem; color: var(--text-muted); font-style: italic; padding: 8px 0; }
+
+    /* Today's workout section */
+    .wv-today-prescribed { margin-bottom: 12px; }
+    .wv-today-actual { margin-bottom: 12px; padding: 10px; background: var(--blue-soft); border: 1px solid rgba(96,165,250,0.15); border-radius: var(--radius-md); }
+
+    /* ═══════════════════════════════════════════════
+       Workout Modifier
+       ═══════════════════════════════════════════════ */
+    .wm-container { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .wm-label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .wm-input-row { display: flex; gap: 8px; }
+    .wm-input { flex: 1; padding: 10px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); font-family: inherit; outline: none; transition: border-color var(--duration-fast); }
+    .wm-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .wm-input::placeholder { color: var(--text-muted); }
+    .wm-submit { flex-shrink: 0; padding: 10px 18px; }
+    .wm-status { font-size: 0.75rem; margin-top: 6px; min-height: 1em; }
+    .wm-status.loading { color: var(--text-muted); }
+    .wm-status.success { color: var(--accent); }
+    .wm-status.error { color: var(--red); }
+    .wm-undo { margin-top: 6px; }
+
+    @media (max-width: 640px) {
+      .pb-card-grid { grid-template-columns: 1fr; }
+      .wv-comparison { grid-template-columns: 1fr; }
+      .wv-comparison-divider { display: none; }
+      .wm-input-row { flex-direction: column; }
+      .wm-submit { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -447,8 +625,10 @@
     <div class="onboarding-block card" id="onboardingBlock">
       <div class="onboarding-hero">
         <h2>Set Up Your Training Plan</h2>
-        <p>Tell us about your goals and we'll create an 8-week personalized training season based on your Garmin data.</p>
+        <p>Tell us about your goals and we'll create a personalized training season based on your Garmin data.</p>
       </div>
+      <!-- Plan Builder Wizard (new) -->
+      <div id="planBuilderContainer" style="display:none"></div>
       <div class="onboarding-prefs" id="onboardingPrefs">
         <div class="prefs-row">
           <div class="prefs-field">
@@ -505,8 +685,7 @@
 
     <!-- View Toggle -->
     <div class="view-toggle" id="viewToggle">
-      <button class="view-btn active" data-view="today">Today</button>
-      <button class="view-btn" data-view="week">This Week</button>
+      <button class="view-btn active" data-view="week">This Week</button>
       <button class="view-btn" data-view="plan">Training Plan</button>
     </div>
 
@@ -523,53 +702,55 @@
       <button class="auth-btn primary" id="aiRetryBtn">Retry</button>
     </div>
 
-    <!-- AI Content: Today -->
-    <div class="ai-content" id="contentToday">
-      <div class="readiness-banner" id="todayReadinessBanner">
-        <div class="rb-level" id="todayReadinessLevel"></div>
-        <div class="rb-summary" id="todayReadinessSummary"></div>
-        <div class="readiness-factors" id="todayReadinessFactors"></div>
-      </div>
+    <!-- AI Content: Week (includes Today's workout) -->
+    <div class="ai-content" id="contentWeek">
+      <!-- Today's Workout Section -->
+      <div id="todaySection">
+        <div class="readiness-banner" id="todayReadinessBanner">
+          <div class="rb-level" id="todayReadinessLevel"></div>
+          <div class="rb-summary" id="todayReadinessSummary"></div>
+          <div class="readiness-factors" id="todayReadinessFactors"></div>
+        </div>
 
-      <div class="card">
-        <div class="workout-header">
-          <div class="workout-title" id="todayWorkoutTitle">--</div>
-          <div class="workout-meta">
-            <span class="workout-badge" id="todayIntensityBadge">--</span>
-            <span class="workout-duration" id="todayDuration">--</span>
+        <div class="card">
+          <div class="card-title">Today's Workout</div>
+          <div class="workout-header">
+            <div class="workout-title" id="todayWorkoutTitle">--</div>
+            <div class="workout-meta">
+              <span class="workout-badge" id="todayIntensityBadge">--</span>
+              <span class="workout-duration" id="todayDuration">--</span>
+            </div>
+          </div>
+          <div class="workout-desc" id="todayWorkoutDesc"></div>
+
+          <div class="phase-section" id="todayWarmup">
+            <div class="phase-label">Warmup</div>
+            <div class="phase-items" id="todayWarmupItems"></div>
+          </div>
+
+          <table class="exercise-table" id="todayExerciseTable">
+            <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Rest</th></tr></thead>
+            <tbody id="todayExerciseBody"></tbody>
+          </table>
+
+          <div class="phase-section" id="todayCooldown" style="margin-top:12px">
+            <div class="phase-label">Cooldown</div>
+            <div class="phase-items" id="todayCooldownItems"></div>
           </div>
         </div>
-        <div class="workout-desc" id="todayWorkoutDesc"></div>
 
-        <div class="phase-section" id="todayWarmup">
-          <div class="phase-label">Warmup</div>
-          <div class="phase-items" id="todayWarmupItems"></div>
-        </div>
+        <!-- Workout Logger -->
+        <div id="workoutLoggerContainer"></div>
 
-        <table class="exercise-table" id="todayExerciseTable">
-          <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Rest</th></tr></thead>
-          <tbody id="todayExerciseBody"></tbody>
-        </table>
+        <div class="alerts-strip" id="todayAlerts"></div>
 
-        <div class="phase-section" id="todayCooldown" style="margin-top:12px">
-          <div class="phase-label">Cooldown</div>
-          <div class="phase-items" id="todayCooldownItems"></div>
+        <div class="nutrition-card" id="todayNutrition" style="display:none">
+          <span class="nutrition-icon">&#127860;</span>
+          <span id="todayNutritionText"></span>
         </div>
       </div>
 
-      <!-- Workout Logger -->
-      <div id="workoutLoggerContainer"></div>
-
-      <div class="alerts-strip" id="todayAlerts"></div>
-
-      <div class="nutrition-card" id="todayNutrition" style="display:none">
-        <span class="nutrition-icon">&#127860;</span>
-        <span id="todayNutritionText"></span>
-      </div>
-    </div>
-
-    <!-- AI Content: Week -->
-    <div class="ai-content" id="contentWeek">
+      <!-- Weekly Plan Section -->
       <div class="card">
         <div class="card-title">Weekly Plan</div>
         <div class="week-summary-text" id="weekSummary"></div>

@@ -37,9 +37,9 @@ export async function initSeason() {
 /**
  * Create a new season. Called after user confirms.
  */
-export async function startNewSeason(previousSeasonId = null) {
+export async function startNewSeason(previousSeasonId = null, durationWeeks = 8, extraConfig = {}) {
   const prefs = await getTrainingPreferences();
-  const result = await createSeason(prefs, previousSeasonId);
+  const result = await createSeason(prefs, previousSeasonId, durationWeeks, extraConfig);
 
   // Refresh active season
   _activeSeason = await getActiveSeason();

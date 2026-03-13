@@ -70,11 +70,13 @@ export async function getSeasonHistory() {
   return data || [];
 }
 
-export async function createSeason(preferences = {}, previousSeasonId = null, durationWeeks = 8) {
+export async function createSeason(preferences = {}, previousSeasonId = null, durationWeeks = 8, extraConfig = {}) {
   return _callEdgeFunction('season-create', {
     preferences,
     previous_season_id: previousSeasonId,
     duration_weeks: durationWeeks,
+    start_date: extraConfig.start_date || null,
+    plan_config: extraConfig.plan_config || null,
   });
 }
 
@@ -279,6 +281,33 @@ export async function getWeekWorkoutsByWeekNumber(seasonId, weekNumber) {
     .select('*')
     .eq('season_id', seasonId)
     .eq('week_number', weekNumber)
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+// ── Workout Modification ────────────────────────────────────
+
+export async function modifyWorkout(workoutId, userPrompt, seasonId) {
+  return _callEdgeFunction('modify-workout', {
+    workout_id: workoutId,
+    user_prompt: userPrompt,
+    season_id: seasonId,
+  });
+}
+
+// ── Garmin Activities by Date Range ─────────────────────────
+
+export async function getGarminActivitiesByDateRange(startDate, endDate) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from('activities')
+    .select('activity_id, activity_type, name, date, duration_seconds, distance_meters, calories, avg_heart_rate, max_heart_rate')
+    .gte('date', startDate)
+    .lte('date', endDate)
     .order('date', { ascending: true });
 
   if (error) throw error;
