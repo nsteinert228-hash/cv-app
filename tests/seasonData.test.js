@@ -276,6 +276,45 @@ describe('seasonData — createSeason', () => {
   });
 });
 
+describe('seasonData — _callEdgeFunction network error handling', () => {
+  let mockClient;
+
+  beforeEach(() => {
+    mockClient = {
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { access_token: 'test-token' } },
+        }),
+      },
+    };
+    getSupabaseClient.mockReturnValue(mockClient);
+  });
+
+  it('throws user-friendly message on network failure', async () => {
+    const { createSeason } = await import('../src/seasonData.js');
+
+    global.fetch = vi.fn().mockRejectedValue(new TypeError('Load failed'));
+
+    await expect(createSeason()).rejects.toThrow(
+      'Unable to reach the server. Check your connection and try again.',
+    );
+  });
+
+  it('throws user-friendly message on invalid JSON response', async () => {
+    const { createSeason } = await import('../src/seasonData.js');
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected token')),
+    });
+
+    await expect(createSeason()).rejects.toThrow(
+      'Server returned an invalid response (200)',
+    );
+  });
+});
+
 describe('seasonData — submitWorkoutLog', () => {
   let mockClient;
 
