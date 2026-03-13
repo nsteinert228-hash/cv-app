@@ -574,9 +574,14 @@ function getCurrentPhase(plan, currentWeek) {
   return phases[0] || null;
 }
 
+function dayNameFromDate(dateStr) {
+  const NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const d = new Date(dateStr + 'T00:00:00');
+  return NAMES[d.getDay()];
+}
+
 async function loadSeasonView(view) {
   const plan = activeSeason.plan_json || {};
-  const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   if (view === 'week') {
     // Use the new weekly view component
@@ -632,8 +637,8 @@ async function loadSeasonView(view) {
         .sort((a, b) => a.day_of_week - b.day_of_week);
 
       const weeklySchedule = scheduleWorkouts.map(w => ({
-        day: DAY_NAMES[w.day_of_week - 1] || '',
-        dayShort: (DAY_NAMES[w.day_of_week - 1] || '').slice(0, 3),
+        day: dayNameFromDate(w.date),
+        dayShort: dayNameFromDate(w.date).slice(0, 3),
         title: w.title,
         type: w.workout_type,
         intensity: w.intensity,
@@ -697,7 +702,6 @@ async function loadWeekByNumber(weekNumber) {
 
   try {
     const plan = activeSeason.plan_json || {};
-    const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const workouts = await getWeekWorkoutsByWeekNumber(activeSeason.id, weekNumber);
     const logs = await getWorkoutLogsForSeason(activeSeason.id);
     const logMap = new Map(logs.map(l => [l.workout_id, l]));
@@ -731,7 +735,7 @@ async function loadWeekByNumber(weekNumber) {
         const exercisePreview = exercises.slice(0, 3).map(e => e.exercise).filter(Boolean);
         return {
           date: w.date,
-          day_name: DAY_NAMES[w.day_of_week - 1] || '',
+          day_name: dayNameFromDate(w.date),
           type: w.workout_type,
           title: w.title,
           intensity: w.intensity,
