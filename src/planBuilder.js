@@ -3,12 +3,12 @@ import { createSeason } from './seasonData.js';
 import { saveTrainingPreferences } from './trainingData.js';
 
 const TRAINING_TYPES = [
-  { id: 'endurance', label: 'Endurance', icon: '\u{1F3C3}', desc: 'Running, cycling, swimming — build aerobic base' },
-  { id: 'strength', label: 'Strength', icon: '\u{1F4AA}', desc: 'Weightlifting, compound movements, progressive overload' },
-  { id: 'crossfit', label: 'CrossFit', icon: '\u{1F525}', desc: 'Functional fitness, WODs, varied high-intensity' },
-  { id: 'cycling', label: 'Cycling', icon: '\u{1F6B4}', desc: 'Road, mountain, or indoor cycling focus' },
-  { id: 'triathlon', label: 'Triathlon', icon: '\u{1F3CA}', desc: 'Swim, bike, run — multi-sport training' },
-  { id: 'hybrid', label: 'Hybrid', icon: '\u{26A1}', desc: 'Mix of strength and conditioning' },
+  { id: 'endurance', label: 'Endurance', desc: 'Running, cycling, swimming — build aerobic base' },
+  { id: 'strength', label: 'Strength', desc: 'Weightlifting, compound movements, progressive overload' },
+  { id: 'crossfit', label: 'CrossFit', desc: 'Functional fitness, WODs, varied high-intensity' },
+  { id: 'cycling', label: 'Cycling', desc: 'Road, mountain, or indoor cycling focus' },
+  { id: 'triathlon', label: 'Triathlon', desc: 'Swim, bike, run — multi-sport training' },
+  { id: 'hybrid', label: 'Hybrid', desc: 'Mix of strength and conditioning' },
 ];
 
 const SKILL_LEVELS = [
@@ -141,7 +141,6 @@ function renderTrainingType(body) {
     <div class="pb-card-grid">
       ${TRAINING_TYPES.map(t => `
         <button class="pb-type-card ${builderData.trainingType === t.id ? 'selected' : ''}" data-type="${t.id}">
-          <div class="pb-type-icon">${t.icon}</div>
           <div class="pb-type-label">${esc(t.label)}</div>
           <div class="pb-type-desc">${esc(t.desc)}</div>
         </button>
@@ -280,7 +279,7 @@ function renderReview(body) {
     <div class="pb-review">
       <div class="pb-review-row">
         <span class="pb-review-label">Training Type</span>
-        <span class="pb-review-value">${type ? type.icon + ' ' + esc(type.label) : '--'}</span>
+        <span class="pb-review-value">${type ? esc(type.label) : '--'}</span>
       </div>
       <div class="pb-review-row">
         <span class="pb-review-label">Skill Level</span>

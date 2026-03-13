@@ -8,12 +8,12 @@ import {
 import { getSupabaseClient } from './supabase.js';
 import { initWorkoutModifier, destroyWorkoutModifier } from './workoutModifier.js';
 
-const TYPE_ICONS = {
-  strength: '\u{1F4AA}',
-  cardio: '\u{1F3C3}',
-  recovery: '\u{1F9D8}',
-  mixed: '\u{1F525}',
-  rest: '\u{1F4A4}',
+const TYPE_LABELS = {
+  strength: 'STR',
+  cardio: 'CRD',
+  recovery: 'REC',
+  mixed: 'MIX',
+  rest: 'REST',
 };
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -151,7 +151,7 @@ function createDayCard(workout, log, garminMatch, dayState, ctx) {
   // Collapsed header (always visible)
   const headerHtml = `
     <div class="wv-day-header" data-workout-id="${workout.id}">
-      <div class="wv-day-icon">${TYPE_ICONS[workout.workout_type] || '\u{1F3CB}'}</div>
+      <div class="wv-day-icon">${TYPE_LABELS[workout.workout_type] || '—'}</div>
       <div class="wv-day-info">
         <div class="wv-day-name">${esc(dayName)} <span class="wv-day-date">${esc(workout.date)}</span></div>
         <div class="wv-day-title">${esc(workout.title)}</div>

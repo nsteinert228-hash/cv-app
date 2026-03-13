@@ -196,8 +196,8 @@ function fmtMiles(meters) {
 }
 
 function activityIcon(type) {
-  const icons = { running: '\u{1F3C3}', resort_skiing: '\u{26F7}\uFE0F', cycling: '\u{1F6B4}', swimming: '\u{1F3CA}', hiking: '\u{1F6B6}', walking: '\u{1F6B6}', strength_training: '\u{1F4AA}' };
-  return icons[type] || '\u{1F3CB}\uFE0F';
+  const labels = { running: 'RUN', resort_skiing: 'SKI', cycling: 'BIKE', swimming: 'SWIM', hiking: 'HIKE', walking: 'WALK', strength_training: 'STR' };
+  return labels[type] || type?.substring(0, 3)?.toUpperCase() || '—';
 }
 
 // ── Canvas: Arc Gauge ────────────────────────────────────────

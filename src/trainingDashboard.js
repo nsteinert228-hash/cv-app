@@ -367,7 +367,7 @@ function showSeasonCompletionPrompt() {
 
   document.getElementById('seasonCompleteBtn').addEventListener('click', async () => {
     seasonModalText.textContent = 'Generating your season review...';
-    seasonModalActions.innerHTML = '<div class="ai-loading-icon" style="animation:pulse-ai 1.5s infinite">&#129504;</div>';
+    seasonModalActions.innerHTML = '<div class="loading-spinner" style="margin:0 auto"></div>';
     try {
       const prevId = activeSeason.id;
       const result = await finishSeason();
@@ -383,7 +383,7 @@ function showSeasonCompletionPrompt() {
   document.getElementById('seasonNewBtn').addEventListener('click', async () => {
     const prevId = activeSeason.id;
     seasonModalText.textContent = 'Completing current season...';
-    seasonModalActions.innerHTML = '<div class="ai-loading-icon" style="animation:pulse-ai 1.5s infinite">&#129504;</div>';
+    seasonModalActions.innerHTML = '<div class="loading-spinner" style="margin:0 auto"></div>';
     try {
       await finishSeason();
       seasonModal.classList.remove('visible');
@@ -404,7 +404,7 @@ function showNewSeasonPrompt(previousSeasonId) {
 
   document.getElementById('seasonNextBtn').addEventListener('click', async () => {
     seasonModalText.textContent = 'Creating your next training season...';
-    seasonModalActions.innerHTML = '<div class="ai-loading-icon" style="animation:pulse-ai 1.5s infinite">&#129504;</div>';
+    seasonModalActions.innerHTML = '<div class="loading-spinner" style="margin:0 auto"></div>';
     try {
       await startNewSeason(previousSeasonId);
       seasonModal.classList.remove('visible');
@@ -871,11 +871,11 @@ function renderTodaySection(data) {
 // ── Render: Week ─────────────────────────────────────────────
 
 const TYPE_ICONS = {
-  strength: '\u{1F4AA}',
-  cardio: '\u{1F3C3}',
-  recovery: '\u{1F9D8}',
-  mixed: '\u{1F525}',
-  rest: '\u{1F4A4}',
+  strength: 'STR',
+  cardio: 'CRD',
+  recovery: 'REC',
+  mixed: 'MIX',
+  rest: 'REST',
 };
 
 function renderWeek(data) {
@@ -944,7 +944,7 @@ function renderWeek(data) {
       <div class="day-card${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}" data-day-index="${idx}" style="cursor:pointer">
         <div class="day-name">${esc(d.day_name || '')}</div>
         <div class="day-date">${esc(d.date || '')}</div>
-        <div class="day-type-icon">${TYPE_ICONS[d.type] || '\u{1F3CB}'}</div>
+        <div class="day-type-icon">${TYPE_ICONS[d.type] || '—'}</div>
         <div class="day-title">${esc(d.title || '')}</div>
         <div class="day-focus">${esc(d.focus || '')}</div>
         ${previewHtml}
