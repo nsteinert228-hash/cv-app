@@ -524,7 +524,12 @@ async function loadView(view, force = false) {
   } catch (err) {
     console.error('View load error:', err);
     hideAllContent();
-    aiErrorMsg.textContent = err.message || 'Something went wrong. Please try again.';
+    const isNetworkError = err instanceof TypeError &&
+      (err.message === 'Load failed' || err.message === 'Failed to fetch');
+    const message = isNetworkError
+      ? 'Unable to reach the server. Check your connection and try again.'
+      : (err.message || 'Something went wrong. Please try again.');
+    aiErrorMsg.textContent = message;
     aiError.classList.add('visible');
   }
 }
