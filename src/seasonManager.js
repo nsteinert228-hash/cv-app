@@ -3,6 +3,7 @@ import {
   getActiveSeason,
   createSeason,
   completeSeason,
+  abandonSeason,
   triggerAdaptation,
 } from './seasonData.js';
 import { getTrainingPreferences } from './trainingData.js';
@@ -60,6 +61,23 @@ export async function finishSeason() {
   _seasonState = null;
 
   return result;
+}
+
+/**
+ * Stop (abandon) the current season and restart with a fresh one.
+ * Returns the new season creation result.
+ */
+export async function stopAndRestartSeason(extraConfig = {}) {
+  if (!_activeSeason) throw new Error('No active season');
+
+  const prevId = _activeSeason.id;
+  const durationWeeks = _activeSeason.duration_weeks || 8;
+
+  await abandonSeason(prevId);
+  _activeSeason = null;
+  _seasonState = null;
+
+  return startNewSeason(prevId, durationWeeks, extraConfig);
 }
 
 /**

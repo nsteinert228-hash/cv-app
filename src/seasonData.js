@@ -94,6 +94,22 @@ export async function completeSeason(seasonId) {
   return _callEdgeFunction('season-complete', { season_id: seasonId });
 }
 
+export async function abandonSeason(seasonId) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase not configured');
+
+  const { error } = await client
+    .from('training_seasons')
+    .update({
+      status: 'abandoned',
+      completed_at: new Date().toISOString(),
+    })
+    .eq('id', seasonId)
+    .eq('status', 'active');
+
+  if (error) throw error;
+}
+
 // ── Season Workouts ──────────────────────────────────────────
 
 export async function getSeasonWorkouts(seasonId, weekNumber = null) {
