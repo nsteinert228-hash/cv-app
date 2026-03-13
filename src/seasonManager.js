@@ -64,20 +64,16 @@ export async function finishSeason() {
 }
 
 /**
- * Stop (abandon) the current season and restart with a fresh one.
- * Returns the new season creation result.
+ * Stop (abandon) the current season.
+ * After calling this, initSeason() will return needsCreation: true,
+ * which lets the dashboard show the plan builder wizard.
  */
-export async function stopAndRestartSeason(extraConfig = {}) {
+export async function stopCurrentSeason() {
   if (!_activeSeason) throw new Error('No active season');
 
-  const prevId = _activeSeason.id;
-  const durationWeeks = _activeSeason.duration_weeks || 8;
-
-  await abandonSeason(prevId);
+  await abandonSeason(_activeSeason.id);
   _activeSeason = null;
   _seasonState = null;
-
-  return startNewSeason(prevId, durationWeeks, extraConfig);
 }
 
 /**

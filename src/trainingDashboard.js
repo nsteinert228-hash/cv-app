@@ -12,7 +12,7 @@ import {
   initSeason,
   startNewSeason,
   finishSeason,
-  stopAndRestartSeason,
+  stopCurrentSeason,
   checkAdaptations,
   getSeasonState,
 } from './seasonManager.js';
@@ -449,10 +449,10 @@ async function renderSeasonBanner() {
 stopRestartBtn.addEventListener('click', () => {
   if (!activeSeason) return;
 
-  seasonModalTitle.textContent = 'Stop & Restart Season?';
-  seasonModalText.textContent = `This will abandon "${activeSeason.name}" and create a brand-new season from scratch. Your workout logs from this season will be preserved in history. This cannot be undone.`;
+  seasonModalTitle.textContent = 'Stop & New Plan?';
+  seasonModalText.textContent = `This will abandon "${activeSeason.name}" and let you build a brand-new training plan from scratch. Your workout logs from this season will be preserved in history. This cannot be undone.`;
   seasonModalActions.innerHTML = `
-    <button class="btn-danger" id="confirmStopRestart">Stop & Restart</button>
+    <button class="btn-danger" id="confirmStopRestart">Stop & New Plan</button>
     <button class="btn-ghost" id="cancelStopRestart">Cancel</button>
   `;
   seasonModal.classList.add('visible');
@@ -462,13 +462,16 @@ stopRestartBtn.addEventListener('click', () => {
   });
 
   document.getElementById('confirmStopRestart').addEventListener('click', async () => {
-    seasonModalText.textContent = 'Stopping current season and generating a new plan...';
+    seasonModalText.textContent = 'Stopping current season...';
     seasonModalActions.innerHTML = '<div class="loading-spinner" style="margin:0 auto"></div>';
 
     try {
-      await stopAndRestartSeason();
+      await stopCurrentSeason();
       seasonModal.classList.remove('visible');
+      activeSeason = null;
+      seasonState = null;
       Object.keys(viewCache).forEach(k => delete viewCache[k]);
+      // loadSeasonState will detect no active season and show the plan builder wizard
       await loadSeasonState();
     } catch (err) {
       seasonModalText.textContent = `Failed: ${err.message}`;
