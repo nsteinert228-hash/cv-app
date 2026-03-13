@@ -17,7 +17,12 @@ export function getSupabaseClient() {
     return null;
   }
 
-  _client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  _client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      storageKey: 'cv-app-auth',
+      lock: async (_name, _acquireTimeout, fn) => await fn(),
+    },
+  });
   return _client;
 }
 
