@@ -121,6 +121,23 @@ def upsert_activities(client: Client, rows: list[dict], user_id: str) -> int:
     return len(rows)
 
 
+def upsert_activity_metrics(client: Client, data: dict, user_id: str) -> int:
+    """Upsert a single activity metrics row, keyed on (user_id, activity_id)."""
+    if not data:
+        return 0
+    data["user_id"] = user_id
+    data["synced_at"] = _now_iso()
+
+    def _do():
+        client.table("activity_metrics").upsert(
+            data, on_conflict="user_id,activity_id"
+        ).execute()
+
+    _with_retry(_do)
+    log.info("Upserted activity metrics for activity %s", data.get("activity_id"))
+    return 1
+
+
 # ── Intraday tables (delete-for-date + chunked insert) ────────
 
 

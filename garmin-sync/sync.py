@@ -25,6 +25,7 @@ ALL_DATA_TYPES = [
     "hrv",
     "sleep",
     "activities",
+    "activity_metrics",
     "body_composition",
     "spo2",
     "respiration",
@@ -63,6 +64,9 @@ _DISPATCH: dict[str, dict] = {
         "upsert": lambda sb, d, rows, uid: supabase_client.upsert_activities(sb, rows, uid),
         "kind": "list",
     },
+    "activity_metrics": {
+        "kind": "custom",
+    },
     "body_composition": {
         "fetch": lambda g, d: data_fetchers.fetch_body_composition(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_body_composition(sb, data, uid),
@@ -86,6 +90,47 @@ _DISPATCH: dict[str, dict] = {
 }
 
 
+def _sync_activity_metrics(
+    garmin: Garmin,
+    sb: Client,
+    date_str: str,
+    user_id: str,
+) -> tuple[str, int]:
+    """Fetch activity details and metrics for all aerobic activities on a date.
+
+    First fetches the activity list for the date, then gets detailed metrics
+    for each aerobic activity.
+    """
+    activities = with_retry(data_fetchers.fetch_activities, garmin, date_str)
+    if not activities:
+        return "success", 0
+
+    count = 0
+    for act in activities:
+        activity_id = act.get("activity_id")
+        if not activity_id:
+            continue
+
+        detail = with_retry(
+            data_fetchers.fetch_activity_details,
+            garmin,
+            activity_id,
+            activity_type=act.get("activity_type"),
+            avg_hr=act.get("avg_heart_rate"),
+            max_hr=act.get("max_heart_rate"),
+            duration_seconds=act.get("duration_seconds"),
+        )
+
+        if detail:
+            detail["distance_meters"] = act.get("distance_meters")
+            count += supabase_client.upsert_activity_metrics(sb, detail, user_id)
+
+        # Rate limit between detail fetches
+        time.sleep(config.FETCH_DELAY)
+
+    return "success", count
+
+
 def _sync_one_type(
     garmin: Garmin,
     sb: Client,
@@ -98,6 +143,10 @@ def _sync_one_type(
     Returns (status, record_count).
     """
     spec = _DISPATCH[dtype]
+
+    # Custom handler for activity_metrics
+    if spec.get("kind") == "custom" and dtype == "activity_metrics":
+        return _sync_activity_metrics(garmin, sb, date_str, user_id)
 
     data = with_retry(spec["fetch"], garmin, date_str)
 

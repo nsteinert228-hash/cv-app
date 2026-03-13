@@ -203,6 +203,20 @@ export async function getRecentActivities(limit = 5) {
   return data || [];
 }
 
+export async function getActivityMetrics(activityId) {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('activity_metrics')
+    .select('activity_id, activity_type, duration_seconds, distance_meters, heart_rate_samples, pace_samples, elevation_samples, cadence_samples, splits, workout_classification, classification_details')
+    .eq('activity_id', activityId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getBodyCompositionTrend(days = 14) {
   const client = getSupabaseClient();
   if (!client) return [];
