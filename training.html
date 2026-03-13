@@ -433,7 +433,8 @@
     .wv-day-card { background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden; transition: border-color var(--duration-fast); }
     .wv-day-card:hover { border-color: rgba(255,255,255,0.1); }
     .wv-day-today { border-color: var(--accent); }
-    .wv-day-future { opacity: 0.5; }
+    .wv-day-future { opacity: 0.6; }
+    .wv-day-future:hover { opacity: 0.8; }
     .wv-day-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
     .wv-day-icon { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; flex-shrink: 0; min-width: 32px; text-align: center; padding: 4px 6px; background: var(--bg-elevated); border-radius: var(--radius-sm); }
     .wv-day-info { flex: 1; min-width: 0; }
@@ -459,6 +460,9 @@
     .wv-day-body { padding: 0 14px 14px; }
     .wv-day-body.hidden { display: none; }
     .wv-day-body.collapsed { display: none; }
+
+    /* Future preview */
+    .wv-future-preview { opacity: 0.85; }
 
     /* Side-by-side Comparison */
     .wv-comparison { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; }
