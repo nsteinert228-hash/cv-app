@@ -216,6 +216,8 @@ Deno.serve(async (req) => {
     const preferences = body.preferences || {};
     const previousSeasonId = body.previous_season_id || null;
     const durationWeeks = body.duration_weeks || DEFAULT_DURATION_WEEKS;
+    const requestedStartDate = body.start_date || null;
+    const planConfig = body.plan_config || null;
 
     // ── Service client ──
     const serviceClient = createClient(
@@ -267,10 +269,34 @@ Deno.serve(async (req) => {
     const healthPrompt = formatHealthDataForPrompt(healthData);
 
     // ── Build Claude prompt ──
+    // Include plan builder context if available
+    const trainingType = preferences.training_type || preferences.goals || "";
+    const skillLevel = preferences.skill_level || preferences.experience || "";
+    const preferredActivities = preferences.preferred_activities || [];
+    const avoidedExercises = preferences.avoided_exercises || [];
+    const daysPerWeek = preferences.days_per_week || 5;
+
+    let planBuilderContext = "";
+    if (trainingType || skillLevel || preferredActivities.length || avoidedExercises.length) {
+      planBuilderContext = `
+### Training Plan Configuration
+- Training Type: ${trainingType || "general fitness"}
+- Skill Level: ${skillLevel || "intermediate"}
+- Training Days Per Week: ${daysPerWeek}
+${preferredActivities.length ? `- Preferred Activities: ${preferredActivities.join(", ")}` : ""}
+${avoidedExercises.length ? `- Exercises to AVOID (do NOT include these): ${avoidedExercises.join(", ")}` : ""}
+${preferences.injuries ? `- Injuries/Notes: ${preferences.injuries}` : ""}
+
+IMPORTANT: Respect the training type — focus the plan on ${trainingType || "general fitness"}.
+${avoidedExercises.length ? `CRITICAL: Do NOT include any of these exercises: ${avoidedExercises.join(", ")}. Find suitable alternatives.` : ""}
+Schedule exactly ${daysPerWeek} training days per week, with ${7 - daysPerWeek} rest/recovery days.
+`;
+    }
+
     let userMessage = `${healthPrompt}
 
 ---
-
+${planBuilderContext}
 Today's date is ${formatDate(new Date())}.
 Create a ${durationWeeks}-week training season plan.
 
@@ -339,25 +365,37 @@ Build on the previous season — progress from where the client left off.`;
 
     // ── Compute dates ──
     const totalDays = durationWeeks * 7;
-    const startDate = getStartDate();
+    const startDate = requestedStartDate
+      ? new Date(requestedStartDate + "T00:00:00")
+      : getStartDate();
     const endDate = addDays(startDate, totalDays - 1);
 
     // ── Insert season ──
+    const seasonInsert: Record<string, unknown> = {
+      user_id: user.id,
+      season_number: seasonNumber,
+      name: (parsed.plan as Record<string, unknown>).name || `Season ${seasonNumber}`,
+      status: "active",
+      duration_weeks: durationWeeks,
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+      plan_json: parsed.plan,
+      preferences_snapshot: preferences,
+      previous_season_id: previousSeasonId,
+      previous_season_summary: previousSeasonSummary,
+    };
+
+    // Add plan builder fields if available
+    if (trainingType) seasonInsert.training_type = trainingType;
+    if (skillLevel) seasonInsert.skill_level = skillLevel;
+    if (avoidedExercises.length) seasonInsert.avoided_exercises = avoidedExercises;
+    if (preferredActivities.length) seasonInsert.preferred_activities = preferredActivities;
+    seasonInsert.plan_duration_weeks = durationWeeks;
+    if (planConfig) seasonInsert.plan_config = planConfig;
+
     const { data: season, error: seasonError } = await serviceClient
       .from("training_seasons")
-      .insert({
-        user_id: user.id,
-        season_number: seasonNumber,
-        name: (parsed.plan as Record<string, unknown>).name || `Season ${seasonNumber}`,
-        status: "active",
-        duration_weeks: durationWeeks,
-        start_date: formatDate(startDate),
-        end_date: formatDate(endDate),
-        plan_json: parsed.plan,
-        preferences_snapshot: preferences,
-        previous_season_id: previousSeasonId,
-        previous_season_summary: previousSeasonSummary,
-      })
+      .insert(seasonInsert)
       .select("id")
       .single();
 

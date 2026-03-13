@@ -9,7 +9,7 @@ const RATE_LIMIT_HOURS = 6;
 
 // ── Prompt ──────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are an elite personal trainer reviewing a client's active training plan against their current health data and recent adherence.
+const SYSTEM_PROMPT = `You are an elite personal trainer reviewing a client's active training plan against their current health data, Garmin metrics, and recent adherence.
 
 Rules:
 - Respond ONLY with valid JSON — no markdown fences, no commentary
@@ -19,7 +19,15 @@ Rules:
 - You may adjust: intensity, volume (sets/reps), duration, rest periods, and swap exercises of similar type
 - Preserve the progressive overload structure of the season
 - For rest/recovery days, you may upgrade to active recovery or light training if readiness is high
-- If no changes are needed, return an empty adaptations array`;
+- If no changes are needed, return an empty adaptations array
+
+Key Garmin metrics to consider:
+- Sleep score < 60: reduce intensity, consider recovery day
+- Body battery < 30: mandatory easy/rest day
+- HRV status "low" or "unbalanced": reduce volume and intensity
+- Stress avg > 50: consider lighter sessions
+- Consecutive poor sleep (3+ days): reduce week's overall volume
+- High readiness indicators: consider progressive overload opportunity`;
 
 const RESPONSE_SCHEMA = `{
   "adaptations": [

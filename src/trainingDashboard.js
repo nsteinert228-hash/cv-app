@@ -27,6 +27,8 @@ import { renderWorkoutConfirmation } from './workoutLogger.js';
 import { renderAdaptationFeed } from './adaptationFeed.js';
 import { renderSeasonHistory } from './seasonHistory.js';
 import { open as openDayDetail, close as closeDayDetail } from './dayDetail.js';
+import { initPlanBuilder, destroyPlanBuilder } from './planBuilder.js';
+import { renderWeeklyView, renderWeekByNumber } from './weeklyView.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -251,17 +253,46 @@ async function loadSeasonState() {
 }
 
 function showSeasonCreationPrompt() {
-  // Show inline onboarding block, hide season-only UI
+  // Hide season-only UI
+  viewToggle.style.display = 'none';
+  prefsCard.style.display = 'none';
+  seasonBanner.classList.remove('visible');
+
+  // Show Plan Builder in the onboarding block
+  const planBuilderContainer = document.getElementById('planBuilderContainer');
+  if (planBuilderContainer) {
+    onboardingBlock.classList.add('visible');
+    onboardingPrefs.style.display = 'none';
+    onboardingCTA.style.display = 'none';
+    onboardingProgress.classList.remove('visible');
+    onboardingError.textContent = '';
+
+    // Hide the old onboarding hero text
+    const hero = onboardingBlock.querySelector('.onboarding-hero');
+    if (hero) hero.style.display = 'none';
+
+    planBuilderContainer.style.display = '';
+    initPlanBuilder(planBuilderContainer, {
+      onPlanCreated: async () => {
+        destroyPlanBuilder();
+        planBuilderContainer.style.display = 'none';
+        onboardingBlock.classList.remove('visible');
+        if (hero) hero.style.display = '';
+        viewToggle.style.display = '';
+        prefsCard.style.display = '';
+        await loadSeasonState();
+      },
+    });
+    return;
+  }
+
+  // Fallback: old onboarding flow
   onboardingBlock.classList.add('visible');
   onboardingPrefs.style.display = '';
   onboardingCTA.style.display = '';
   onboardingProgress.classList.remove('visible');
   onboardingError.textContent = '';
-  viewToggle.style.display = 'none';
-  prefsCard.style.display = 'none';
-  seasonBanner.classList.remove('visible');
 
-  // Pre-fill from saved preferences
   obGoals.value = preferences.goals || '';
   obExperience.value = preferences.experience || '';
   obInjuries.value = preferences.injuries || '';
@@ -543,105 +574,32 @@ async function loadSeasonView(view) {
   const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   if (view === 'week') {
-    // Load today's workout data
-    const todayWorkout = await getTodayWorkout(activeSeason.id);
-    let todayData = null;
-    if (todayWorkout) {
-      const rx = normalizePrescription(todayWorkout.prescription_json);
-      const todayPhase = getCurrentPhase(plan, seasonState.currentWeek);
-      todayData = {
-        _from_season: true,
-        _workout: todayWorkout,
-        readiness_assessment: {
-          level: todayWorkout.intensity === 'rest' ? 'low' : todayWorkout.intensity === 'high' ? 'high' : 'moderate',
-          summary: todayPhase ? `${todayPhase.name} phase — ${todayPhase.focus || ''}` : '',
-          key_factors: todayPhase ? [`Week ${seasonState.currentWeek}`, todayPhase.intensity_range || ''].filter(Boolean) : [],
-        },
-        recommendation: {
-          type: todayWorkout.workout_type,
-          title: todayWorkout.title,
-          intensity: todayWorkout.intensity,
-          duration_minutes: todayWorkout.duration_minutes,
-          description: (todayWorkout.prescription_json || {}).description || '',
-          warmup: rx.warmup,
-          main_workout: rx.main_workout,
-          cooldown: rx.cooldown,
-        },
-        alerts: todayWorkout.is_adapted ? [{ type: 'info', message: 'This workout was adapted based on your recent health data' }] : [],
-      };
-    }
+    // Use the new weekly view component
+    const weekContainer = document.getElementById('contentWeek');
+    hideAllContent();
+    weekContainer.classList.add('visible');
+    controlsBar.style.display = '';
+    disclaimer.style.display = '';
+    generatedAtEl.textContent = `Season plan · Week ${seasonState?.currentWeek || '?'}`;
 
-    // Load week data
-    // Get this calendar week's workouts; if empty (season not started), show week 1
-    let workouts = await getThisWeekWorkouts(activeSeason.id);
-    let weekLabel = seasonState.currentWeek;
-    let isUpcoming = false;
-
-    if (!workouts.length) {
-      workouts = await getSeasonWorkouts(activeSeason.id, 1);
-      weekLabel = 1;
-      isUpcoming = !seasonState.hasStarted;
-    }
-
-    const logs = await getWorkoutLogsForSeason(activeSeason.id);
-    const logMap = new Map(logs.map(l => [l.workout_id, l]));
-    const today = new Date().toISOString().split('T')[0];
-    const phase = getCurrentPhase(plan, weekLabel);
-    const weekStats = computeWeekStats(workouts);
-
-    const weekLogs = workouts.map(w => logMap.get(w.id)).filter(Boolean);
-    const completedCount = weekLogs.filter(l => l.status === 'completed').length;
-    const loadLabel = weekStats.activeDays >= 6 ? 'High' : weekStats.activeDays >= 4 ? 'Moderate' : 'Low';
-    const typeLabels = Object.entries(weekStats.typeCounts).map(([t, c]) => `${c}x ${t}`).join(', ');
-
-    const summaryPrefix = isUpcoming ? 'Upcoming: ' : '';
-    const data = {
-      view: 'week',
-      _from_season: true,
-      _isUpcoming: isUpcoming,
-      weekly_summary: phase
-        ? `${summaryPrefix}Week ${weekLabel} · ${phase.name} — ${phase.focus || ''}`
-        : `${summaryPrefix}Week ${weekLabel} of ${activeSeason.name}`,
-      training_load_assessment: {
-        recent_load: loadLabel,
-        trend: phase ? phase.intensity_range || '--' : '--',
-        phase_name: phase ? phase.name : '--',
-        total_minutes: weekStats.totalMin,
-        active_days: weekStats.activeDays,
+    await renderWeeklyView(weekContainer, {
+      season: activeSeason,
+      seasonState,
+      onWeekChange: async (weekNum) => {
+        await renderWeekByNumber(weekContainer, weekNum, {
+          season: activeSeason,
+          seasonState,
+          onWeekChange: async (wn) => {
+            await renderWeekByNumber(weekContainer, wn, {
+              season: activeSeason,
+              seasonState,
+              onWeekChange: null,
+            });
+          },
+        });
       },
-      _weekNumber: weekLabel,
-      days: workouts.map(w => {
-        const log = logMap.get(w.id);
-        const rx = w.prescription_json || {};
-        const exercises = rx.exercises || rx.main_workout || [];
-        const exercisePreview = exercises.slice(0, 3).map(e => e.exercise).filter(Boolean);
-        return {
-          date: w.date,
-          day_name: DAY_NAMES[w.day_of_week - 1] || '',
-          type: w.workout_type,
-          title: w.title,
-          intensity: w.intensity,
-          duration_minutes: w.duration_minutes,
-          focus: rx.description || '',
-          exercisePreview,
-          is_today: w.date === today,
-          _log: log || null,
-          _is_adapted: w.is_adapted,
-          _workout_id: w.id,
-        };
-      }),
-      weekly_goals: [
-        { metric: 'Active Days', target: `${weekStats.activeDays} sessions (${typeLabels || 'rest week'})` },
-        { metric: 'Training Volume', target: `${weekStats.totalMin} minutes total` },
-        ...(completedCount > 0 ? [{ metric: 'Progress', target: `${completedCount} of ${weekStats.activeDays} completed` }] : []),
-        ...(phase && phase.focus ? [{ metric: 'Phase Focus', target: phase.focus }] : []),
-      ],
-      alerts: isUpcoming ? [{ type: 'info', message: `Season starts ${activeSeason.start_date} — showing your first week preview` }] : [],
-      _todayData: todayData,
-    };
-
-    viewCache[view] = { data, fetchedAt: Date.now() };
-    renderView(view, data);
+    });
+    return;
 
   } else if (view === 'plan') {
     const allWorkouts = await getSeasonWorkouts(activeSeason.id);
