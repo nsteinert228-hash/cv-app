@@ -28,21 +28,21 @@
     .prefs-field { flex: 1; min-width: 140px; }
     .prefs-field label { display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
     .prefs-field select, .prefs-field input { width: 100%; padding: 9px 12px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); outline: none; font-family: inherit; transition: border-color var(--duration-fast); }
-    .prefs-field select:focus, .prefs-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .prefs-field select:focus, .prefs-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
     .prefs-field select option { background: #1a1a2e; color: var(--text-primary); }
     .prefs-save { font-size: 0.72rem; color: var(--accent); margin-top: 4px; min-height: 1em; }
 
     /* ── View Toggle ── */
-    .view-toggle { display: flex; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 3px; backdrop-filter: blur(10px); }
-    .view-btn { flex: 1; padding: 9px 12px; border: none; border-radius: 11px; background: transparent; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all var(--duration-fast) var(--ease-out); font-family: inherit; }
-    .view-btn.active { background: var(--accent-dark); color: #fff; box-shadow: 0 2px 8px var(--accent-glow); }
+    .view-toggle { display: flex; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 3px; }
+    .view-btn { flex: 1; padding: 9px 12px; border: none; border-radius: var(--radius-sm); background: transparent; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all var(--duration-fast) var(--ease-out); font-family: inherit; }
+    .view-btn.active { background: var(--accent-dark); color: #fff; }
     .view-btn:hover:not(.active) { color: var(--text-secondary); }
 
     /* ── AI Loading ── */
     @keyframes pulse-ai { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
     .ai-loading { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 16px; }
     .ai-loading.visible { display: flex; }
-    .ai-loading-icon { font-size: 2.2rem; animation: pulse-ai 1.5s ease-in-out infinite; }
+    .ai-loading-icon { display: flex; justify-content: center; }
     .ai-loading-text { font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; }
     .ai-loading-sub { font-size: 0.72rem; color: var(--text-muted); }
 
@@ -104,13 +104,13 @@
     .load-value { font-size: 0.88rem; font-weight: 700; margin-top: 2px; color: var(--text-primary); }
 
     .week-calendar { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px; -webkit-overflow-scrolling: touch; }
-    .day-card { min-width: 110px; flex-shrink: 0; padding: 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); text-align: center; backdrop-filter: blur(10px); transition: all var(--duration-fast); }
+    .day-card { min-width: 110px; flex-shrink: 0; padding: 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); text-align: center; transition: all var(--duration-fast); }
     .day-card:hover { border-color: rgba(255,255,255,0.12); }
-    .day-card.is-today { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .day-card.is-today { border-color: var(--accent); }
     .day-card.is-past { opacity: 0.5; }
     .day-name { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
     .day-date { font-size: 0.62rem; color: var(--text-muted); margin-top: 1px; }
-    .day-type-icon { font-size: 1.5rem; margin: 8px 0 4px; }
+    .day-type-icon { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; margin: 8px 0 4px; padding: 3px 8px; background: var(--bg-elevated); border-radius: var(--radius-sm); display: inline-block; }
     .day-title { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); }
     .day-focus { font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.3; }
     .day-intensity-bar { height: 3px; border-radius: 2px; margin-top: 8px; }
@@ -144,7 +144,7 @@
     .phase-timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
     .phase-node { position: relative; padding: 14px 0; }
     .phase-node::before { content: ''; position: absolute; left: -20px; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--border); border: 2px solid var(--bg-page); }
-    .phase-node.current::before { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+    .phase-node.current::before { background: var(--accent); }
     .phase-week { font-size: 0.62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
     .phase-name-text { font-size: 0.92rem; font-weight: 700; color: var(--text-primary); }
     .phase-focus { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
@@ -170,9 +170,9 @@
     .milestone-goal { font-size: 0.82rem; color: var(--text-secondary); }
 
     /* ── Day Detail Panel ── */
-    .day-detail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 80; }
+    .day-detail-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 80; }
     .day-detail-backdrop.visible { display: flex; align-items: flex-end; justify-content: center; }
-    .day-detail-panel { background: rgba(20,20,30,0.98); border: 1px solid var(--glass-border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); width: 100%; max-width: var(--max-width); max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); backdrop-filter: blur(40px); }
+    .day-detail-panel { background: var(--bg-elevated); border: 1px solid var(--glass-border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); width: 100%; max-width: var(--max-width); max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
     .day-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .day-detail-title { font-size: 1rem; font-weight: 800; }
     .day-detail-date { font-size: 0.72rem; color: var(--text-muted); }
@@ -230,7 +230,7 @@
 
     /* ── Controls ── */
     .controls-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 0.72rem; color: var(--text-muted); }
-    .regen-btn { padding: 7px 16px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer; backdrop-filter: blur(10px); transition: all var(--duration-fast); font-family: inherit; }
+    .regen-btn { padding: 7px 16px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); font-size: 0.75rem; font-weight: 600; color: var(--text-primary); cursor: pointer; transition: all var(--duration-fast); font-family: inherit; }
     .regen-btn:hover { background: var(--bg-surface-hover); }
     .regen-btn:disabled { opacity: 0.4; cursor: default; }
     .disclaimer { font-size: 0.62rem; color: var(--text-muted); text-align: center; padding: 6px 0; line-height: 1.4; }
@@ -247,7 +247,7 @@
     .ai-error-msg { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px; }
 
     /* ── Season Banner ── */
-    .season-banner { display: none; padding: 14px 16px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); backdrop-filter: blur(10px); }
+    .season-banner { display: none; padding: 14px 16px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); }
     .season-banner.visible { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
     .season-name { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
     .season-progress { font-size: 0.72rem; color: var(--text-secondary); }
@@ -261,7 +261,7 @@
     .adapt-recovery { background: var(--yellow-soft); color: var(--yellow); border-color: rgba(251,191,36,0.1); }
     .adapt-performance { background: var(--blue-soft); color: var(--blue); border-color: rgba(96,165,250,0.1); }
     .adapt-schedule { background: var(--bg-elevated); color: var(--text-secondary); border-color: var(--border-light); }
-    .adapt-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .adapt-icon { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.04em; color: var(--text-muted); text-transform: uppercase; flex-shrink: 0; padding: 3px 6px; background: var(--bg-elevated); border-radius: var(--radius-sm); }
     .adapt-content { flex: 1; }
     .adapt-summary { font-weight: 600; }
     .adapt-date { font-size: 0.68rem; color: inherit; opacity: 0.6; margin-top: 2px; }
@@ -318,7 +318,7 @@
     .onboarding-prefs .prefs-field select,
     .onboarding-prefs .prefs-field input { width: 100%; padding: 9px 12px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); outline: none; font-family: inherit; transition: border-color var(--duration-fast); }
     .onboarding-prefs .prefs-field select:focus,
-    .onboarding-prefs .prefs-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .onboarding-prefs .prefs-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
     .onboarding-prefs .prefs-field select option { background: #1a1a2e; color: var(--text-primary); }
     .onboarding-cta { text-align: center; padding: 4px 0 8px; }
     .onboarding-cta .btn-primary { padding: 12px 28px; font-size: 0.88rem; }
@@ -331,9 +331,9 @@
     .onboarding-error { text-align: center; font-size: 0.82rem; color: var(--red); margin-top: 8px; min-height: 1em; }
 
     /* ── Season Modal ── */
-    .season-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
+    .season-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
     .season-modal.visible { display: flex; }
-    .season-modal-content { background: rgba(20,20,30,0.95); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px 28px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); backdrop-filter: blur(40px); text-align: center; }
+    .season-modal-content { background: var(--bg-elevated); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px 28px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); text-align: center; }
     .season-modal-content h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
     .season-modal-content p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
     .season-modal-actions { display: flex; gap: 8px; justify-content: center; }
@@ -363,7 +363,7 @@
     .pb-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .pb-type-card { padding: 16px 12px; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); cursor: pointer; text-align: center; transition: all var(--duration-fast); font-family: inherit; color: var(--text-primary); }
     .pb-type-card:hover { border-color: var(--accent); background: var(--accent-light); }
-    .pb-type-card.selected { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 12px var(--accent-glow); }
+    .pb-type-card.selected { border-color: var(--accent); background: var(--accent-light); }
     .pb-type-icon { font-size: 1.8rem; margin-bottom: 6px; }
     .pb-type-label { font-size: 0.82rem; font-weight: 700; }
     .pb-type-desc { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
@@ -391,7 +391,7 @@
     .pb-schedule-fields { display: flex; flex-direction: column; gap: 14px; }
     .pb-field label { display: block; font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
     .pb-field input[type="date"] { padding: 10px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); font-family: inherit; outline: none; }
-    .pb-field input[type="date"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .pb-field input[type="date"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
     .pb-days-selector { display: flex; gap: 6px; }
     .pb-day-btn { width: 40px; height: 40px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); background: var(--bg-surface); font-size: 0.88rem; font-weight: 700; color: var(--text-primary); cursor: pointer; font-family: inherit; transition: all var(--duration-fast); }
     .pb-day-btn:hover { border-color: var(--accent); }
@@ -424,12 +424,12 @@
 
     /* Day Cards */
     .wv-days { display: flex; flex-direction: column; gap: 8px; }
-    .wv-day-card { background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden; backdrop-filter: blur(var(--glass-blur)); transition: border-color var(--duration-fast); }
+    .wv-day-card { background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); overflow: hidden; transition: border-color var(--duration-fast); }
     .wv-day-card:hover { border-color: rgba(255,255,255,0.1); }
-    .wv-day-today { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .wv-day-today { border-color: var(--accent); }
     .wv-day-future { opacity: 0.5; }
     .wv-day-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
-    .wv-day-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .wv-day-icon { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; flex-shrink: 0; min-width: 32px; text-align: center; padding: 4px 6px; background: var(--bg-elevated); border-radius: var(--radius-sm); }
     .wv-day-info { flex: 1; min-width: 0; }
     .wv-day-name { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
     .wv-day-date { font-size: 0.62rem; color: var(--text-muted); margin-left: 6px; font-weight: 400; text-transform: none; }
@@ -503,7 +503,7 @@
     .wm-label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
     .wm-input-row { display: flex; gap: 8px; }
     .wm-input { flex: 1; padding: 10px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.82rem; background: var(--bg-input); color: var(--text-primary); font-family: inherit; outline: none; transition: border-color var(--duration-fast); }
-    .wm-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .wm-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
     .wm-input::placeholder { color: var(--text-muted); }
     .wm-submit { flex-shrink: 0; padding: 10px 18px; }
     .wm-status { font-size: 0.75rem; margin-top: 6px; min-height: 1em; }
@@ -663,7 +663,7 @@
         <button class="btn-ghost" id="obSkipBtn">Skip for now</button>
       </div>
       <div class="onboarding-progress" id="onboardingProgress">
-        <div class="onboarding-progress-icon">&#129504;</div>
+        <div class="onboarding-progress-icon"><div class="loading-spinner" style="width:28px;height:28px"></div></div>
         <div class="onboarding-progress-text">Creating your training season...</div>
         <div class="onboarding-progress-sub">Analyzing your health data and building a personalized plan</div>
       </div>
@@ -691,7 +691,7 @@
 
     <!-- AI Loading -->
     <div class="ai-loading" id="aiLoading">
-      <div class="ai-loading-icon">&#129504;</div>
+      <div class="ai-loading-icon"><div class="loading-spinner"></div></div>
       <div class="ai-loading-text">Analyzing your health data...</div>
       <div class="ai-loading-sub">This may take a few seconds</div>
     </div>
@@ -745,7 +745,7 @@
         <div class="alerts-strip" id="todayAlerts"></div>
 
         <div class="nutrition-card" id="todayNutrition" style="display:none">
-          <span class="nutrition-icon">&#127860;</span>
+          <span class="nutrition-icon" style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase">Nutrition</span>
           <span id="todayNutritionText"></span>
         </div>
       </div>
