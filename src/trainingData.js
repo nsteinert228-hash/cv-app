@@ -1,47 +1,11 @@
 // Training data layer — edge function calls and readiness queries
-import { getSupabaseClient, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase.js';
+import { getSupabaseClient, callEdgeFunction } from './supabase.js';
 import { getDailySummaryDetailed, getSleepDetailed, getHrvTrend } from './garmin.js';
-
-const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
-
-// ── Edge function caller ─────────────────────────────────────
-
-async function _callEdgeFunction(name, body = {}) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase not configured');
-
-  const { data: { session } } = await client.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
-  let res;
-  try {
-    res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (networkErr) {
-    throw new Error('Unable to reach the server. Check your connection and try again.');
-  }
-
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(`Server returned an invalid response (${res.status})`);
-  }
-  if (!res.ok) throw new Error(data.error || `Edge function error: ${res.status}`);
-  return data;
-}
 
 // ── Training recommendation ──────────────────────────────────
 
 export async function getTrainingRecommendation(view, preferences = {}, force = false) {
-  return _callEdgeFunction('training-recommendations', { view, preferences, force });
+  return callEdgeFunction('training-recommendations', { view, preferences, force });
 }
 
 // ── Today's readiness snapshot for hero bar ──────────────────

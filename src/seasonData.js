@@ -1,41 +1,5 @@
 // Season data layer — CRUD for training seasons, workouts, logs, adaptations
-import { getSupabaseClient, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase.js';
-
-const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
-
-// ── Edge function caller ─────────────────────────────────────
-
-async function _callEdgeFunction(name, body = {}) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase not configured');
-
-  const { data: { session } } = await client.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
-  let res;
-  try {
-    res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (networkErr) {
-    throw new Error('Unable to reach the server. Check your connection and try again.');
-  }
-
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(`Server returned an invalid response (${res.status})`);
-  }
-  if (!res.ok) throw new Error(data.error || `Edge function error: ${res.status}`);
-  return data;
-}
+import { getSupabaseClient, callEdgeFunction } from './supabase.js';
 
 // ── Season CRUD ──────────────────────────────────────────────
 
@@ -45,7 +9,7 @@ export async function getActiveSeason() {
 
   const { data, error } = await client
     .from('training_seasons')
-    .select('*')
+    .select('id, season_number, name, status, duration_weeks, start_date, end_date, plan_json, created_at')
     .eq('status', 'active')
     .maybeSingle();
 
@@ -59,7 +23,7 @@ export async function getSeasonById(seasonId) {
 
   const { data, error } = await client
     .from('training_seasons')
-    .select('*')
+    .select('id, season_number, name, status, duration_weeks, start_date, end_date, plan_json, created_at')
     .eq('id', seasonId)
     .single();
 
@@ -81,7 +45,7 @@ export async function getSeasonHistory() {
 }
 
 export async function createSeason(preferences = {}, previousSeasonId = null, durationWeeks = 8, extraConfig = {}) {
-  return _callEdgeFunction('season-create', {
+  return callEdgeFunction('season-create', {
     preferences,
     previous_season_id: previousSeasonId,
     duration_weeks: durationWeeks,
@@ -91,7 +55,7 @@ export async function createSeason(preferences = {}, previousSeasonId = null, du
 }
 
 export async function completeSeason(seasonId) {
-  return _callEdgeFunction('season-complete', { season_id: seasonId });
+  return callEdgeFunction('season-complete', { season_id: seasonId });
 }
 
 export async function abandonSeason(seasonId) {
@@ -211,7 +175,7 @@ export async function getWorkoutLogsForSeason(seasonId) {
 }
 
 export async function submitWorkoutLog(workoutId, status, actualJson = {}, garminActivityId = null, notes = null) {
-  return _callEdgeFunction('workout-log', {
+  return callEdgeFunction('workout-log', {
     workout_id: workoutId,
     status,
     actual_json: actualJson,
@@ -251,7 +215,7 @@ export async function acknowledgeAdaptation(adaptationId) {
 }
 
 export async function triggerAdaptation(force = false) {
-  return _callEdgeFunction('season-adapt', { force });
+  return callEdgeFunction('season-adapt', { force });
 }
 
 // ── Workout Swap ─────────────────────────────────────────────
@@ -316,7 +280,7 @@ export async function getWeekWorkoutsByWeekNumber(seasonId, weekNumber) {
 // ── Workout Modification ────────────────────────────────────
 
 export async function modifyWorkout(workoutId, userPrompt, seasonId) {
-  return _callEdgeFunction('modify-workout', {
+  return callEdgeFunction('modify-workout', {
     workout_id: workoutId,
     user_prompt: userPrompt,
     season_id: seasonId,
