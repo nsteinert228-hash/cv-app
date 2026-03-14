@@ -226,10 +226,10 @@ describe('onboarding flow state transitions', () => {
 
   it('active season defaults to plan view', () => {
     const result = { season: { id: 1 }, state: {}, needsCreation: false, isExpired: false };
-    let currentView = 'today';
+    let currentView = 'week';
 
     if (!result.needsCreation && !result.isExpired) {
-      if (currentView === 'today') {
+      if (currentView === 'week') {
         currentView = 'plan';
       }
     }

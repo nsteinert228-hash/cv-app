@@ -43,7 +43,7 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
         const durMin = garminMatch.duration_seconds ? Math.round(garminMatch.duration_seconds / 60) : '--';
         html += `
           <div class="garmin-auto-detect">
-            <span class="garmin-auto-detect-icon">\u{1F4F1}</span>
+            <span class="garmin-auto-detect-icon" style="font-size:0.6rem;font-weight:700;color:var(--accent)">GARMIN</span>
             <div class="garmin-auto-detect-info">
               <strong>Completed (verified via Garmin)</strong><br>
               ${esc(garminMatch.name || garminMatch.activity_type)} \u00B7 ${durMin} min
@@ -111,10 +111,10 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
 // ── Swap Workout ────────────────────────────────────────────
 
 const SWAP_TYPES = [
-  { type: 'strength', title: 'Strength Training', icon: '\u{1F4AA}', defaultDuration: 45 },
-  { type: 'cardio', title: 'Cardio / Run', icon: '\u{1F3C3}', defaultDuration: 30 },
-  { type: 'recovery', title: 'Recovery / Yoga', icon: '\u{1F9D8}', defaultDuration: 30 },
-  { type: 'rest', title: 'Rest Day', icon: '\u{1F4A4}', defaultDuration: 0 },
+  { type: 'strength', title: 'Strength Training', defaultDuration: 45 },
+  { type: 'cardio', title: 'Cardio / Run', defaultDuration: 30 },
+  { type: 'recovery', title: 'Recovery / Yoga', defaultDuration: 30 },
+  { type: 'rest', title: 'Rest Day', defaultDuration: 0 },
 ];
 
 function renderSwapUI(panelEl, workout, ctx) {
@@ -126,7 +126,7 @@ function renderSwapUI(panelEl, workout, ctx) {
     <div style="margin-top:10px">
       <div style="font-size:0.72rem;color:var(--text-muted);font-weight:600;margin-bottom:8px">Replace "${esc(workout.title)}" with:</div>
       <div class="swap-options">
-        ${otherTypes.map(t => `<button class="swap-option" data-type="${t.type}" data-title="${t.title}">${t.icon} ${t.title}</button>`).join('')}
+        ${otherTypes.map(t => `<button class="swap-option" data-type="${t.type}" data-title="${t.title}">${t.title}</button>`).join('')}
       </div>
       <div id="swapPreview"></div>
     </div>

@@ -10,17 +10,27 @@ async function _callEdgeFunction(name, body = {}) {
   const { data: { session } } = await client.auth.getSession();
   if (!session) throw new Error('Not authenticated');
 
-  const res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      'apikey': SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (networkErr) {
+    throw new Error('Unable to reach the server. Check your connection and try again.');
+  }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Server returned an invalid response (${res.status})`);
+  }
   if (!res.ok) throw new Error(data.error || `Edge function error: ${res.status}`);
   return data;
 }
@@ -191,6 +201,24 @@ export async function getRecentActivities(limit = 5) {
 
   if (error) throw error;
   return data || [];
+}
+
+export async function getActivityMetrics(activityId) {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('activity_metrics')
+    .select('activity_id, activity_type, duration_seconds, distance_meters, heart_rate_samples, pace_samples, elevation_samples, cadence_samples, splits, workout_classification, classification_details')
+    .eq('activity_id', activityId)
+    .maybeSingle();
+
+  if (error) {
+    // Table may not exist yet if migration 006 hasn't been applied
+    if (error.message && error.message.includes('schema cache')) return null;
+    throw error;
+  }
+  return data;
 }
 
 export async function getBodyCompositionTrend(days = 14) {

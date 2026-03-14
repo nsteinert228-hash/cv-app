@@ -4,15 +4,15 @@ import {
   acknowledgeAdaptation,
 } from './seasonData.js';
 
-const TRIGGER_ICONS = {
-  hrv_drop: '\u{1F4C9}',
-  sleep_decline: '\u{1F634}',
-  high_stress: '\u{1F605}',
-  missed_workout: '\u{26A0}\u{FE0F}',
-  overtraining: '\u{1F6D1}',
-  high_readiness: '\u{1F4AA}',
-  schedule: '\u{1F4C5}',
-  unknown: '\u{1F504}',
+const TRIGGER_LABELS = {
+  hrv_drop: 'HRV',
+  sleep_decline: 'SLEEP',
+  high_stress: 'STRESS',
+  missed_workout: 'MISSED',
+  overtraining: 'OVERTRAIN',
+  high_readiness: 'READY',
+  schedule: 'SCHED',
+  unknown: 'ADJ',
 };
 
 const TRIGGER_COLORS = {
@@ -43,7 +43,7 @@ export async function renderAdaptationFeed(containerEl, seasonId) {
     containerEl.style.display = '';
     containerEl.innerHTML = adaptations.map(a => `
       <div class="adapt-item ${TRIGGER_COLORS[a.trigger] || 'adapt-schedule'}" data-id="${a.id}">
-        <span class="adapt-icon">${TRIGGER_ICONS[a.trigger] || TRIGGER_ICONS.unknown}</span>
+        <span class="adapt-icon">${TRIGGER_LABELS[a.trigger] || TRIGGER_LABELS.unknown}</span>
         <div class="adapt-content">
           <div class="adapt-summary">${esc(a.summary)}</div>
           <div class="adapt-date">${esc(a.affected_date)}</div>

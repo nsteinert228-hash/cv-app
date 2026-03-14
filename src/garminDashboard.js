@@ -196,8 +196,8 @@ function fmtMiles(meters) {
 }
 
 function activityIcon(type) {
-  const icons = { running: '\u{1F3C3}', resort_skiing: '\u{26F7}\uFE0F', cycling: '\u{1F6B4}', swimming: '\u{1F3CA}', hiking: '\u{1F6B6}', walking: '\u{1F6B6}', strength_training: '\u{1F4AA}' };
-  return icons[type] || '\u{1F3CB}\uFE0F';
+  const labels = { running: 'RUN', resort_skiing: 'SKI', cycling: 'BIKE', swimming: 'SWIM', hiking: 'HIKE', walking: 'WALK', strength_training: 'STR' };
+  return labels[type] || type?.substring(0, 3)?.toUpperCase() || '—';
 }
 
 // ── Canvas: Arc Gauge ────────────────────────────────────────
@@ -547,7 +547,7 @@ async function refreshDashboard() {
       ].filter(Boolean).join('<br>');
 
       calTiles.push(`
-        <div class="cal-tile${isToday ? ' is-today' : ''}">
+        <div class="cal-tile${isToday ? ' is-today' : ''}" data-activity-id="${a.activity_id}" style="cursor:pointer">
           <div class="cal-tile-day">${DAY_LABELS[d.getDay()]}</div>
           <div class="cal-tile-date">${d.getMonth() + 1}/${d.getDate()}</div>
           <div class="cal-tile-icon">${activityIcon(a.activity_type)}</div>
@@ -655,17 +655,46 @@ async function refreshDashboard() {
       const d = new Date(a.date + 'T00:00:00');
       const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
       const label = esc(a.name || a.activity_type);
-      return `<tr>
+      return `<tr class="activity-row" data-activity-id="${a.activity_id}" style="cursor:pointer">
         <td>${activityIcon(a.activity_type)} ${label}<br><span style="font-size:0.65rem;color:var(--text-muted)">${dateStr}</span></td>
         <td>${fmtMiles(a.distance_meters)}</td>
         <td>${fmtDuration(a.duration_seconds)}</td>
         <td>${a.avg_heart_rate ?? '--'}</td>
         <td>${a.calories ?? '--'}</td>
+      </tr>
+      <tr class="activity-detail-row" id="detail-${a.activity_id}" style="display:none">
+        <td colspan="5" style="padding:0">
+          <div class="activity-detail-panel" id="panel-${a.activity_id}"></div>
+        </td>
       </tr>`;
     }).join('');
+
+    // Add click handlers for activity rows
+    tbody.querySelectorAll('.activity-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const actId = row.dataset.activityId;
+        toggleActivityDetail(actId);
+      });
+    });
   } else {
     trainingCard.style.display = 'none';
   }
+
+  // ── 8. Activity calendar tiles — also clickable for detail view ──
+  activityCalendar.querySelectorAll('.cal-tile[data-activity-id]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const actId = tile.dataset.activityId;
+      // Expand training log and show the detail
+      if (trainingLogContent.style.display === 'none') {
+        trainingLogContent.style.display = '';
+        trainingLogToggle.classList.add('expanded');
+      }
+      toggleActivityDetail(actId, true);
+      // Scroll to it
+      const detailRow = document.getElementById(`detail-${actId}`);
+      if (detailRow) detailRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
 }
 
 // ── Training Log toggle ──────────────────────────────────────
@@ -678,6 +707,252 @@ if (trainingLogToggle) {
     trainingLogContent.style.display = isOpen ? 'none' : '';
     trainingLogToggle.classList.toggle('expanded', !isOpen);
   });
+}
+
+// ── Activity Detail View ──────────────────────────────────────
+
+const _detailCache = {};
+const _openDetails = new Set();
+
+function classificationColor(cls) {
+  const colors = {
+    intervals: '#f87171', tempo: '#fbbf24', threshold: '#f97316',
+    progression: '#a78bfa', 'long run': '#60a5fa', recovery: '#34d399',
+    easy: '#34d399', 'race effort': '#ef4444', pyramid: '#ec4899',
+    mixed: '#8b8ba0', unclassified: '#5a5a72',
+  };
+  return colors[cls] || '#5a5a72';
+}
+
+function classificationLabel(cls) {
+  if (!cls) return 'Unclassified';
+  return cls.charAt(0).toUpperCase() + cls.slice(1);
+}
+
+async function toggleActivityDetail(activityId, forceOpen = false) {
+  const detailRow = document.getElementById(`detail-${activityId}`);
+  if (!detailRow) return;
+
+  const isOpen = detailRow.style.display !== 'none';
+  if (isOpen && !forceOpen) {
+    detailRow.style.display = 'none';
+    _openDetails.delete(activityId);
+    return;
+  }
+
+  detailRow.style.display = '';
+  _openDetails.add(activityId);
+
+  const panel = document.getElementById(`panel-${activityId}`);
+  if (panel.dataset.loaded) return;
+
+  panel.innerHTML = '<div class="detail-loading">Loading activity details...</div>';
+
+  try {
+    let metrics = _detailCache[activityId];
+    if (!metrics) {
+      metrics = await garmin.getActivityMetrics(activityId);
+      if (metrics) _detailCache[activityId] = metrics;
+    }
+
+    if (!metrics) {
+      panel.innerHTML = '<div class="detail-empty">No detailed metrics available for this activity. Sync activity metrics to view charts.</div>';
+      panel.dataset.loaded = '1';
+      return;
+    }
+
+    renderActivityDetail(panel, metrics);
+    panel.dataset.loaded = '1';
+  } catch (err) {
+    panel.innerHTML = `<div class="detail-empty">Failed to load: ${esc(err.message)}</div>`;
+  }
+}
+
+function renderActivityDetail(panel, metrics) {
+  const cls = metrics.workout_classification || 'unclassified';
+  const clsDetails = typeof metrics.classification_details === 'string'
+    ? JSON.parse(metrics.classification_details) : (metrics.classification_details || {});
+  const hrSamples = typeof metrics.heart_rate_samples === 'string'
+    ? JSON.parse(metrics.heart_rate_samples) : (metrics.heart_rate_samples || []);
+  const paceSamples = typeof metrics.pace_samples === 'string'
+    ? JSON.parse(metrics.pace_samples) : (metrics.pace_samples || []);
+  const elevSamples = typeof metrics.elevation_samples === 'string'
+    ? JSON.parse(metrics.elevation_samples) : (metrics.elevation_samples || []);
+  const splits = typeof metrics.splits === 'string'
+    ? JSON.parse(metrics.splits) : (metrics.splits || []);
+
+  const clsColor = classificationColor(cls);
+
+  // Zone distribution bar
+  const zones = clsDetails.zones || {};
+  const zoneBar = (zones.z1 != null) ? `
+    <div class="zone-bar">
+      <div class="zone-seg z1" style="width:${zones.z1}%" title="Z1 Recovery: ${zones.z1}%"></div>
+      <div class="zone-seg z2" style="width:${zones.z2}%" title="Z2 Easy: ${zones.z2}%"></div>
+      <div class="zone-seg z3" style="width:${zones.z3}%" title="Z3 Tempo: ${zones.z3}%"></div>
+      <div class="zone-seg z4" style="width:${zones.z4}%" title="Z4 Threshold: ${zones.z4}%"></div>
+      <div class="zone-seg z5" style="width:${zones.z5}%" title="Z5 VO2max: ${zones.z5}%"></div>
+    </div>
+    <div class="zone-labels">
+      <span class="zone-label"><span class="zone-dot z1"></span>Z1 ${zones.z1}%</span>
+      <span class="zone-label"><span class="zone-dot z2"></span>Z2 ${zones.z2}%</span>
+      <span class="zone-label"><span class="zone-dot z3"></span>Z3 ${zones.z3}%</span>
+      <span class="zone-label"><span class="zone-dot z4"></span>Z4 ${zones.z4}%</span>
+      <span class="zone-label"><span class="zone-dot z5"></span>Z5 ${zones.z5}%</span>
+    </div>` : '';
+
+  // Splits table
+  let splitsHtml = '';
+  if (splits.length > 0) {
+    const splitRows = splits.map((s, i) => {
+      const paceStr = s.avg_pace ? `${Math.floor(s.avg_pace)}:${String(Math.round((s.avg_pace % 1) * 60)).padStart(2, '0')}` : '--';
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${paceStr}</td>
+        <td>${s.avg_hr ?? '--'}</td>
+        <td>${s.elevation_gain != null ? `+${Math.round(s.elevation_gain)}` : '--'}</td>
+      </tr>`;
+    }).join('');
+    splitsHtml = `
+      <div class="detail-section">
+        <div class="detail-section-title">Splits</div>
+        <table class="splits-table">
+          <thead><tr><th>#</th><th>Pace</th><th>HR</th><th>Elev</th></tr></thead>
+          <tbody>${splitRows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  panel.innerHTML = `
+    <div class="activity-detail-content">
+      <div class="detail-header">
+        <span class="classification-badge" style="background:${clsColor}20;color:${clsColor};border:1px solid ${clsColor}40">
+          ${classificationLabel(cls)}
+        </span>
+        <span class="classification-reason">${esc(clsDetails.reason || '')}</span>
+      </div>
+      ${zoneBar}
+      <div class="detail-charts">
+        <div class="detail-chart-wrap">
+          <div class="detail-chart-label">Heart Rate (bpm)</div>
+          <canvas class="detail-chart" id="hrChart-${metrics.activity_id}"></canvas>
+        </div>
+        <div class="detail-chart-wrap">
+          <div class="detail-chart-label">Pace (min/km)</div>
+          <canvas class="detail-chart" id="paceChart-${metrics.activity_id}"></canvas>
+        </div>
+        <div class="detail-chart-wrap">
+          <div class="detail-chart-label">Elevation (m)</div>
+          <canvas class="detail-chart" id="elevChart-${metrics.activity_id}"></canvas>
+        </div>
+      </div>
+      ${splitsHtml}
+    </div>
+  `;
+
+  // Draw the charts after the DOM is ready
+  const dur = metrics.duration_seconds || 0;
+  requestAnimationFrame(() => {
+    drawActivityChart(
+      document.getElementById(`hrChart-${metrics.activity_id}`),
+      hrSamples, { color: '#ef4444', fillColor: '#ef444418', unit: 'bpm', label: 'HR', durationSeconds: dur }
+    );
+    drawActivityChart(
+      document.getElementById(`paceChart-${metrics.activity_id}`),
+      paceSamples, { color: '#60a5fa', fillColor: '#60a5fa18', unit: 'min/km', label: 'Pace', invertY: true, durationSeconds: dur }
+    );
+    drawActivityChart(
+      document.getElementById(`elevChart-${metrics.activity_id}`),
+      elevSamples, { color: '#34d399', fillColor: '#34d39918', unit: 'm', label: 'Elevation', areaFill: true, durationSeconds: dur }
+    );
+  });
+}
+
+function drawActivityChart(canvas, samples, { color, fillColor, unit, label, invertY = false, areaFill = false, durationSeconds = 0 } = {}) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  if (!samples || !samples.length) {
+    ctx.fillStyle = '#5a5a72';
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`No ${label} data`, w / 2, h / 2);
+    return;
+  }
+
+  const pad = { top: 6, right: 8, bottom: 20, left: 36 };
+  const cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+
+  const values = samples.map(s => s.v);
+  let minV = Math.min(...values);
+  let maxV = Math.max(...values);
+
+  // Add padding to range
+  const rangePad = (maxV - minV) * 0.08 || 1;
+  minV = Math.floor(minV - rangePad);
+  maxV = Math.ceil(maxV + rangePad);
+  const range = maxV - minV || 1;
+
+  const toX = (i) => pad.left + (i / (samples.length - 1)) * cw;
+  const toY = (v) => {
+    const normalized = (v - minV) / range;
+    return invertY
+      ? pad.top + normalized * ch
+      : pad.top + ch - normalized * ch;
+  };
+
+  // Area fill
+  if (areaFill || fillColor) {
+    ctx.beginPath();
+    ctx.moveTo(toX(0), invertY ? pad.top : pad.top + ch);
+    for (let i = 0; i < samples.length; i++) {
+      ctx.lineTo(toX(i), toY(samples[i].v));
+    }
+    ctx.lineTo(toX(samples.length - 1), invertY ? pad.top : pad.top + ch);
+    ctx.closePath();
+    ctx.fillStyle = fillColor || `${color}18`;
+    ctx.fill();
+  }
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < samples.length; i++) {
+    const x = toX(i), y = toY(samples[i].v);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Y labels
+  ctx.fillStyle = '#5a5a72';
+  ctx.font = '9px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(maxV, pad.left - 4, invertY ? pad.top + ch + 4 : pad.top + 6);
+  ctx.fillText(minV, pad.left - 4, invertY ? pad.top + 6 : pad.top + ch + 4);
+
+  // X labels (time) — map sample indices to actual duration
+  ctx.textAlign = 'center';
+  const totalDur = durationSeconds || (samples[samples.length - 1].t);
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++) {
+    const frac = i / ticks;
+    const secs = totalDur * frac;
+    const mins = Math.floor(secs / 60);
+    const x = pad.left + frac * cw;
+    if (totalDur >= 3600) {
+      const hrs = Math.floor(mins / 60);
+      const rm = mins % 60;
+      ctx.fillText(`${hrs}:${String(rm).padStart(2, '0')}`, x, h - 4);
+    } else {
+      ctx.fillText(`${mins}m`, x, h - 4);
+    }
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────────
