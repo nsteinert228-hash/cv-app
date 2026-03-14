@@ -18,7 +18,7 @@ Rules:
 - Adjust intensity based on readiness: low readiness → recovery/easy day, high → push harder
 - Account for recent training volume and type to balance load across the week
 - If data is sparse or missing, note it and provide conservative recommendations
-- Include the CV exercise data (squats, pushups, lunges) as bodyweight training context
+- Include the train.me exercise data (squats, pushups, lunges) as bodyweight training context
 - Be specific with exercises — include sets, reps, rest times, and form cues where relevant`;
 
 const VIEW_SCHEMAS: Record<string, string> = {

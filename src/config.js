@@ -1,4 +1,4 @@
-// Centralized configuration constants for the CV exercise tracker
+// Centralized configuration constants for the train.me exercise tracker
 
 // Classifier settings
 export const K_NEIGHBORS = 5;
