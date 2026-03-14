@@ -99,9 +99,7 @@ let prefSaveTimer = null;
 
 const authUI = createAuthUI();
 authUI.init({
-  onSignIn() {
-    // onAuthStateChange will handle the refresh
-  },
+  onSignIn() { refreshDashboard(); },
   onSignOut() {
     currentUser = null;
     activeSeason = null;
@@ -183,6 +181,13 @@ aiRetryBtn.addEventListener('click', () => { loadView(currentView); });
 // ── Main refresh ─────────────────────────────────────────────
 
 async function refreshDashboard() {
+  // Always check current auth state from Supabase
+  try {
+    currentUser = await getUser();
+  } catch { currentUser = null; }
+
+  authUI.updateAuthUI(currentUser);
+
   if (!currentUser) {
     dashboardContent.classList.remove('visible');
     emptyState.style.display = '';
@@ -1235,28 +1240,11 @@ if (isSupabaseConfigured()) {
   const authSection = document.getElementById('authSection');
   if (authSection) authSection.classList.remove('hidden');
 
-  // Listen for future auth changes (sign-in, sign-out, token refresh)
-  onAuthStateChange(async (user) => {
-    authUI.updateAuthUI(user);
-    currentUser = user || null;
-    if (!user) {
-      activeSeason = null;
-      seasonState = null;
-    }
-    try { await refreshDashboard(); } catch (err) { console.error('Dashboard refresh error:', err); }
+  // Listen for auth changes (sign-in, sign-out, token refresh)
+  onAuthStateChange(async () => {
+    try { await refreshDashboard(); } catch (err) { console.error('Auth state change error:', err); }
   });
 
-  // Fallback: check if session was already restored before listener registered
-  (async () => {
-    try {
-      const user = await getUser();
-      if (user && !currentUser) {
-        currentUser = user;
-        authUI.updateAuthUI(user);
-        await refreshDashboard();
-      }
-    } catch (err) {
-      console.error('Initial auth check error:', err);
-    }
-  })();
+  // Initial load — getUser() inside refreshDashboard handles session check
+  refreshDashboard();
 }
