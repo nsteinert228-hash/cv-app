@@ -68,7 +68,7 @@ export async function getTodayReadiness() {
   };
 }
 
-// ── Recent train.me workout entries ──────────────────────────
+// ── Recent uTrain workout entries ──────────────────────────
 
 export async function getRecentWorkouts(days = 7) {
   const client = getSupabaseClient();

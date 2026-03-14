@@ -19,7 +19,7 @@ export function getSupabaseClient() {
 
   _client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
-      storageKey: 'train-me-auth',
+      storageKey: 'utrain-auth',
       lock: async (_name, _acquireTimeout, fn) => await fn(),
     },
   });

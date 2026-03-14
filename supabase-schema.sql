@@ -1,4 +1,4 @@
--- Supabase SQL schema for CV Exercise Tracker
+-- Supabase SQL schema for uTrain Exercise Tracker
 -- Run this in the Supabase SQL Editor to set up the required tables.
 
 -- 1. Workout entries table
