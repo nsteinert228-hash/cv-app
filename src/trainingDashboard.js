@@ -30,7 +30,6 @@ import { renderSeasonHistory } from './seasonHistory.js';
 import { open as openDayDetail, close as closeDayDetail } from './dayDetail.js';
 import { initPlanBuilder, destroyPlanBuilder } from './planBuilder.js';
 import { renderWeeklyView, renderWeekByNumber } from './weeklyView.js';
-import { initMorphAthlete } from './morphAthlete.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -122,7 +121,6 @@ const viewCache = {};
 let preferences = {};
 let prefSaveTimer = null;
 let readinessData = null;
-let stopMorphAthlete = null;
 
 // ── Auth ─────────────────────────────────────────────────────
 
@@ -345,19 +343,11 @@ if (obGenerateBtn) {
     onboardingProgress.classList.add('visible');
     onboardingError.textContent = '';
 
-    // Start morphing athlete animation
-    let stopOnboardingMorph = initMorphAthlete(
-      document.getElementById('morphAthleteOnboarding'),
-      document.getElementById('morphLabelOnboarding'),
-    );
-
     try {
       await startNewSeason();
-      if (stopOnboardingMorph) { stopOnboardingMorph(); stopOnboardingMorph = null; }
       onboardingBlock.classList.remove('visible');
       await loadSeasonState();
     } catch (err) {
-      if (stopOnboardingMorph) { stopOnboardingMorph(); stopOnboardingMorph = null; }
       onboardingProgress.classList.remove('visible');
       onboardingPrefs.style.display = '';
       onboardingCTA.style.display = '';
@@ -622,17 +612,10 @@ async function loadSeasonZones(force) {
 function showLoading() {
   aiError.classList.remove('visible');
   aiLoading.classList.add('visible');
-  // Start morphing athlete in the AI loading container
-  if (stopMorphAthlete) stopMorphAthlete();
-  stopMorphAthlete = initMorphAthlete(
-    document.getElementById('morphAthleteLoading'),
-    document.getElementById('morphLabelLoading'),
-  );
 }
 
 function hideLoading() {
   aiLoading.classList.remove('visible');
-  if (stopMorphAthlete) { stopMorphAthlete(); stopMorphAthlete = null; }
 }
 
 // ── Zone 1: Hero Card ────────────────────────────────────────
