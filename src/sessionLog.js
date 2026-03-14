@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'cv-app-session-log';
+const STORAGE_KEY = 'train-me-session-log';
 
 export class SessionLog {
   constructor(storage = null, db = null) {

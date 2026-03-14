@@ -99,7 +99,7 @@ export async function gatherHealthData(
     stress_avg: (latestDaily as Record<string, unknown>).stress_avg as number ?? null,
   };
 
-  // Aggregate CV workout entries by date+exercise
+  // Aggregate train.me workout entries by date+exercise
   const workoutAgg: Record<string, Record<string, number>> = {};
   for (const e of workoutEntries || []) {
     const d = (e as Record<string, unknown>).performed_at
@@ -140,7 +140,7 @@ ${JSON.stringify(healthData.hrv, null, 2)}
 ### Activities (14 days)
 ${JSON.stringify(healthData.activities, null, 2)}
 
-### CV Exercise Log (7 days)
+### train.me Exercise Log (7 days)
 ${JSON.stringify(healthData.cv_exercise_log, null, 2)}
 
 ### Body Composition (latest)
