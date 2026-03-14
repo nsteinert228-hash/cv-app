@@ -1,6 +1,7 @@
 // Plan Builder — step-by-step wizard for creating training plans
 import { createSeason } from './seasonData.js';
 import { saveTrainingPreferences } from './trainingData.js';
+import { initMorphAthlete } from './morphAthlete.js';
 
 const TRAINING_TYPES = [
   { id: 'endurance', label: 'Endurance', desc: 'Running, cycling, swimming — build aerobic base' },
@@ -320,8 +321,22 @@ async function handleCreate() {
   const status = document.getElementById('pbCreateStatus');
   btn.disabled = true;
   btn.textContent = 'Creating...';
-  status.textContent = 'Analyzing your health data and building a personalized plan...';
-  status.className = 'pb-create-status';
+  status.className = 'pb-create-status pb-create-loading';
+
+  // Insert morphing athlete animation above status text
+  const morphContainer = document.createElement('div');
+  morphContainer.className = 'morph-athlete-container';
+  const morphLabel = document.createElement('div');
+  morphLabel.className = 'morph-activity-label';
+  status.innerHTML = '';
+  status.appendChild(morphContainer);
+  status.appendChild(morphLabel);
+  const statusText = document.createElement('div');
+  statusText.style.cssText = 'margin-top:8px;font-size:var(--text-xs);color:var(--text-tertiary)';
+  statusText.textContent = 'Analyzing your health data and building a personalized plan...';
+  status.appendChild(statusText);
+
+  let stopMorph = initMorphAthlete(morphContainer, morphLabel);
 
   try {
     // Build preferences for the edge function
@@ -344,11 +359,13 @@ async function handleCreate() {
       plan_config: builderData,
     });
 
+    if (stopMorph) { stopMorph(); stopMorph = null; }
     status.textContent = 'Plan created successfully!';
     status.className = 'pb-create-status success';
 
     if (onComplete) onComplete(result);
   } catch (err) {
+    if (stopMorph) { stopMorph(); stopMorph = null; }
     btn.disabled = false;
     btn.textContent = 'Create Training Plan';
     status.textContent = `Failed: ${err.message}`;
