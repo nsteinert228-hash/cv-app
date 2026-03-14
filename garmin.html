@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>CV — Garmin Readiness</title>
-  <link rel="stylesheet" href="src/styles.css?v=2">
+  <link rel="stylesheet" href="src/styles.css?v=3">
   <style>
     /* ── Status bar ── */
     .status-bar {
@@ -12,36 +12,37 @@
       width: 100%;
       max-width: var(--max-width);
       padding: 8px 20px;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       color: var(--text-secondary);
       align-items: center;
       gap: 8px;
       position: relative;
       z-index: 1;
+      animation: fadeIn 0.4s var(--ease-out) both;
     }
     .status-bar.visible { display: flex; }
-    .status-bar .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); }
-    .status-bar .status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
-    .status-bar .status-dot.pending { background: var(--yellow); box-shadow: 0 0 6px var(--yellow-soft); }
-    .status-bar .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red-soft); }
-    .status-bar .status-dot.syncing { background: var(--blue); animation: pulse-dot 1s infinite; box-shadow: 0 0 6px var(--blue-soft); }
-    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .status-bar .status-text { flex: 1; }
-    .status-bar .sync-link { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; background: none; border: none; font-size: 0.78rem; padding: 0; font-family: inherit; transition: opacity var(--duration-fast); }
-    .status-bar .sync-link:hover { opacity: 0.8; }
+    .status-bar .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); transition: all var(--duration-normal); }
+    .status-bar .status-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+    .status-bar .status-dot.pending { background: var(--yellow); box-shadow: 0 0 8px var(--yellow-soft); }
+    .status-bar .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red-soft); }
+    .status-bar .status-dot.syncing { background: var(--blue); animation: pulse-dot 1s infinite; box-shadow: 0 0 8px var(--blue-soft); }
+    @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+    .status-bar .status-text { flex: 1; letter-spacing: 0.01em; }
+    .status-bar .sync-link { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; background: none; border: none; font-size: 0.75rem; padding: 0; font-family: var(--font-sans); transition: opacity var(--duration-fast); letter-spacing: 0.02em; }
+    .status-bar .sync-link:hover { opacity: 0.75; }
     .status-bar .sync-link:disabled { color: var(--text-muted); cursor: default; }
-    .status-bar .disconnect-link { color: var(--text-muted); cursor: pointer; text-decoration: none; font-size: 0.72rem; background: none; border: none; padding: 0; margin-left: 4px; font-family: inherit; transition: color var(--duration-fast); }
+    .status-bar .disconnect-link { color: var(--text-muted); cursor: pointer; text-decoration: none; font-size: 0.68rem; background: none; border: none; padding: 0; margin-left: 4px; font-family: var(--font-sans); transition: color var(--duration-fast); letter-spacing: 0.02em; }
     .status-bar .disconnect-link:hover { color: var(--red); }
 
     /* ── Error banner ── */
-    .error-banner { display: none; width: 100%; max-width: var(--max-width); padding: 12px 20px; background: var(--red-soft); border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-md); align-items: center; gap: 10px; font-size: 0.82rem; color: var(--red); margin-bottom: 10px; position: relative; z-index: 1; }
-    .error-banner.visible { display: flex; }
+    .error-banner { display: none; width: 100%; max-width: var(--max-width); padding: 12px 20px; background: var(--red-soft); border: 1px solid rgba(212,88,90,0.15); border-radius: var(--radius-md); align-items: center; gap: 10px; font-size: 0.78rem; color: var(--red); margin-bottom: 10px; position: relative; z-index: 1; }
+    .error-banner.visible { display: flex; animation: slideUp 0.3s var(--ease-out) both; }
     .error-banner .error-msg { flex: 1; }
-    .error-banner .error-action { padding: 5px 12px; border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius-sm); background: rgba(248,113,113,0.1); color: var(--red); font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
+    .error-banner .error-action { padding: 6px 14px; border: 1px solid rgba(212,88,90,0.25); border-radius: var(--radius-sm); background: rgba(212,88,90,0.08); color: var(--red); font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: var(--font-sans); letter-spacing: 0.02em; }
     .error-banner .error-dismiss { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
 
     /* ── Last sync banner ── */
-    .last-sync-banner { display: none; width: 100%; max-width: var(--max-width); padding: 6px 20px; font-size: 0.72rem; color: var(--text-muted); text-align: center; position: relative; z-index: 1; }
+    .last-sync-banner { display: none; width: 100%; max-width: var(--max-width); padding: 6px 20px; font-size: 0.68rem; color: var(--text-muted); text-align: center; position: relative; z-index: 1; letter-spacing: 0.02em; }
     .last-sync-banner.visible { display: block; }
     .last-sync-banner .sync-time { font-weight: 600; color: var(--text-secondary); }
 
@@ -49,103 +50,106 @@
     .readiness-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
     .readiness-item { display: flex; flex-direction: column; align-items: center; }
     .readiness-item canvas { width: 130px; height: 130px; }
-    .readiness-item .ri-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; font-weight: 600; }
+    .readiness-item .ri-label { font-family: var(--font-display); font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 6px; font-weight: 600; }
 
     .hrv-status-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .hrv-big { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--accent); }
-    .hrv-unit { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-    .hrv-badge { display: inline-block; padding: 3px 10px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 700; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .hrv-big { font-family: var(--font-display); font-size: 2rem; font-weight: 800; line-height: 1; color: var(--accent); }
+    .hrv-unit { font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; letter-spacing: 0.04em; }
+    .hrv-badge { display: inline-block; padding: 3px 10px; border-radius: var(--radius-full); font-size: 0.65rem; font-weight: 700; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-sans); }
     .hrv-badge.balanced { background: var(--accent-light); color: var(--accent); }
     .hrv-badge.low { background: var(--yellow-soft); color: var(--yellow); }
     .hrv-badge.high { background: var(--blue-soft); color: var(--blue); }
-    .hrv-baseline { font-size: 0.68rem; color: var(--text-muted); margin-top: 6px; }
+    .hrv-baseline { font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; }
 
-    .readiness-summary { text-align: center; font-size: 0.88rem; color: var(--text-secondary); padding: 10px 16px 0; font-weight: 500; }
+    .readiness-summary { text-align: center; font-size: 0.85rem; color: var(--text-secondary); padding: 12px 16px 0; font-weight: 500; line-height: 1.5; }
 
     /* ── Recent Activity — 7-day Calendar Grid ── */
     .activity-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .cal-tile { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); text-align: center; min-height: 90px; transition: border-color var(--duration-fast); }
-    .cal-tile:hover { border-color: var(--glass-border); }
-    .cal-tile.is-today { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
-    .cal-tile-day { font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-    .cal-tile-date { font-size: 0.68rem; font-weight: 600; color: var(--text-secondary); margin-top: 1px; }
+    .cal-tile { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); text-align: center; min-height: 90px; transition: all var(--duration-fast) var(--ease-out); }
+    .cal-tile:hover { border-color: var(--glass-border); transform: translateY(-1px); }
+    .cal-tile.is-today { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+    .cal-tile-day { font-family: var(--font-display); font-size: 0.55rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .cal-tile-date { font-size: 0.65rem; font-weight: 600; color: var(--text-secondary); margin-top: 1px; }
     .cal-tile-icon { font-size: 1.2rem; margin-top: 6px; }
-    .cal-tile-name { font-size: 0.62rem; font-weight: 600; color: var(--text-primary); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-    .cal-tile-stats { font-size: 0.55rem; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
-    .cal-tile-rest { font-size: 0.62rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+    .cal-tile-name { font-size: 0.58rem; font-weight: 600; color: var(--text-primary); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .cal-tile-stats { font-size: 0.52rem; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
+    .cal-tile-rest { font-size: 0.58rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
 
     /* ── Training Log Toggle ── */
-    .training-log-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: none; background: transparent; color: var(--text-muted); font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: color var(--duration-fast); }
+    .training-log-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: none; background: transparent; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; cursor: pointer; font-family: var(--font-sans); transition: color var(--duration-fast); letter-spacing: 0.02em; }
     .training-log-toggle:hover { color: var(--text-secondary); }
-    .training-log-toggle svg { transition: transform var(--duration-fast); }
+    .training-log-toggle svg { transition: transform var(--duration-fast) var(--ease-out); }
     .training-log-toggle.expanded svg { transform: rotate(180deg); }
 
     /* ── Daily Stats ── */
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
-    .stat-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-    .stat-item .unit { font-size: 0.7rem; font-weight: 400; color: var(--text-secondary); }
-    .stat-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; font-weight: 600; }
-    .stat-item .sub { font-size: 0.6rem; color: var(--text-muted); margin-top: 1px; }
+    .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); transition: border-color var(--duration-fast); }
+    .stat-item:hover { border-color: var(--glass-border); }
+    .stat-item .val { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+    .stat-item .unit { font-size: 0.65rem; font-weight: 400; color: var(--text-secondary); }
+    .stat-item .lbl { font-family: var(--font-display); font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; font-weight: 600; }
+    .stat-item .sub { font-size: 0.55rem; color: var(--text-muted); margin-top: 1px; }
 
     .progress-row { display: flex; gap: 10px; margin-bottom: 14px; }
     .progress-item { flex: 1; }
-    .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .progress-header .val { font-size: 1rem; font-weight: 700; }
-    .progress-header .goal { font-size: 0.72rem; color: var(--text-muted); }
-    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.5s var(--ease-out); }
+    .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .progress-header .val { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; }
+    .progress-header .goal { font-size: 0.68rem; color: var(--text-muted); }
+    .progress-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: var(--gradient-accent); transition: width 0.6s var(--ease-out); }
 
     /* ── Sleep ── */
-    .sleep-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-    .sleep-total { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
-    .sleep-times { font-size: 0.75rem; color: var(--text-muted); }
+    .sleep-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .sleep-total { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+    .sleep-times { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0.01em; }
 
-    .sleep-bar-wrap { margin-bottom: 12px; }
+    .sleep-bar-wrap { margin-bottom: 14px; }
     .sleep-bar-wrap canvas { width: 100%; height: 36px; }
 
     .sleep-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-    .sleep-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-secondary); }
+    .sleep-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-secondary); }
     .sleep-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
     .sleep-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .sleep-score-item { text-align: center; padding: 8px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
-    .sleep-score-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-    .sleep-score-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+    .sleep-score-item { text-align: center; padding: 10px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); transition: border-color var(--duration-fast); }
+    .sleep-score-item:hover { border-color: var(--glass-border); }
+    .sleep-score-item .val { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+    .sleep-score-item .lbl { font-family: var(--font-display); font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 
     /* ── Trends ── */
     .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .trend-card canvas { width: 100%; height: 120px; }
-    .trend-card .card-title { margin-bottom: 8px; }
+    .trend-card .card-title { margin-bottom: 10px; }
 
     /* ── Stress ── */
-    .stress-row { display: flex; gap: 16px; align-items: center; }
+    .stress-row { display: flex; gap: 18px; align-items: center; }
     .stress-row canvas { width: 120px; height: 120px; flex-shrink: 0; }
-    .stress-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-    .stress-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-secondary); }
+    .stress-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+    .stress-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); }
     .stress-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
     /* ── Training Log ── */
-    .training-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .training-table th { text-align: left; padding: 8px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
-    .training-table td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); }
+    .training-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .training-table th { text-align: left; padding: 8px; color: var(--text-muted); font-family: var(--font-display); font-weight: 600; text-transform: uppercase; font-size: 0.58rem; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); }
+    .training-table td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); transition: color var(--duration-fast); }
     .training-table td:first-child { color: var(--text-primary); font-weight: 600; }
+    .training-table tr:hover td { color: var(--text-primary); }
     .training-table tr:last-child td { border-bottom: none; }
 
-    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-muted); font-size: 0.82rem; }
+    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-muted); font-size: 0.78rem; }
 
     /* ── Garmin Connect Modal ── */
-    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
+    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(12px); z-index: 100; align-items: center; justify-content: center; }
     .garmin-modal-backdrop.visible { display: flex; }
-    .garmin-modal { background: rgba(20,20,30,0.95); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px 28px; width: 100%; max-width: 360px; box-shadow: var(--shadow-lg); backdrop-filter: blur(40px); }
-    .garmin-modal h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-primary); }
-    .garmin-modal input { width: 100%; padding: 12px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.88rem; margin-bottom: 10px; outline: none; background: var(--bg-input); color: var(--text-primary); font-family: inherit; transition: border-color var(--duration-fast); }
+    .garmin-modal { background: rgba(16,17,22,0.96); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 36px 30px; width: 100%; max-width: 380px; box-shadow: var(--shadow-lg), 0 0 80px rgba(226,152,90,0.04); backdrop-filter: blur(40px); animation: modalReveal 0.35s var(--ease-out) both; }
+    .garmin-modal h2 { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; margin-bottom: 22px; color: var(--text-primary); letter-spacing: -0.01em; }
+    .garmin-modal input { width: 100%; padding: 13px 16px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 10px; outline: none; background: var(--bg-input); color: var(--text-primary); font-family: var(--font-sans); transition: border-color var(--duration-fast), box-shadow var(--duration-fast); }
     .garmin-modal input::placeholder { color: var(--text-muted); }
     .garmin-modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 8px; }
-    .garmin-modal-actions .auth-btn { flex: 1; padding: 12px; font-size: 0.85rem; }
-    .garmin-error { color: var(--red); font-size: 0.78rem; margin-top: 10px; min-height: 1.2em; }
-    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 14px; text-align: center; }
+    .garmin-modal-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .garmin-modal-actions .auth-btn { flex: 1; padding: 13px; font-size: 0.82rem; }
+    .garmin-error { color: var(--red); font-size: 0.75rem; margin-top: 10px; min-height: 1.2em; }
+    .garmin-privacy { font-size: 0.68rem; color: var(--text-muted); margin-top: 16px; text-align: center; letter-spacing: 0.01em; }
 
     @media (max-width: 640px) {
       .readiness-row { gap: 8px; }
