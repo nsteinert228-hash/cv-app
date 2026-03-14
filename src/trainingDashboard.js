@@ -1,7 +1,7 @@
 // Training AI Dashboard — season-based training with workout logging
 import { isSupabaseConfigured } from './supabase.js';
 import { createAuthUI } from './authUI.js';
-import { onAuthStateChange } from './auth.js';
+import { onAuthStateChange, getUser } from './auth.js';
 import {
   getTrainingRecommendation,
   getTodayReadiness,
@@ -193,16 +193,23 @@ async function refreshDashboard() {
   emptyState.style.display = 'none';
   dashboardContent.classList.add('visible');
 
-  const [prefs] = await Promise.all([
-    getTrainingPreferences().catch(() => ({})),
-    loadReadinessHero(),
-    loadQuickStats(),
-  ]);
+  try {
+    const [prefs] = await Promise.all([
+      getTrainingPreferences().catch(() => ({})),
+      loadReadinessHero(),
+      loadQuickStats(),
+    ]);
 
-  preferences = prefs;
-  setPrefsUI(prefs);
+    preferences = prefs;
+    setPrefsUI(prefs);
 
-  await loadSeasonState();
+    await loadSeasonState();
+  } catch (err) {
+    console.error('refreshDashboard error:', err);
+    // Show error UI so user knows something went wrong
+    aiErrorMsg.textContent = err.message || 'Failed to load training data. Please try again.';
+    aiError.classList.add('visible');
+  }
 }
 
 // ── Season Lifecycle ─────────────────────────────────────────
@@ -1228,15 +1235,28 @@ if (isSupabaseConfigured()) {
   const authSection = document.getElementById('authSection');
   if (authSection) authSection.classList.remove('hidden');
 
+  // Listen for future auth changes (sign-in, sign-out, token refresh)
   onAuthStateChange(async (user) => {
     authUI.updateAuthUI(user);
-    if (user) {
-      currentUser = user;
-    } else {
-      currentUser = null;
+    currentUser = user || null;
+    if (!user) {
       activeSeason = null;
       seasonState = null;
     }
-    await refreshDashboard();
+    try { await refreshDashboard(); } catch (err) { console.error('Dashboard refresh error:', err); }
   });
+
+  // Fallback: check if session was already restored before listener registered
+  (async () => {
+    try {
+      const user = await getUser();
+      if (user && !currentUser) {
+        currentUser = user;
+        authUI.updateAuthUI(user);
+        await refreshDashboard();
+      }
+    } catch (err) {
+      console.error('Initial auth check error:', err);
+    }
+  })();
 }
