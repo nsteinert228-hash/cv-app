@@ -272,11 +272,13 @@ async function loadSeasonState() {
     renderAdaptationFeed(adaptationFeedEl, activeSeason.id);
     checkAdaptations().catch(() => {});
     initSeasonHistory();
+    renderPlanConfigSummary(activeSeason);
     loadAllZones();
   } catch (err) {
     console.error('Season init error:', err);
     activeSeason = null;
     seasonState = null;
+    renderPlanConfigSummary(null);
     loadAllZones();
   }
 }
@@ -285,6 +287,7 @@ function showSeasonCreationPrompt() {
   heroCard.style.display = 'none';
   zoneWeek.style.display = 'none';
   zonePlan.style.display = 'none';
+  renderPlanConfigSummary(null);
 
   const planBuilderContainer = document.getElementById('planBuilderContainer');
   if (planBuilderContainer) {
@@ -590,6 +593,9 @@ async function loadSeasonZones(force) {
     renderRestDayHero();
   }
 
+  // Render week summary (Item 5)
+  renderWeekSummary(weekWorkouts, logMap, seasonState, activeSeason.plan_json || {});
+
   // Render Timeline (this week)
   renderSeasonTimeline(weekWorkouts, logMap, today);
 
@@ -633,6 +639,12 @@ function renderSeasonHero(workout, log) {
     }
   }
   heroContext.textContent = context;
+
+  // Coaching notes (Item 1)
+  const heroCoachNotes = document.getElementById('heroCoachNotes');
+  if (heroCoachNotes) {
+    heroCoachNotes.innerHTML = buildCoachingNotes(readinessData, workout);
+  }
 
   // Start button behavior
   if (log && log.status === 'completed') {
@@ -693,6 +705,12 @@ function renderRestDayHero() {
     context = `Body battery at ${readinessData.body_battery}. Focus on recovery and mobility today.`;
   }
   heroContext.textContent = context;
+
+  // Rest day guidance (Item 3)
+  const heroCoachNotes = document.getElementById('heroCoachNotes');
+  if (heroCoachNotes) {
+    heroCoachNotes.innerHTML = buildRestDayGuidance(readinessData);
+  }
 
   heroStartBtn.innerHTML = 'Rest Day';
   heroStartBtn.style.background = 'var(--bg-surface-3)';
@@ -833,6 +851,9 @@ function renderPlanOverview(plan) {
     </div>
   `;
 
+  // Recovery signals (Item 6)
+  renderRecoverySignals(readinessData);
+
   // Phase timeline
   const currentWeek = seasonState?.currentWeek || 1;
   const timeline = document.getElementById('planTimeline');
@@ -869,6 +890,258 @@ function renderPlanOverview(plan) {
   }
 
   zonePlan.style.display = '';
+}
+
+// ── Coaching Notes (Item 1) ──────────────────────────────────
+
+function buildCoachingNotes(rd, workout) {
+  if (!rd) return '';
+  const notes = [];
+  const sleep = rd.sleep_score || 0;
+  const bb = rd.body_battery || 0;
+  const hrv = (rd.hrv_status || '').toLowerCase();
+  const stress = rd.stress_avg || 0;
+
+  if (sleep < 60) {
+    notes.push({ color: 'red', text: 'Sleep was below optimal — prioritize form over intensity. Stop if you feel dizzy.' });
+  } else if (sleep > 80) {
+    notes.push({ color: 'green', text: 'Great sleep — you have room to push for progressive overload today.' });
+  }
+
+  if (bb < 40) {
+    notes.push({ color: 'yellow', text: 'Low energy reserves — consider reducing sets by 1 or shortening rest periods.' });
+  } else if (bb > 70) {
+    notes.push({ color: 'green', text: 'Strong energy reserves — you\'re primed for a solid session.' });
+  }
+
+  if (hrv === 'low' || hrv === 'unbalanced') {
+    notes.push({ color: 'yellow', text: 'Your nervous system is still recovering — keep intensity moderate and avoid max efforts.' });
+  } else if ((hrv === 'balanced' || hrv === 'high') && sleep > 80 && bb > 70) {
+    notes.push({ color: 'green', text: 'Great recovery across the board — push for progressive overload today.' });
+  }
+
+  if (stress > 50) {
+    notes.push({ color: 'yellow', text: 'Elevated stress detected — breathing exercises between sets will help.' });
+  }
+
+  // Workout-type-specific cues
+  const rx = workout.prescription_json || {};
+  if (workout.workout_type === 'cardio') {
+    notes.push({ color: 'blue', text: `Target zone: ${(workout.intensity || 'moderate').toLowerCase()} effort — aim for ${workout.duration_minutes || '--'} minutes` });
+  } else if (workout.workout_type === 'strength' && rx.notes) {
+    notes.push({ color: 'blue', text: `Focus cues: ${rx.notes}` });
+  }
+
+  if (!notes.length) return '';
+  return notes.map(n =>
+    `<div class="coach-note-item"><span class="coach-note-dot ${n.color}"></span><span>${esc(n.text)}</span></div>`
+  ).join('');
+}
+
+// ── Rest Day Guidance (Item 3) ──────────────────────────────
+
+function buildRestDayGuidance(rd) {
+  if (!rd) return '';
+  const notes = [];
+  const bb = rd.body_battery || 0;
+  const stress = rd.stress_avg || 0;
+
+  if (bb < 30) {
+    notes.push({ color: 'red', text: 'Priority: sleep and hydration. Skip all activity today.' });
+  } else if (bb <= 60) {
+    notes.push({ color: 'yellow', text: 'Light mobility work: 10-15 min foam rolling or gentle yoga' });
+  } else {
+    notes.push({ color: 'green', text: 'Active recovery: 20-30 min easy walk, light swim, or stretching' });
+  }
+
+  if (stress > 50) {
+    notes.push({ color: 'yellow', text: 'Consider: 10 min guided breathing or meditation' });
+  }
+
+  if (!notes.length) return '';
+  return notes.map(n =>
+    `<div class="coach-note-item"><span class="coach-note-dot ${n.color}"></span><span>${esc(n.text)}</span></div>`
+  ).join('');
+}
+
+// ── Week Summary (Item 5) ───────────────────────────────────
+
+function renderWeekSummary(weekWorkouts, logMap, state, plan) {
+  const container = document.getElementById('weekSummary');
+  if (!container) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const total = weekWorkouts.filter(w => w.workout_type !== 'rest').length;
+  let completed = 0;
+  let adherenceSum = 0;
+  let adherenceCount = 0;
+  let adaptedCount = 0;
+  let missedCount = 0;
+
+  for (const w of weekWorkouts) {
+    if (w.workout_type === 'rest') continue;
+    const log = logMap.get(w.id);
+    if (log && log.status === 'completed') {
+      completed++;
+      if (log.adherence_score != null) {
+        adherenceSum += log.adherence_score;
+        adherenceCount++;
+      }
+    } else if (w.date < today && !log) {
+      missedCount++;
+    }
+    if (w.is_adapted) adaptedCount++;
+  }
+
+  const avgAdherence = adherenceCount > 0 ? Math.round(adherenceSum / adherenceCount) : null;
+
+  // Forward-looking: next week's phase
+  const nextWeek = (state?.currentWeek || 1) + 1;
+  const nextPhase = getCurrentPhase(plan, nextWeek);
+
+  let html = '<div class="week-summary">';
+  html += `<div class="week-summary-stat"><strong>${completed}</strong> of <strong>${total}</strong> workouts</div>`;
+  html += '<div class="week-summary-divider"></div>';
+  if (avgAdherence !== null) {
+    html += `<div class="week-summary-stat"><strong>${avgAdherence}%</strong> avg adherence</div>`;
+    html += '<div class="week-summary-divider"></div>';
+  }
+  if (adaptedCount > 0) {
+    html += `<div class="week-summary-stat"><strong>${adaptedCount}</strong> adapted</div>`;
+    html += '<div class="week-summary-divider"></div>';
+  }
+  if (missedCount > 0) {
+    html += `<div class="week-summary-stat"><strong>${missedCount}</strong> missed</div>`;
+    html += '<div class="week-summary-divider"></div>';
+  }
+  if (nextPhase) {
+    html += `<div class="week-summary-phase">Next: ${esc(nextPhase.name)}</div>`;
+  }
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+// ── Recovery Signals (Item 6) ───────────────────────────────
+
+function renderRecoverySignals(rd) {
+  const container = document.getElementById('recoverySignals');
+  if (!container) return;
+  if (!rd) { container.innerHTML = ''; return; }
+
+  const signals = [
+    {
+      label: 'Sleep Score',
+      value: rd.sleep_score ?? '--',
+      threshold: '< 60',
+      isAlert: (rd.sleep_score || 0) < 60,
+      isWarn: (rd.sleep_score || 0) < 70 && (rd.sleep_score || 0) >= 60,
+      action: 'Intensity may be reduced',
+    },
+    {
+      label: 'Body Battery',
+      value: rd.body_battery ?? '--',
+      threshold: '< 30',
+      isAlert: (rd.body_battery || 0) < 30,
+      isWarn: (rd.body_battery || 0) < 60 && (rd.body_battery || 0) >= 30,
+      action: 'Workout volume may be reduced',
+    },
+    {
+      label: 'HRV Status',
+      value: rd.hrv_status || '--',
+      threshold: 'low / unbalanced',
+      isAlert: ['low', 'unbalanced'].includes((rd.hrv_status || '').toLowerCase()),
+      isWarn: false,
+      action: 'Max efforts may be limited',
+    },
+    {
+      label: 'Stress Avg',
+      value: rd.stress_avg ?? '--',
+      threshold: '> 50',
+      isAlert: (rd.stress_avg || 0) > 50,
+      isWarn: (rd.stress_avg || 0) > 40 && (rd.stress_avg || 0) <= 50,
+      action: 'Recovery activities recommended',
+    },
+  ];
+
+  let html = '<div class="recovery-signals">';
+  html += '<div class="recovery-signals-title">Recovery Signals</div>';
+
+  for (const s of signals) {
+    const dotClass = s.isAlert ? 'alert' : s.isWarn ? 'warn' : 'ok';
+    const statusText = s.isAlert ? 'ALERT' : s.isWarn ? 'WATCH' : 'OK';
+    html += `
+      <div class="recovery-signal-row">
+        <div class="recovery-signal-label">${esc(s.label)}</div>
+        <div class="recovery-signal-value">${esc(String(s.value))}</div>
+        <div class="recovery-signal-status">
+          <span class="recovery-signal-dot ${dotClass}"></span>
+          ${statusText}
+        </div>
+      </div>
+      ${s.isAlert ? `<div class="recovery-signal-action">&rarr; ${esc(s.action)}</div>` : ''}
+    `;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Plan Config Summary (Item 7) ────────────────────────────
+
+function renderPlanConfigSummary(season) {
+  const container = document.getElementById('planConfigSummary');
+  const prefsSection = document.getElementById('prefsSection');
+  if (!container) return;
+
+  if (!season) {
+    // No active season — show editable prefs, hide summary
+    container.innerHTML = '';
+    if (prefsSection) prefsSection.style.display = '';
+    return;
+  }
+
+  // Active season — hide editable prefs, show read-only summary
+  if (prefsSection) prefsSection.style.display = 'none';
+
+  const config = season.plan_config || {};
+  const prefs = season.preferences_snapshot || {};
+  const currentWeek = seasonState?.currentWeek || 1;
+
+  const trainingType = config.training_type || prefs.goals || '--';
+  const skillLevel = config.skill_level || prefs.experience || '--';
+  const daysPerWeek = config.days_per_week || '--';
+  const duration = season.duration_weeks || '--';
+  const preferred = config.preferred_activities || [];
+  const avoided = config.avoided_exercises || [];
+  const injuries = config.injuries || prefs.injuries || '';
+
+  let html = '<div class="plan-config-summary">';
+  html += '<div class="plan-config-title">Plan Configuration</div>';
+  html += '<div class="plan-config-grid">';
+
+  html += `<div class="plan-config-item"><div class="plan-config-label">Training Type</div><div class="plan-config-val">${esc(String(trainingType))}</div></div>`;
+  html += `<div class="plan-config-item"><div class="plan-config-label">Skill Level</div><div class="plan-config-val">${esc(String(skillLevel))}</div></div>`;
+  html += `<div class="plan-config-item"><div class="plan-config-label">Days / Week</div><div class="plan-config-val">${esc(String(daysPerWeek))}</div></div>`;
+  html += `<div class="plan-config-item"><div class="plan-config-label">Duration</div><div class="plan-config-val">${esc(String(duration))} weeks (Week ${currentWeek})</div></div>`;
+
+  if (preferred.length) {
+    html += `<div class="plan-config-item full-width"><div class="plan-config-label">Preferred Activities</div><div class="plan-config-pills">${preferred.map(a => `<span class="plan-config-pill">${esc(a)}</span>`).join('')}</div></div>`;
+  }
+
+  if (avoided.length) {
+    html += `<div class="plan-config-item full-width"><div class="plan-config-label">Avoiding</div><div class="plan-config-pills">${avoided.map(a => `<span class="plan-config-pill avoid">${esc(a)}</span>`).join('')}</div></div>`;
+  }
+
+  if (injuries) {
+    html += `<div class="plan-config-item full-width"><div class="plan-config-label">Injuries / Notes</div><div class="plan-config-val">${esc(injuries)}</div></div>`;
+  }
+
+  html += '</div>';
+  html += '<div class="plan-config-note">Preferences are locked during an active season. Use "Stop & Restart" to create a new plan with different settings.</div>';
+  html += '</div>';
+
+  container.innerHTML = html;
 }
 
 // ── Helpers ──────────────────────────────────────────────────

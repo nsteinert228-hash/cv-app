@@ -4,7 +4,7 @@ import {
   acknowledgeAdaptation,
 } from './seasonData.js';
 
-const TRIGGER_LABELS = {
+export const TRIGGER_LABELS = {
   hrv_drop: 'HRV',
   sleep_decline: 'SLEEP',
   high_stress: 'STRESS',
@@ -15,7 +15,7 @@ const TRIGGER_LABELS = {
   unknown: 'ADJ',
 };
 
-const TRIGGER_COLORS = {
+export const TRIGGER_COLORS = {
   hrv_drop: 'adapt-recovery',
   sleep_decline: 'adapt-recovery',
   high_stress: 'adapt-recovery',
