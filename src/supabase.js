@@ -29,37 +29,3 @@ export function getSupabaseClient() {
 export function isSupabaseConfigured() {
   return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
 }
-
-const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
-
-export async function callEdgeFunction(name, body = {}) {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase not configured');
-
-  const { data: { session } } = await client.auth.getSession();
-  if (!session) throw new Error('Not authenticated');
-
-  let res;
-  try {
-    res = await fetch(`${FUNCTIONS_BASE}/${name}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new Error('Unable to reach the server. Check your connection and try again.');
-  }
-
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(`Server returned an invalid response (${res.status})`);
-  }
-  if (!res.ok) throw new Error(data.error || `Edge function error: ${res.status}`);
-  return data;
-}

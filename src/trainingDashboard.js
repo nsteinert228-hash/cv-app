@@ -1,7 +1,6 @@
 // Training AI Dashboard — season-based training with workout logging
 import { isSupabaseConfigured } from './supabase.js';
 import { createAuthUI } from './authUI.js';
-import { onAuthStateChange, getUser } from './auth.js';
 import {
   getTrainingRecommendation,
   getTodayReadiness,
@@ -181,12 +180,10 @@ aiRetryBtn.addEventListener('click', () => { loadView(currentView); });
 // ── Main refresh ─────────────────────────────────────────────
 
 async function refreshDashboard() {
-  // Always check current auth state from Supabase
   try {
+    const { getUser } = await import('./auth.js');
     currentUser = await getUser();
   } catch { currentUser = null; }
-
-  authUI.updateAuthUI(currentUser);
 
   if (!currentUser) {
     dashboardContent.classList.remove('visible');
@@ -198,23 +195,17 @@ async function refreshDashboard() {
   emptyState.style.display = 'none';
   dashboardContent.classList.add('visible');
 
-  try {
-    const [prefs] = await Promise.all([
-      getTrainingPreferences().catch(() => ({})),
-      loadReadinessHero(),
-      loadQuickStats(),
-    ]);
+  const [prefs] = await Promise.all([
+    getTrainingPreferences().catch(() => ({})),
+    loadReadinessHero(),
+    loadQuickStats(),
+  ]);
 
-    preferences = prefs;
-    setPrefsUI(prefs);
+  preferences = prefs;
+  setPrefsUI(prefs);
 
-    await loadSeasonState();
-  } catch (err) {
-    console.error('refreshDashboard error:', err);
-    // Show error UI so user knows something went wrong
-    aiErrorMsg.textContent = err.message || 'Failed to load training data. Please try again.';
-    aiError.classList.add('visible');
-  }
+  // Initialize season
+  await loadSeasonState();
 }
 
 // ── Season Lifecycle ─────────────────────────────────────────
@@ -252,13 +243,14 @@ async function loadSeasonState() {
     renderAdaptationFeed(adaptationFeedEl, activeSeason.id);
     checkAdaptations().catch(() => {}); // background
     initSeasonHistory();
-    await loadView(currentView);
+    loadView(currentView);
   } catch (err) {
     console.error('Season init error:', err);
+    // Fall back to stateless mode
     activeSeason = null;
     seasonState = null;
     seasonBanner.classList.remove('visible');
-    await loadView(currentView);
+    loadView(currentView);
   }
 }
 
@@ -454,7 +446,7 @@ async function renderSeasonBanner() {
 
 // ── Stop & Restart Season ────────────────────────────────────
 
-stopRestartBtn?.addEventListener('click', () => {
+stopRestartBtn.addEventListener('click', () => {
   if (!activeSeason) return;
 
   seasonModalTitle.textContent = 'Stop & New Plan?';
@@ -1237,14 +1229,5 @@ function getDayDetailContext() {
 // ── Init ─────────────────────────────────────────────────────
 
 if (isSupabaseConfigured()) {
-  const authSection = document.getElementById('authSection');
-  if (authSection) authSection.classList.remove('hidden');
-
-  // Listen for auth changes (sign-in, sign-out, token refresh)
-  onAuthStateChange(async () => {
-    try { await refreshDashboard(); } catch (err) { console.error('Auth state change error:', err); }
-  });
-
-  // Initial load — getUser() inside refreshDashboard handles session check
   refreshDashboard();
 }
