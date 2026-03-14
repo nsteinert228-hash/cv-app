@@ -3,216 +3,541 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CV — Garmin Readiness</title>
-  <link rel="stylesheet" href="src/styles.css?v=2">
+  <title>CV — Readiness</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="src/styles.css?v=3">
   <style>
-    /* ── Status bar ── */
-    .status-bar {
-      display: none;
+    /* ════════════════════════════════════════════════════
+       Readiness Dashboard — Premium Health Intelligence
+       ════════════════════════════════════════════════════ */
+
+    /* ── Staggered entrance ── */
+    @keyframes zoneEnter {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .zone-animate {
+      opacity: 0;
+      animation: zoneEnter 500ms var(--ease-snappy) both;
+    }
+
+    /* ── Page Header ── */
+    .readiness-header {
+      padding: 0 20px;
       width: 100%;
       max-width: var(--max-width);
-      padding: 8px 20px;
-      font-size: 0.78rem;
-      color: var(--text-secondary);
-      align-items: center;
-      gap: 8px;
       position: relative;
       z-index: 1;
     }
-    .status-bar.visible { display: flex; }
-    .status-bar .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); }
-    .status-bar .status-dot.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
-    .status-bar .status-dot.pending { background: var(--yellow); box-shadow: 0 0 6px var(--yellow-soft); }
-    .status-bar .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red-soft); }
-    .status-bar .status-dot.syncing { background: var(--blue); animation: pulse-dot 1s infinite; box-shadow: 0 0 6px var(--blue-soft); }
+
+    .readiness-greeting {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+    }
+
+    .readiness-ai-summary {
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .sync-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      cursor: default;
+    }
+
+    .sync-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+    .sync-pill-dot.active { background: var(--status-green); box-shadow: 0 0 6px rgba(74,222,128,0.4); }
+    .sync-pill-dot.pending { background: var(--status-yellow); }
+    .sync-pill-dot.syncing { background: var(--status-blue); animation: pulse-dot 1s infinite; }
+    .sync-pill-dot.error { background: var(--status-red); }
     @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .status-bar .status-text { flex: 1; }
-    .status-bar .sync-link { color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; background: none; border: none; font-size: 0.78rem; padding: 0; font-family: inherit; transition: opacity var(--duration-fast); }
-    .status-bar .sync-link:hover { opacity: 0.8; }
-    .status-bar .sync-link:disabled { color: var(--text-muted); cursor: default; }
-    .status-bar .disconnect-link { color: var(--text-muted); cursor: pointer; text-decoration: none; font-size: 0.72rem; background: none; border: none; padding: 0; margin-left: 4px; font-family: inherit; transition: color var(--duration-fast); }
-    .status-bar .disconnect-link:hover { color: var(--red); }
+
+    .sync-pill-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: 4px;
+    }
+
+    .sync-pill-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 0;
+      transition: opacity var(--duration-short);
+    }
+    .sync-pill-btn:hover { opacity: 0.7; }
+    .sync-pill-btn:disabled { color: var(--text-tertiary); cursor: default; }
+    .sync-pill-btn.danger { color: var(--status-red); }
 
     /* ── Error banner ── */
-    .error-banner { display: none; width: 100%; max-width: var(--max-width); padding: 12px 20px; background: var(--red-soft); border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-md); align-items: center; gap: 10px; font-size: 0.82rem; color: var(--red); margin-bottom: 10px; position: relative; z-index: 1; }
+    .error-banner { display: none; width: 100%; max-width: var(--max-width); padding: 12px 20px; background: var(--status-red-tint); border: 1px solid rgba(248,113,113,0.2); border-radius: var(--radius-inner); align-items: center; gap: 10px; font-size: var(--text-sm); color: var(--status-red); margin-bottom: 10px; position: relative; z-index: 1; }
     .error-banner.visible { display: flex; }
     .error-banner .error-msg { flex: 1; }
-    .error-banner .error-action { padding: 5px 12px; border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius-sm); background: rgba(248,113,113,0.1); color: var(--red); font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
-    .error-banner .error-dismiss { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
+    .error-banner .error-action { padding: 5px 12px; border: 1px solid rgba(248,113,113,0.3); border-radius: var(--radius-pill); background: rgba(248,113,113,0.1); color: var(--status-red); font-size: var(--text-xs); font-weight: 600; cursor: pointer; white-space: nowrap; font-family: var(--font-body); }
+    .error-banner .error-dismiss { background: none; border: none; color: var(--status-red); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
 
-    /* ── Last sync banner ── */
-    .last-sync-banner { display: none; width: 100%; max-width: var(--max-width); padding: 6px 20px; font-size: 0.72rem; color: var(--text-muted); text-align: center; position: relative; z-index: 1; }
-    .last-sync-banner.visible { display: block; }
-    .last-sync-banner .sync-time { font-weight: 600; color: var(--text-secondary); }
+    /* ════════════════════════════════════════════════════
+       Three Dials — SVG Gauges
+       ════════════════════════════════════════════════════ */
 
-    /* ── Readiness Hero ── */
-    .readiness-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-    .readiness-item { display: flex; flex-direction: column; align-items: center; }
-    .readiness-item canvas { width: 130px; height: 130px; }
-    .readiness-item .ri-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; font-weight: 600; }
+    .dials-card {
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      padding: 24px 16px 20px;
+    }
 
-    .hrv-status-card { display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .hrv-big { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--accent); }
-    .hrv-unit { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
-    .hrv-badge { display: inline-block; padding: 3px 10px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 700; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
-    .hrv-badge.balanced { background: var(--accent-light); color: var(--accent); }
-    .hrv-badge.low { background: var(--yellow-soft); color: var(--yellow); }
-    .hrv-badge.high { background: var(--blue-soft); color: var(--blue); }
-    .hrv-baseline { font-size: 0.68rem; color: var(--text-muted); margin-top: 6px; }
+    .dials-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      gap: 8px;
+    }
 
-    .readiness-summary { text-align: center; font-size: 0.88rem; color: var(--text-secondary); padding: 10px 16px 0; font-weight: 500; }
+    .dial-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      max-width: 140px;
+    }
 
-    /* ── Recent Activity — 7-day Calendar Grid ── */
-    .activity-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .cal-tile { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); text-align: center; min-height: 90px; transition: border-color var(--duration-fast); }
-    .cal-tile:hover { border-color: var(--glass-border); }
-    .cal-tile.is-today { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
-    .cal-tile-day { font-size: 0.58rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-    .cal-tile-date { font-size: 0.68rem; font-weight: 600; color: var(--text-secondary); margin-top: 1px; }
-    .cal-tile-icon { font-size: 1.2rem; margin-top: 6px; }
-    .cal-tile-name { font-size: 0.62rem; font-weight: 600; color: var(--text-primary); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-    .cal-tile-stats { font-size: 0.55rem; color: var(--text-muted); margin-top: 2px; line-height: 1.3; }
-    .cal-tile-rest { font-size: 0.62rem; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+    .dial-svg {
+      width: 100%;
+      max-width: 120px;
+      aspect-ratio: 1;
+    }
 
-    /* ── Training Log Toggle ── */
-    .training-log-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: none; background: transparent; color: var(--text-muted); font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: color var(--duration-fast); }
+    .dial-track {
+      fill: none;
+      stroke: #222222;
+      stroke-linecap: round;
+    }
+
+    .dial-fill {
+      fill: none;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 800ms var(--ease-snappy);
+    }
+
+    .dial-value {
+      font-family: var(--font-display);
+      font-weight: 800;
+      fill: var(--text-primary);
+    }
+
+    .dial-label-text {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      fill: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .dial-descriptor {
+      font-family: var(--font-body);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ════════════════════════════════════════════════════
+       Metric Cards Grid
+       ════════════════════════════════════════════════════ */
+
+    @keyframes metricEnter {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .metric-card {
+      background: var(--bg-surface-1);
+      border-radius: 12px;
+      padding: 16px;
+      opacity: 0;
+      animation: metricEnter 400ms var(--ease-snappy) both;
+    }
+
+    .metric-card:nth-child(1) { animation-delay: 0ms; }
+    .metric-card:nth-child(2) { animation-delay: 20ms; }
+    .metric-card:nth-child(3) { animation-delay: 40ms; }
+    .metric-card:nth-child(4) { animation-delay: 60ms; }
+    .metric-card:nth-child(5) { animation-delay: 80ms; }
+    .metric-card:nth-child(6) { animation-delay: 100ms; }
+
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-top: 4px;
+    }
+
+    .metric-unit {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      font-weight: 400;
+    }
+
+    .metric-sub {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    /* ════════════════════════════════════════════════════
+       Sleep Section
+       ════════════════════════════════════════════════════ */
+
+    .sleep-card {
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      padding: 24px 20px;
+    }
+
+    .sleep-hero-duration {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .sleep-hero-sub {
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    .sleep-stage-bar {
+      margin: 16px 0;
+      height: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      position: relative;
+    }
+
+    .sleep-stage-bar::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      box-shadow: inset 0 1px 3px rgba(255,255,255,0.06);
+      pointer-events: none;
+    }
+
+    .sleep-seg {
+      height: 100%;
+      transition: width 600ms var(--ease-snappy);
+    }
+    .sleep-seg.deep { background: linear-gradient(180deg, #2563EB, #1e3a5f); }
+    .sleep-seg.light { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+    .sleep-seg.rem { background: linear-gradient(180deg, #a78bfa, #7c3aed); }
+    .sleep-seg.awake { background: linear-gradient(180deg, #f59e0b, #d97706); }
+
+    .sleep-legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .sleep-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+    .sleep-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 3px;
+    }
+
+    .sleep-scores-row {
+      display: flex;
+      gap: 10px;
+    }
+    .sleep-score-item {
+      flex: 1;
+      text-align: center;
+      padding: 10px 4px;
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-inner);
+    }
+    .sleep-score-val {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+    .sleep-score-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    /* ════════════════════════════════════════════════════
+       Charts — Glowing Neon Lines
+       ════════════════════════════════════════════════════ */
+
+    .trends-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .chart-card {
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .chart-card-title {
+      font-family: var(--font-display);
+      font-size: var(--text-sm);
+      font-weight: 800;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin-bottom: 10px;
+    }
+
+    .chart-card canvas {
+      width: 100%;
+      height: 120px;
+      display: block;
+    }
+
+    /* ════════════════════════════════════════════════════
+       Stress Donut
+       ════════════════════════════════════════════════════ */
+
+    .stress-card {
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      padding: 20px;
+    }
+
+    .stress-donut-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stress-svg {
+      width: 140px;
+      height: 140px;
+    }
+
+    .stress-center-val {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      fill: var(--text-primary);
+    }
+
+    .stress-center-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      fill: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stress-legend-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .stress-leg-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+    }
+
+    .stress-leg-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .stress-leg-val {
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* ════════════════════════════════════════════════════
+       Activity Calendar & Training Log
+       ════════════════════════════════════════════════════ */
+
+    .activity-calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .cal-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 4px;
+      background: var(--bg-surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-inner);
+      text-align: center;
+      min-height: 90px;
+      transition: border-color var(--duration-short);
+    }
+    .cal-tile:hover { border-color: var(--border-active); }
+    .cal-tile.is-today { border-color: var(--accent); }
+    .cal-tile-day { font-family: var(--font-mono); font-size: 9px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+    .cal-tile-date { font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary); margin-top: 1px; }
+    .cal-tile-icon { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; margin-top: 6px; color: var(--text-primary); }
+    .cal-tile-name { font-size: 9px; font-weight: 600; color: var(--text-primary); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .cal-tile-stats { font-size: 8px; font-family: var(--font-mono); color: var(--text-tertiary); margin-top: 2px; line-height: 1.3; }
+    .cal-tile-rest { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: 8px; font-style: italic; }
+
+    .training-log-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; border: none; background: transparent; color: var(--text-tertiary); font-size: var(--text-sm); font-weight: 600; cursor: pointer; font-family: var(--font-body); transition: color var(--duration-short); }
     .training-log-toggle:hover { color: var(--text-secondary); }
-    .training-log-toggle svg { transition: transform var(--duration-fast); }
+    .training-log-toggle svg { transition: transform var(--duration-short); }
     .training-log-toggle.expanded svg { transform: rotate(180deg); }
 
-    /* ── Daily Stats ── */
-    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .stat-item { text-align: center; padding: 12px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
-    .stat-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-    .stat-item .unit { font-size: 0.7rem; font-weight: 400; color: var(--text-secondary); }
-    .stat-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; font-weight: 600; }
-    .stat-item .sub { font-size: 0.6rem; color: var(--text-muted); margin-top: 1px; }
-
-    .progress-row { display: flex; gap: 10px; margin-bottom: 14px; }
-    .progress-item { flex: 1; }
-    .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .progress-header .val { font-size: 1rem; font-weight: 700; }
-    .progress-header .goal { font-size: 0.72rem; color: var(--text-muted); }
-    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.5s var(--ease-out); }
-
-    /* ── Sleep ── */
-    .sleep-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-    .sleep-total { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
-    .sleep-times { font-size: 0.75rem; color: var(--text-muted); }
-
-    .sleep-bar-wrap { margin-bottom: 12px; }
-    .sleep-bar-wrap canvas { width: 100%; height: 36px; }
-
-    .sleep-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-    .sleep-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-secondary); }
-    .sleep-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
-
-    .sleep-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-    .sleep-score-item { text-align: center; padding: 8px 4px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); }
-    .sleep-score-item .val { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
-    .sleep-score-item .lbl { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
-
-    /* ── Trends ── */
-    .trends-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .trend-card canvas { width: 100%; height: 120px; }
-    .trend-card .card-title { margin-bottom: 8px; }
-
-    /* ── Stress ── */
-    .stress-row { display: flex; gap: 16px; align-items: center; }
-    .stress-row canvas { width: 120px; height: 120px; flex-shrink: 0; }
-    .stress-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-    .stress-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-secondary); }
-    .stress-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-    /* ── Training Log ── */
-    .training-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .training-table th { text-align: left; padding: 8px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
-    .training-table td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); }
+    .training-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+    .training-table th { text-align: left; padding: 8px; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); }
+    .training-table td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); }
     .training-table td:first-child { color: var(--text-primary); font-weight: 600; }
     .training-table tr:last-child td { border-bottom: none; }
+    .activity-row:hover { background: rgba(255,255,255,0.02); }
 
-    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-muted); font-size: 0.82rem; }
-
-    /* ── Activity Detail View ── */
-    .activity-row:hover { background: rgba(255,255,255,0.03); }
-    .activity-detail-panel { padding: 0; }
-    .activity-detail-content { padding: 16px 12px; background: var(--bg-elevated); border-top: 1px solid var(--border-light); }
-    .detail-loading, .detail-empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.82rem; }
-
+    /* Activity Detail */
+    .activity-detail-content { padding: 16px 12px; background: var(--bg-surface-2); border-top: 1px solid var(--border-subtle); }
+    .detail-loading, .detail-empty { padding: 20px; text-align: center; color: var(--text-tertiary); font-size: var(--text-sm); }
     .detail-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-    .classification-badge { display: inline-block; padding: 4px 12px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-    .classification-reason { font-size: 0.72rem; color: var(--text-muted); flex: 1; }
-
-    /* Zone distribution bar */
-    .zone-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 6px; background: rgba(255,255,255,0.06); }
-    .zone-seg { min-width: 1px; transition: width 0.3s ease; }
-    .zone-seg.z1 { background: #34d399; }
-    .zone-seg.z2 { background: #60a5fa; }
-    .zone-seg.z3 { background: #fbbf24; }
-    .zone-seg.z4 { background: #f97316; }
-    .zone-seg.z5 { background: #ef4444; }
+    .classification-badge { display: inline-block; padding: 4px 12px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 500; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+    .classification-reason { font-size: var(--text-xs); color: var(--text-tertiary); flex: 1; }
+    .zone-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 6px; background: rgba(255,255,255,0.04); }
+    .zone-seg { min-width: 1px; }
+    .zone-seg.z1 { background: #34d399; } .zone-seg.z2 { background: #60a5fa; } .zone-seg.z3 { background: #fbbf24; } .zone-seg.z4 { background: #f97316; } .zone-seg.z5 { background: #ef4444; }
     .zone-labels { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-    .zone-label { display: flex; align-items: center; gap: 4px; font-size: 0.62rem; color: var(--text-muted); }
+    .zone-label { display: flex; align-items: center; gap: 4px; font-size: 9px; font-family: var(--font-mono); color: var(--text-tertiary); }
     .zone-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .zone-dot.z1 { background: #34d399; }
-    .zone-dot.z2 { background: #60a5fa; }
-    .zone-dot.z3 { background: #fbbf24; }
-    .zone-dot.z4 { background: #f97316; }
-    .zone-dot.z5 { background: #ef4444; }
-
-    /* Detail charts */
+    .zone-dot.z1 { background: #34d399; } .zone-dot.z2 { background: #60a5fa; } .zone-dot.z3 { background: #fbbf24; } .zone-dot.z4 { background: #f97316; } .zone-dot.z5 { background: #ef4444; }
     .detail-charts { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 14px; }
-    .detail-chart-wrap { background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 8px 8px 4px; }
-    .detail-chart-label { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .detail-chart-wrap { background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-inner); padding: 8px 8px 4px; }
+    .detail-chart-label { font-size: 9px; font-family: var(--font-mono); font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
     .detail-chart { width: 100%; height: 90px; }
-
-    /* Splits table */
     .detail-section { margin-top: 10px; }
-    .detail-section-title { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-    .splits-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
-    .splits-table th { text-align: left; padding: 4px 8px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.58rem; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
-    .splits-table td { padding: 5px 8px; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); }
+    .detail-section-title { font-size: var(--text-xs); font-family: var(--font-mono); font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .splits-table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+    .splits-table th { text-align: left; padding: 4px 8px; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); }
+    .splits-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); }
     .splits-table tr:last-child td { border-bottom: none; }
 
-    @media (min-width: 640px) {
-      .detail-charts { grid-template-columns: 1fr 1fr 1fr; }
-    }
+    @media (min-width: 640px) { .detail-charts { grid-template-columns: 1fr 1fr 1fr; } }
 
     /* ── Garmin Connect Modal ── */
-    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
+    .garmin-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; }
     .garmin-modal-backdrop.visible { display: flex; }
-    .garmin-modal { background: rgba(20,20,30,0.95); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); padding: 32px 28px; width: 100%; max-width: 360px; box-shadow: var(--shadow-lg); backdrop-filter: blur(40px); }
-    .garmin-modal h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 20px; color: var(--text-primary); }
-    .garmin-modal input { width: 100%; padding: 12px 14px; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); font-size: 0.88rem; margin-bottom: 10px; outline: none; background: var(--bg-input); color: var(--text-primary); font-family: inherit; transition: border-color var(--duration-fast); }
-    .garmin-modal input::placeholder { color: var(--text-muted); }
-    .garmin-modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    .garmin-modal { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-card); padding: 32px 28px; width: 100%; max-width: 360px; box-shadow: var(--shadow-lg); }
+    .garmin-modal h2 { font-family: var(--font-display); font-size: var(--text-xl); font-weight: 800; text-transform: uppercase; margin-bottom: 20px; color: var(--text-primary); }
+    .garmin-modal input { width: 100%; padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-inner); font-size: var(--text-sm); margin-bottom: 10px; outline: none; background: var(--bg-surface-1); color: var(--text-primary); font-family: var(--font-body); transition: border-color var(--duration-short); }
+    .garmin-modal input::placeholder { color: var(--text-tertiary); }
+    .garmin-modal input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
     .garmin-modal-actions { display: flex; gap: 8px; margin-top: 8px; }
-    .garmin-modal-actions .auth-btn { flex: 1; padding: 12px; font-size: 0.85rem; }
-    .garmin-error { color: var(--red); font-size: 0.78rem; margin-top: 10px; min-height: 1.2em; }
-    .garmin-privacy { font-size: 0.72rem; color: var(--text-muted); margin-top: 14px; text-align: center; }
+    .garmin-modal-actions .auth-btn { flex: 1; padding: 12px; font-size: var(--text-sm); }
+    .garmin-error { color: var(--status-red); font-size: var(--text-sm); margin-top: 10px; min-height: 1.2em; }
+    .garmin-privacy { font-size: var(--text-xs); color: var(--text-tertiary); margin-top: 14px; text-align: center; }
 
+    .card-error { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text-tertiary); font-size: var(--text-sm); }
+
+    /* ── Responsive ── */
     @media (max-width: 640px) {
-      .readiness-row { gap: 8px; }
-      .readiness-item canvas { width: 100px; height: 100px; }
-      .stats-grid { grid-template-columns: repeat(3, 1fr); }
       .trends-grid { grid-template-columns: 1fr; }
       .activity-calendar { grid-template-columns: repeat(4, 1fr); }
+      .dial-svg { max-width: 100px; }
     }
-
     @media (max-width: 400px) {
       .activity-calendar { grid-template-columns: repeat(3, 1fr); }
-      .readiness-row { grid-template-columns: 1fr; gap: 10px; }
-      .progress-row { flex-direction: column; }
-      .sleep-scores { grid-template-columns: repeat(2, 1fr); }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
 <body>
 
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-wordmark">C<span>V</span></div>
+    <div class="scan-line-container"><div class="scan-line"></div></div>
+    <div class="loading-phrase" id="loadingPhrase">Syncing Garmin data...</div>
+  </div>
+
   <header>
     <div class="header-top">
-      <h1>CV <span>Garmin Readiness</span></h1>
+      <h1>CV <span>Readiness</span></h1>
       <div class="auth-section hidden" id="authSection">
         <span class="auth-user" id="authUser"></span>
         <button class="auth-btn" id="authBtn">Sign In</button>
@@ -245,198 +570,200 @@
     <button class="error-dismiss" id="errorDismiss">&times;</button>
   </div>
 
-  <!-- Status bar -->
-  <div class="status-bar" id="statusBar">
-    <span class="status-dot" id="statusDot"></span>
-    <span class="status-text" id="statusText"></span>
-    <button class="sync-link" id="syncBtn" style="display:none">Sync</button>
-    <button class="disconnect-link" id="disconnectBtn" style="display:none">Disconnect</button>
-  </div>
-
-  <!-- Last sync banner -->
-  <div class="last-sync-banner" id="lastSyncBanner">
-    Data last updated <span class="sync-time" id="lastSyncTime">--</span>
-  </div>
-
   <!-- Empty state -->
   <div class="empty-state" id="emptyState">
     <p>Sign in to view your Garmin health dashboard.</p>
-    <button class="auth-btn primary" id="connectGarminBtn" style="display:none">Connect Garmin</button>
+    <button class="btn-primary" id="connectGarminBtn" style="display:none">Connect Garmin</button>
   </div>
 
   <!-- Dashboard -->
   <div class="dashboard" id="dashboardContent">
 
-    <!-- 1. Readiness Hero -->
-    <div class="card" id="readinessCard">
-      <div class="card-title">Today's Readiness</div>
-      <div class="readiness-row">
-        <div class="readiness-item">
-          <canvas id="sleepGauge"></canvas>
-          <div class="ri-label">Sleep Score</div>
-        </div>
-        <div class="readiness-item">
-          <canvas id="bbGauge"></canvas>
-          <div class="ri-label">Body Battery</div>
-        </div>
-        <div class="readiness-item hrv-status-card">
-          <div class="hrv-big" id="hrvValue">--</div>
-          <div class="hrv-unit">ms HRV</div>
-          <div class="hrv-badge balanced" id="hrvBadge">--</div>
-          <div class="hrv-baseline" id="hrvBaseline"></div>
-        </div>
+    <!-- Page Header: Greeting + Summary -->
+    <div class="readiness-header zone-animate" style="animation-delay:0ms" id="readinessHeader">
+      <div class="readiness-greeting" id="readinessGreeting">Your Readiness Today</div>
+      <div class="readiness-ai-summary" id="readinessSummary">Analyzing your data...</div>
+      <div class="sync-pill" id="syncPill" style="display:none">
+        <span class="sync-pill-dot" id="statusDot"></span>
+        <span id="statusText">--</span>
+        <span class="sync-pill-actions">
+          <button class="sync-pill-btn" id="syncBtn" style="display:none" aria-label="Sync Garmin data">Sync</button>
+          <button class="sync-pill-btn danger" id="disconnectBtn" style="display:none" aria-label="Disconnect Garmin">Disconnect</button>
+        </span>
       </div>
-      <div class="readiness-summary" id="readinessSummary"></div>
     </div>
 
-    <!-- 2. Recent Activity — 7-day calendar grid -->
-    <div class="card" id="activityCard">
-      <div class="card-title">Last 7 Days</div>
-      <div class="activity-calendar" id="activityCalendar"></div>
-    </div>
-
-    <!-- 3. Daily Stats -->
-    <div class="card" id="dailyStatsCard">
-      <div class="card-title">Today's Stats</div>
-      <div class="progress-row">
-        <div class="progress-item">
-          <div class="progress-header">
-            <span class="val" id="qSteps">--</span>
-            <span class="goal">of <span id="qStepsGoal">--</span></span>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" id="stepsProgressFill" style="width:0%"></div></div>
-          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">STEPS</div>
+    <!-- Three Dials -->
+    <div class="dials-card zone-animate" style="animation-delay:80ms" id="readinessCard">
+      <div class="dials-row">
+        <div class="dial-item">
+          <svg class="dial-svg" viewBox="0 0 100 100" id="sleepDial">
+            <circle class="dial-track" cx="50" cy="50" r="40" stroke-width="8"
+              stroke-dasharray="226.2" stroke-dashoffset="0"
+              transform="rotate(135 50 50)" />
+            <circle class="dial-fill" id="sleepDialFill" cx="50" cy="50" r="40" stroke-width="8"
+              stroke-dasharray="226.2" stroke-dashoffset="226.2"
+              transform="rotate(135 50 50)" stroke="var(--status-green)" />
+            <text class="dial-value" x="50" y="48" text-anchor="middle" font-size="22" id="sleepDialVal">--</text>
+            <text class="dial-label-text" x="50" y="62" text-anchor="middle" id="sleepDialLabel">SLEEP</text>
+          </svg>
+          <div class="dial-descriptor" id="sleepDescriptor" style="color:var(--text-tertiary)">--</div>
         </div>
-        <div class="progress-item" id="intensityProgressItem">
-          <div class="progress-header">
-            <span class="val" id="qIntensity">--</span>
-            <span class="goal" id="intensityGoalLabel">of <span id="qIntensityGoal">--</span></span>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" id="intensityProgressFill" style="width:0%"></div></div>
-          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">INTENSITY MIN</div>
+        <div class="dial-item">
+          <svg class="dial-svg" viewBox="0 0 100 100" id="bbDial">
+            <circle class="dial-track" cx="50" cy="50" r="40" stroke-width="8"
+              stroke-dasharray="226.2" stroke-dashoffset="0"
+              transform="rotate(135 50 50)" />
+            <circle class="dial-fill" id="bbDialFill" cx="50" cy="50" r="40" stroke-width="8"
+              stroke-dasharray="226.2" stroke-dashoffset="226.2"
+              transform="rotate(135 50 50)" stroke="var(--status-green)" />
+            <text class="dial-value" x="50" y="48" text-anchor="middle" font-size="22" id="bbDialVal">--</text>
+            <text class="dial-label-text" x="50" y="62" text-anchor="middle">BATTERY</text>
+          </svg>
+          <div class="dial-descriptor" id="bbDescriptor" style="color:var(--text-tertiary)">--</div>
         </div>
-        <div class="progress-item">
-          <div class="progress-header">
-            <span class="val" id="qFloors">--</span>
-            <span class="goal">of <span id="qFloorsGoal">10</span></span>
-          </div>
-          <div class="progress-bar"><div class="progress-fill" id="floorsProgressFill" style="width:0%"></div></div>
-          <div style="font-size:0.62rem;color:var(--text-muted);margin-top:2px;text-transform:uppercase;font-weight:600;letter-spacing:0.04em">FLOORS</div>
-        </div>
-      </div>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <div class="val"><span id="qHR">--</span> <span class="unit">bpm</span></div>
-          <div class="lbl">Resting HR</div>
-          <div class="sub" id="qHR7d"></div>
-        </div>
-        <div class="stat-item">
-          <div class="val"><span id="qActiveCal">--</span></div>
-          <div class="lbl">Active Cal</div>
-          <div class="sub" id="qTotalCal"></div>
-        </div>
-        <div class="stat-item">
-          <div class="val"><span id="qResp">--</span> <span class="unit">brpm</span></div>
-          <div class="lbl">Respiration</div>
+        <div class="dial-item">
+          <svg class="dial-svg" viewBox="0 0 100 100" id="hrvDial">
+            <circle class="dial-track" cx="50" cy="50" r="40" stroke-width="8"
+              stroke-dasharray="226.2" stroke-dashoffset="0"
+              transform="rotate(135 50 50)" />
+            <circle class="dial-fill" id="hrvDialFill" cx="50" cy="50" r="40" stroke-width="8"
+              stroke-dasharray="226.2" stroke-dashoffset="226.2"
+              transform="rotate(135 50 50)" stroke="var(--status-green)" />
+            <text class="dial-value" x="50" y="48" text-anchor="middle" font-size="22" id="hrvDialVal">--</text>
+            <text class="dial-label-text" x="50" y="62" text-anchor="middle">HRV</text>
+          </svg>
+          <div class="dial-descriptor" id="hrvDescriptor" style="color:var(--text-tertiary)">--</div>
         </div>
       </div>
     </div>
 
-    <!-- 4. Sleep -->
-    <div class="card" id="sleepCard">
+    <!-- Metric Cards Grid -->
+    <div class="metrics-grid zone-animate" style="animation-delay:160ms" id="metricsGrid">
+      <div class="metric-card">
+        <div class="metric-label">Steps</div>
+        <div class="metric-value"><span id="qSteps">--</span></div>
+        <div class="metric-sub" id="qStepsGoalSub"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Intensity Min</div>
+        <div class="metric-value"><span id="qIntensity">--</span></div>
+        <div class="metric-sub" id="qIntensityGoalSub"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Floors</div>
+        <div class="metric-value"><span id="qFloors">--</span></div>
+        <div class="metric-sub" id="qFloorsGoalSub"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Resting HR</div>
+        <div class="metric-value"><span id="qHR">--</span> <span class="metric-unit">bpm</span></div>
+        <div class="metric-sub" id="qHR7d"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Active Calories</div>
+        <div class="metric-value"><span id="qActiveCal">--</span></div>
+        <div class="metric-sub" id="qTotalCal"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Respiration</div>
+        <div class="metric-value"><span id="qResp">--</span> <span class="metric-unit">brpm</span></div>
+      </div>
+    </div>
+
+    <!-- Sleep Section -->
+    <div class="sleep-card zone-animate" style="animation-delay:240ms" id="sleepCard">
       <div class="card-title">Sleep</div>
-      <div class="sleep-header-row">
-        <div class="sleep-total" id="sleepTotal">--</div>
-        <div class="sleep-times" id="sleepTimes"></div>
-      </div>
-      <div class="sleep-bar-wrap">
-        <canvas id="sleepBar"></canvas>
-      </div>
+      <div class="sleep-hero-duration" id="sleepTotal">--</div>
+      <div class="sleep-hero-sub" id="sleepTimes"></div>
+      <div class="sleep-stage-bar" id="sleepStageBar"></div>
       <div class="sleep-legend">
-        <div class="sleep-legend-item">
-          <div class="sleep-legend-dot" style="background:#1e3a5f"></div>
-          Deep <strong id="sleepDeep">--</strong>
-        </div>
-        <div class="sleep-legend-item">
-          <div class="sleep-legend-dot" style="background:#60a5fa"></div>
-          Light <strong id="sleepLight">--</strong>
-        </div>
-        <div class="sleep-legend-item">
-          <div class="sleep-legend-dot" style="background:#a78bfa"></div>
-          REM <strong id="sleepRem">--</strong>
-        </div>
-        <div class="sleep-legend-item">
-          <div class="sleep-legend-dot" style="background:#f59e0b"></div>
-          Awake <strong id="sleepAwake">--</strong>
-        </div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#2563EB"></div>Deep <strong id="sleepDeep">--</strong></div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#60a5fa"></div>Light <strong id="sleepLight">--</strong></div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#a78bfa"></div>REM <strong id="sleepRem">--</strong></div>
+        <div class="sleep-legend-item"><div class="sleep-legend-dot" style="background:#f59e0b"></div>Awake <strong id="sleepAwake">--</strong></div>
       </div>
-      <div class="sleep-scores">
-        <div class="sleep-score-item">
-          <div class="val" id="scoreOverall">--</div>
-          <div class="lbl">Score</div>
-        </div>
-        <div class="sleep-score-item">
-          <div class="val" id="scoreResp">--</div>
-          <div class="lbl">Resp</div>
-        </div>
-        <div class="sleep-score-item">
-          <div class="val" id="scoreDuration">--</div>
-          <div class="lbl">Duration</div>
-        </div>
+      <div class="sleep-scores-row">
+        <div class="sleep-score-item"><div class="sleep-score-val" id="scoreOverall">--</div><div class="sleep-score-label">Score</div></div>
+        <div class="sleep-score-item"><div class="sleep-score-val" id="scoreResp">--</div><div class="sleep-score-label">Resp</div></div>
+        <div class="sleep-score-item"><div class="sleep-score-val" id="scoreDuration">--</div><div class="sleep-score-label">Duration</div></div>
       </div>
     </div>
 
-    <!-- 5. Trends -->
-    <div class="trends-grid">
-      <div class="card trend-card">
-        <div class="card-title">HRV — 14 Day</div>
+    <!-- Trends -->
+    <div class="trends-grid zone-animate" style="animation-delay:320ms">
+      <div class="chart-card">
+        <div class="chart-card-title">HRV — 14 Day</div>
         <canvas id="hrvChart"></canvas>
       </div>
-      <div class="card trend-card">
-        <div class="card-title">Resting HR — 14 Day</div>
+      <div class="chart-card">
+        <div class="chart-card-title">Resting HR</div>
         <canvas id="rhrChart"></canvas>
       </div>
-      <div class="card trend-card">
-        <div class="card-title">Weight</div>
+      <div class="chart-card">
+        <div class="chart-card-title">Weight</div>
         <canvas id="weightChart"></canvas>
       </div>
-      <div class="card trend-card">
-        <div class="card-title">Body Fat %</div>
+      <div class="chart-card">
+        <div class="chart-card-title">Body Fat %</div>
         <canvas id="bodyFatChart"></canvas>
       </div>
     </div>
 
-    <!-- 6. Stress -->
-    <div class="card" id="stressCard">
+    <!-- Stress Donut -->
+    <div class="stress-card zone-animate" style="animation-delay:400ms" id="stressCard">
       <div class="card-title">Stress Distribution</div>
-      <div class="stress-row">
-        <canvas id="stressDonut"></canvas>
-        <div class="stress-legend">
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#34d399"></div> Rest <strong id="stressRest">--</strong></div>
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#60a5fa"></div> Low <strong id="stressLow">--</strong></div>
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#fbbf24"></div> Medium <strong id="stressMed">--</strong></div>
-          <div class="stress-legend-item"><div class="stress-legend-dot" style="background:#f87171"></div> High <strong id="stressHigh">--</strong></div>
+      <div class="stress-donut-wrap">
+        <svg class="stress-svg" viewBox="0 0 100 100" id="stressSvg">
+          <circle cx="50" cy="50" r="38" fill="none" stroke="#222222" stroke-width="10" />
+          <text class="stress-center-val" x="50" y="48" text-anchor="middle" id="stressAvgText">--</text>
+          <text class="stress-center-label" x="50" y="60" text-anchor="middle">AVG STRESS</text>
+        </svg>
+        <div class="stress-legend-row" id="stressLegend">
+          <div class="stress-leg-item"><div class="stress-leg-dot" style="background:#34d399"></div>Rest <span class="stress-leg-val" id="stressRest">--</span></div>
+          <div class="stress-leg-item"><div class="stress-leg-dot" style="background:#60a5fa"></div>Low <span class="stress-leg-val" id="stressLow">--</span></div>
+          <div class="stress-leg-item"><div class="stress-leg-dot" style="background:#fbbf24"></div>Med <span class="stress-leg-val" id="stressMed">--</span></div>
+          <div class="stress-leg-item"><div class="stress-leg-dot" style="background:#f87171"></div>High <span class="stress-leg-val" id="stressHigh">--</span></div>
         </div>
       </div>
-      <span id="stressAvgValue" data-value="--" style="display:none"></span>
     </div>
 
-    <!-- 7. Training Log (collapsed by default) -->
-    <div class="card" id="trainingCard" style="display:none">
+    <!-- Activity Calendar -->
+    <div class="card zone-animate" style="animation-delay:480ms" id="activityCard">
+      <div class="card-title">Last 7 Days</div>
+      <div class="activity-calendar" id="activityCalendar"></div>
+    </div>
+
+    <!-- Training Log -->
+    <div class="card zone-animate" style="animation-delay:560ms" id="trainingCard" style="display:none">
       <button class="training-log-toggle" id="trainingLogToggle">
         View all activities
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
       </button>
       <div id="trainingLogContent" style="display:none">
         <table class="training-table" id="trainingTable">
-          <thead>
-            <tr><th>Activity</th><th>Dist</th><th>Time</th><th>Avg HR</th><th>Cal</th></tr>
-          </thead>
+          <thead><tr><th>Activity</th><th>Dist</th><th>Time</th><th>Avg HR</th><th>Cal</th></tr></thead>
           <tbody id="trainingBody"></tbody>
         </table>
       </div>
     </div>
 
+  </div>
+
+  <!-- Hidden legacy elements for backward compat -->
+  <div style="display:none">
+    <div id="statusBar"></div>
+    <div id="lastSyncBanner"><span id="lastSyncTime"></span></div>
+    <span id="stressAvgValue" data-value="--"></span>
+    <span id="hrvValue"></span><span id="hrvBadge"></span><span id="hrvBaseline"></span>
+    <canvas id="sleepGauge" width="1" height="1"></canvas>
+    <canvas id="bbGauge" width="1" height="1"></canvas>
+    <canvas id="sleepBar" width="1" height="1"></canvas>
+    <canvas id="stressDonut" width="1" height="1"></canvas>
+    <span id="qStepsGoal"></span><span id="qIntensityGoal"></span><span id="qFloorsGoal"></span>
+    <div id="stepsProgressFill"></div><div id="intensityProgressFill"></div><div id="floorsProgressFill"></div>
+    <span id="intensityGoalLabel"></span>
+    <div id="intensityProgressItem"></div>
   </div>
 
   <!-- Garmin Connect Modal -->
@@ -456,21 +783,38 @@
 
   <!-- Bottom Tab Bar -->
   <nav class="tab-bar">
-    <a class="tab-link" href="index.html">
-      <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v5m-3 3l3-3 3 3m-6 3v2m6-2v2"/></svg>
-      Tracker
+    <div class="tab-indicator" data-active="1"></div>
+    <a class="tab-link" href="training.html" aria-label="Home">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <span class="tab-label">Home</span>
     </a>
-    <a class="tab-link active" href="garmin.html">
-      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-      Garmin
+    <a class="tab-link active" href="garmin.html" aria-label="Readiness">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 12h3l2-4 4 8 2-4h3"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+      <span class="tab-label">Readiness</span>
     </a>
-    <a class="tab-link" href="training.html">
-      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      Training AI
+    <a class="tab-link" href="index.html" aria-label="Tracker">
+      <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 5v1m0 12v1m-7-7h1m12 0h1m-2.5-5.5l-.7.7m-8.6 8.6l-.7.7m0-10l.7.7m8.6 8.6l.7.7"/></svg>
+      <span class="tab-label">Tracker</span>
+      <span class="tab-badge" aria-label="Beta feature">BETA</span>
     </a>
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script type="module" src="src/garminDashboard.js"></script>
+  <script type="module" src="src/garminDashboard.js?v=2"></script>
+  <script>
+    (function() {
+      const phrases = ['Syncing Garmin data...', 'Analyzing readiness...', 'Loading metrics...'];
+      const el = document.getElementById('loadingPhrase');
+      const screen = document.getElementById('loadingScreen');
+      let i = 0;
+      const interval = setInterval(() => { i = (i + 1) % phrases.length; if (el) el.textContent = phrases[i]; }, 1500);
+      function dismiss() {
+        clearInterval(interval);
+        if (screen) { screen.classList.add('dismissed'); setTimeout(() => screen.remove(), 700); }
+      }
+      window.dismissLoadingScreen = dismiss;
+      setTimeout(dismiss, 4500);
+    })();
+  </script>
 </body>
 </html>
