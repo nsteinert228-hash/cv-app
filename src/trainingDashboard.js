@@ -1,6 +1,7 @@
 // Training AI Dashboard — season-based training with workout logging
 import { isSupabaseConfigured } from './supabase.js';
 import { createAuthUI } from './authUI.js';
+import { onAuthStateChange } from './auth.js';
 import {
   getTrainingRecommendation,
   getTodayReadiness,
@@ -98,7 +99,9 @@ let prefSaveTimer = null;
 
 const authUI = createAuthUI();
 authUI.init({
-  onSignIn() { refreshDashboard(); },
+  onSignIn() {
+    // onAuthStateChange will handle the refresh
+  },
   onSignOut() {
     currentUser = null;
     activeSeason = null;
@@ -180,11 +183,6 @@ aiRetryBtn.addEventListener('click', () => { loadView(currentView); });
 // ── Main refresh ─────────────────────────────────────────────
 
 async function refreshDashboard() {
-  try {
-    const { getUser } = await import('./auth.js');
-    currentUser = await getUser();
-  } catch { currentUser = null; }
-
   if (!currentUser) {
     dashboardContent.classList.remove('visible');
     emptyState.style.display = '';
@@ -204,7 +202,6 @@ async function refreshDashboard() {
   preferences = prefs;
   setPrefsUI(prefs);
 
-  // Initialize season
   await loadSeasonState();
 }
 
@@ -243,14 +240,13 @@ async function loadSeasonState() {
     renderAdaptationFeed(adaptationFeedEl, activeSeason.id);
     checkAdaptations().catch(() => {}); // background
     initSeasonHistory();
-    loadView(currentView);
+    await loadView(currentView);
   } catch (err) {
     console.error('Season init error:', err);
-    // Fall back to stateless mode
     activeSeason = null;
     seasonState = null;
     seasonBanner.classList.remove('visible');
-    loadView(currentView);
+    await loadView(currentView);
   }
 }
 
@@ -1229,5 +1225,18 @@ function getDayDetailContext() {
 // ── Init ─────────────────────────────────────────────────────
 
 if (isSupabaseConfigured()) {
-  refreshDashboard();
+  const authSection = document.getElementById('authSection');
+  if (authSection) authSection.classList.remove('hidden');
+
+  onAuthStateChange(async (user) => {
+    authUI.updateAuthUI(user);
+    if (user) {
+      currentUser = user;
+    } else {
+      currentUser = null;
+      activeSeason = null;
+      seasonState = null;
+    }
+    await refreshDashboard();
+  });
 }
