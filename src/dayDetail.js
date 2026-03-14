@@ -3,8 +3,11 @@ import { renderWorkoutConfirmation } from './workoutLogger.js';
 import {
   findMatchingGarminActivity,
   swapWorkout,
+  modifyWorkout,
   getThisWeekWorkouts,
+  getAdaptationForDate,
 } from './seasonData.js';
+import { TRIGGER_LABELS, TRIGGER_COLORS } from './adaptationFeed.js';
 
 // ── DOM refs ────────────────────────────────────────────────
 
@@ -34,6 +37,26 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   const isCardio = workout.workout_type === 'cardio';
 
   let html = '';
+
+  // Adaptation banner for adapted workouts (Item 2)
+  if (workout.is_adapted && activeSeason) {
+    try {
+      const adaptation = await getAdaptationForDate(activeSeason.id, workout.date);
+      if (adaptation) {
+        const triggerLabel = TRIGGER_LABELS[adaptation.trigger] || TRIGGER_LABELS.unknown;
+        const colorClass = TRIGGER_COLORS[adaptation.trigger] || 'adapt-schedule';
+        html += `
+          <div class="adaptation-banner">
+            <span class="adapt-icon">${esc(triggerLabel)}</span>
+            <div class="adaptation-banner-content">
+              <div class="adaptation-banner-summary">${esc(adaptation.summary)}</div>
+              ${adaptation.details ? `<div class="adaptation-banner-diff">${esc(adaptation.details)}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+    } catch { /* ignore — don't block workout display */ }
+  }
 
   // Garmin auto-detect for cardio (Approach A: detect then confirm)
   if (isCardio) {
@@ -170,13 +193,19 @@ async function showSwapPreview(previewEl, workout, newType, newTitle, ctx) {
   document.getElementById('confirmSwapBtn').addEventListener('click', async () => {
     const btn = document.getElementById('confirmSwapBtn');
     btn.disabled = true;
-    btn.textContent = 'Swapping...';
+    btn.textContent = `Generating your ${newType} workout...`;
     try {
-      const defaultRx = newType === 'rest'
-        ? { description: 'Rest day' }
-        : { description: `${newTitle} session`, exercises: [] };
-
-      await swapWorkout(workout.id, newType, newTitle, defaultRx);
+      if (newType === 'rest') {
+        // Rest day doesn't need AI generation
+        await swapWorkout(workout.id, newType, newTitle, { description: 'Rest day' });
+      } else {
+        // Use AI to generate a proper prescription with exercises
+        await modifyWorkout(
+          workout.id,
+          `Change this workout to a ${newTitle} session. Generate appropriate exercises with sets, reps, and rest periods.`,
+          activeSeason.id,
+        );
+      }
 
       delete viewCache['today'];
       delete viewCache['week'];

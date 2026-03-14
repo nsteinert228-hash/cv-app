@@ -250,6 +250,23 @@ export async function acknowledgeAdaptation(adaptationId) {
   if (error) throw error;
 }
 
+export async function getAdaptationForDate(seasonId, date) {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('season_adaptations')
+    .select('*')
+    .eq('season_id', seasonId)
+    .eq('affected_date', date)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function triggerAdaptation(force = false) {
   return _callEdgeFunction('season-adapt', { force });
 }

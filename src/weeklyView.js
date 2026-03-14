@@ -7,6 +7,7 @@ import {
 } from './seasonData.js';
 import { getSupabaseClient } from './supabase.js';
 import { initWorkoutModifier, destroyWorkoutModifier } from './workoutModifier.js';
+import { TRIGGER_LABELS } from './adaptationFeed.js';
 
 const TYPE_LABELS = {
   strength: 'STR',
@@ -218,7 +219,7 @@ function createDayCard(workout, log, garminMatch, dayState, ctx) {
       <div class="wv-day-meta">
         <span class="wv-intensity-badge ${workout.intensity}">${esc(workout.intensity)}</span>
         ${workout.duration_minutes ? `<span class="wv-day-dur">${workout.duration_minutes}m</span>` : ''}
-        ${workout.is_adapted ? '<span class="wv-adapted-badge">adapted</span>' : ''}
+        ${workout.is_adapted ? `<span class="wv-adapted-badge">adapted</span>${workout.adaptation_trigger ? `<span class="wv-trigger-tag">${esc(TRIGGER_LABELS[workout.adaptation_trigger] || '')}</span>` : ''}` : ''}
         ${renderLogBadge(log, dayState)}
       </div>
       <div class="wv-day-chevron">${dayState === 'future' ? '\u25B6' : '\u25BC'}</div>
