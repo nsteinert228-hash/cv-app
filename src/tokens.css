@@ -1,0 +1,136 @@
+/* ════════════════════════════════════════════════════
+   CV App — Design Tokens
+   "Precision Dark" — Whoop × Spotify × F1 Telemetry
+   ════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ── Background Layers ── */
+  --bg-base: #080808;
+  --bg-surface-1: #111111;
+  --bg-surface-2: #1A1A1A;
+  --bg-surface-3: #222222;
+
+  /* ── Borders ── */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-active: rgba(255, 255, 255, 0.15);
+
+  /* ── Accent ── */
+  --accent: #C8FF00;
+  --accent-tint: rgba(200, 255, 0, 0.12);
+  --accent-dim: rgba(200, 255, 0, 0.4);
+
+  /* ── Text ── */
+  --text-primary: #F0F0F0;
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --text-inverse: #080808;
+
+  /* ── Status ── */
+  --status-green: #4ADE80;
+  --status-green-tint: rgba(74, 222, 128, 0.12);
+  --status-yellow: #FACC15;
+  --status-yellow-tint: rgba(250, 204, 21, 0.12);
+  --status-red: #F87171;
+  --status-red-tint: rgba(248, 113, 113, 0.12);
+  --status-blue: #60A5FA;
+  --status-blue-tint: rgba(96, 165, 250, 0.12);
+
+  /* ── Typography ── */
+  --font-display: 'Barlow Condensed', 'Impact', sans-serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* Fluid type scale */
+  --text-xs: clamp(0.625rem, 0.6rem + 0.1vw, 0.6875rem);     /* ~10-11px */
+  --text-sm: clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem);     /* ~12-13px */
+  --text-base: clamp(0.8125rem, 0.78rem + 0.15vw, 0.9375rem); /* ~13-15px */
+  --text-lg: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);          /* ~16-18px */
+  --text-xl: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem);         /* ~20-24px */
+  --text-2xl: clamp(1.5rem, 1.35rem + 0.6vw, 2rem);           /* ~24-32px */
+  --text-3xl: clamp(2rem, 1.8rem + 0.8vw, 2.75rem);           /* ~32-44px */
+  --text-4xl: clamp(2.75rem, 2.4rem + 1.2vw, 4rem);           /* ~44-64px */
+
+  /* ── Spacing ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Radius ── */
+  --radius-sm: 4px;
+  --radius-inner: 8px;
+  --radius-card: 16px;
+  --radius-pill: 100px;
+
+  /* ── Motion ── */
+  --ease-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-short: 150ms;
+  --duration-medium: 300ms;
+  --duration-long: 600ms;
+
+  /* ── Accent States ── */
+  --accent-hover: #d4ff33;
+  --accent-glow-sm: 0 0 12px rgba(200, 255, 0, 0.2);
+  --accent-glow-lg: 0 0 32px rgba(200, 255, 0, 0.35);
+
+  /* ── Chart Colors ── */
+  --chart-hrv: #4ADE80;
+  --chart-hr: #F87171;
+  --chart-weight: #818CF8;
+  --chart-fat: #FACC15;
+  --chart-deep-sleep: #2563EB;
+  --chart-light-sleep: #60A5FA;
+  --chart-rem-sleep: #A78BFA;
+  --chart-awake: #F59E0B;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.7);
+  --shadow-btn-hover: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+  /* ── Layout ── */
+  --max-width: 640px;
+  --nav-height: 60px;
+  --touch-target: 44px;
+
+  /* ── Legacy Aliases (backward compat for inline styles) ── */
+  --bg-page: var(--bg-base);
+  --bg-surface: var(--bg-surface-1);
+  --bg-elevated: var(--bg-surface-2);
+  --bg-surface-hover: var(--bg-surface-3);
+  --bg-input: var(--bg-surface-1);
+  --glass-border: var(--border-subtle);
+  --glass-blur: 0px;
+  --glass-highlight: rgba(255, 255, 255, 0.02);
+  --border: var(--border-subtle);
+  --border-light: rgba(255, 255, 255, 0.03);
+  --text-muted: var(--text-tertiary);
+  --accent-light: var(--accent-tint);
+  --accent-dark: var(--accent-dim);
+  --accent-glow: var(--accent-tint);
+  --gradient-accent: var(--accent);
+  --font-sans: var(--font-body);
+  --ease-out: var(--ease-snappy);
+  --ease-spring: var(--ease-snappy);
+  --duration-fast: var(--duration-short);
+  --duration-normal: var(--duration-medium);
+  --duration-slow: var(--duration-long);
+
+  /* Legacy semantic colors mapped to status */
+  --yellow: var(--status-yellow);
+  --yellow-soft: var(--status-yellow-tint);
+  --red: var(--status-red);
+  --red-soft: var(--status-red-tint);
+  --blue: var(--status-blue);
+  --blue-soft: var(--status-blue-tint);
+  --purple: #A78BFA;
+  --purple-soft: rgba(167, 139, 250, 0.12);
+}

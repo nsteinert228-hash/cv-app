@@ -1,4 +1,4 @@
-// Training AI Dashboard — season-based training with workout logging
+// Training AI Dashboard — Home screen with 3-zone layout
 import { isSupabaseConfigured } from './supabase.js';
 import { createAuthUI } from './authUI.js';
 import {
@@ -46,8 +46,7 @@ const generatedAtEl = document.getElementById('generatedAt');
 const regenBtn = document.getElementById('regenBtn');
 const disclaimer = document.getElementById('disclaimer');
 
-const prefsToggle = document.getElementById('prefsToggle');
-const prefsPanel = document.getElementById('prefsPanel');
+// Preferences (now in overflow sheet)
 const prefGoals = document.getElementById('prefGoals');
 const prefExperience = document.getElementById('prefExperience');
 const prefInjuries = document.getElementById('prefInjuries');
@@ -56,6 +55,7 @@ const prefsSaveStatus = document.getElementById('prefsSaveStatus');
 const quickStatsCard = document.getElementById('quickStatsCard');
 const quickStats = document.getElementById('quickStats');
 
+// Legacy hidden elements (kept for compatibility)
 const seasonBanner = document.getElementById('seasonBanner');
 const seasonNameEl = document.getElementById('seasonName');
 const seasonProgressEl = document.getElementById('seasonProgress');
@@ -83,16 +83,44 @@ const obSkipBtn = document.getElementById('obSkipBtn');
 const viewToggle = document.getElementById('viewToggle');
 const prefsCard = document.getElementById('prefsCard');
 
+// New zone elements
+const heroCard = document.getElementById('heroCard');
+const heroCardInner = document.getElementById('heroCardInner');
+const heroTypeTag = document.getElementById('heroTypeTag');
+const heroDuration = document.getElementById('heroDuration');
+const heroTitle = document.getElementById('heroTitle');
+const heroContext = document.getElementById('heroContext');
+const heroStartBtn = document.getElementById('heroStartBtn');
+const zoneWeek = document.getElementById('zoneWeek');
+const zonePlan = document.getElementById('zonePlan');
+const timelineScroll = document.getElementById('timelineScroll');
+const weekTitle = document.getElementById('weekTitle');
+const weekSubtitle = document.getElementById('weekSubtitle');
+const planName = document.getElementById('planName');
+const planMeta = document.getElementById('planMeta');
+const planProgressFillNew = document.getElementById('planProgressFill');
+const planExpandBtn = document.getElementById('planExpandBtn');
+const planDetail = document.getElementById('planDetail');
+
+// Readiness chips
+const chipSleepVal = document.getElementById('chipSleepVal');
+const chipBBVal = document.getElementById('chipBBVal');
+const chipHRVVal = document.getElementById('chipHRVVal');
+const chipSleepDot = document.getElementById('chipSleepDot');
+const chipBBDot = document.getElementById('chipBBDot');
+const chipHRVDot = document.getElementById('chipHRVDot');
+
 // ── State ────────────────────────────────────────────────────
 
-let currentView = 'week'; // will be overridden to 'plan' when season exists
-let viewingWeekNumber = null; // for browsing past weeks
+let currentView = 'week';
+let viewingWeekNumber = null;
 let currentUser = null;
 let activeSeason = null;
 let seasonState = null;
 const viewCache = {};
 let preferences = {};
 let prefSaveTimer = null;
+let readinessData = null;
 
 // ── Auth ─────────────────────────────────────────────────────
 
@@ -108,11 +136,22 @@ authUI.init({
   },
 });
 
-// ── Preferences ──────────────────────────────────────────────
+// ── Overflow Menu ────────────────────────────────────────────
 
-prefsToggle.addEventListener('click', () => {
-  prefsPanel.classList.toggle('visible');
+const overflowBtn = document.getElementById('overflowBtn');
+const overflowBackdrop = document.getElementById('overflowBackdrop');
+
+overflowBtn.addEventListener('click', () => {
+  overflowBackdrop.classList.add('visible');
 });
+
+overflowBackdrop.addEventListener('click', (e) => {
+  if (e.target === overflowBackdrop) {
+    overflowBackdrop.classList.remove('visible');
+  }
+});
+
+// ── Preferences ──────────────────────────────────────────────
 
 function getPrefsFromUI() {
   return {
@@ -150,32 +189,29 @@ prefGoals.addEventListener('change', onPrefChange);
 prefExperience.addEventListener('change', onPrefChange);
 prefInjuries.addEventListener('input', onPrefChange);
 
-// ── View Toggle ──────────────────────────────────────────────
+// ── Plan Expand Toggle ──────────────────────────────────────
 
-document.querySelectorAll('.view-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.view;
-    if (view === currentView) return;
-
-    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentView = view;
-    loadView(view);
-  });
+planExpandBtn.addEventListener('click', () => {
+  const isExpanded = planDetail.classList.contains('visible');
+  planDetail.classList.toggle('visible', !isExpanded);
+  planExpandBtn.classList.toggle('expanded', !isExpanded);
+  planExpandBtn.firstChild.textContent = isExpanded ? 'View Full Plan ' : 'Hide Plan ';
 });
 
 // ── Regenerate ───────────────────────────────────────────────
 
 regenBtn.addEventListener('click', () => {
+  overflowBackdrop.classList.remove('visible');
   delete viewCache[currentView];
-  if (activeSeason && currentView !== 'plan') {
-    checkAdaptations(true).then(() => loadView(currentView));
+  Object.keys(viewCache).forEach(k => delete viewCache[k]);
+  if (activeSeason) {
+    checkAdaptations(true).then(() => loadAllZones());
   } else {
-    loadView(currentView, true);
+    loadAllZones(true);
   }
 });
 
-aiRetryBtn.addEventListener('click', () => { loadView(currentView); });
+aiRetryBtn.addEventListener('click', () => { loadAllZones(); });
 
 // ── Main refresh ─────────────────────────────────────────────
 
@@ -188,7 +224,9 @@ async function refreshDashboard() {
   if (!currentUser) {
     dashboardContent.classList.remove('visible');
     emptyState.style.display = '';
-    seasonBanner.classList.remove('visible');
+    heroCard.style.display = 'none';
+    zoneWeek.style.display = 'none';
+    zonePlan.style.display = 'none';
     return;
   }
 
@@ -197,14 +235,13 @@ async function refreshDashboard() {
 
   const [prefs] = await Promise.all([
     getTrainingPreferences().catch(() => ({})),
-    loadReadinessHero(),
+    loadReadinessChips(),
     loadQuickStats(),
   ]);
 
   preferences = prefs;
   setPrefsUI(prefs);
 
-  // Initialize season
   await loadSeasonState();
 }
 
@@ -226,41 +263,29 @@ async function loadSeasonState() {
       return;
     }
 
-    // Active season — ensure onboarding is hidden and controls visible
+    // Active season — show home zones, hide onboarding
     onboardingBlock.classList.remove('visible');
-    viewToggle.style.display = '';
-    prefsCard.style.display = '';
+    heroCard.style.display = '';
+    zoneWeek.style.display = '';
+    zonePlan.style.display = '';
 
-    // Default to Training Plan view
-    if (currentView === 'week') {
-      currentView = 'plan';
-      document.querySelectorAll('.view-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.view === 'plan');
-      });
-    }
-
-    renderSeasonBanner();
     renderAdaptationFeed(adaptationFeedEl, activeSeason.id);
-    checkAdaptations().catch(() => {}); // background
+    checkAdaptations().catch(() => {});
     initSeasonHistory();
-    loadView(currentView);
+    loadAllZones();
   } catch (err) {
     console.error('Season init error:', err);
-    // Fall back to stateless mode
     activeSeason = null;
     seasonState = null;
-    seasonBanner.classList.remove('visible');
-    loadView(currentView);
+    loadAllZones();
   }
 }
 
 function showSeasonCreationPrompt() {
-  // Hide season-only UI
-  viewToggle.style.display = 'none';
-  prefsCard.style.display = 'none';
-  seasonBanner.classList.remove('visible');
+  heroCard.style.display = 'none';
+  zoneWeek.style.display = 'none';
+  zonePlan.style.display = 'none';
 
-  // Show Plan Builder in the onboarding block
   const planBuilderContainer = document.getElementById('planBuilderContainer');
   if (planBuilderContainer) {
     onboardingBlock.classList.add('visible');
@@ -269,7 +294,6 @@ function showSeasonCreationPrompt() {
     onboardingProgress.classList.remove('visible');
     onboardingError.textContent = '';
 
-    // Hide the old onboarding hero text
     const hero = onboardingBlock.querySelector('.onboarding-hero');
     if (hero) hero.style.display = 'none';
 
@@ -280,8 +304,6 @@ function showSeasonCreationPrompt() {
         planBuilderContainer.style.display = 'none';
         onboardingBlock.classList.remove('visible');
         if (hero) hero.style.display = '';
-        viewToggle.style.display = '';
-        prefsCard.style.display = '';
         await loadSeasonState();
       },
     });
@@ -304,7 +326,6 @@ function showSeasonCreationPrompt() {
 
 if (obGenerateBtn) {
   obGenerateBtn.addEventListener('click', async () => {
-    // Save preferences from onboarding form before creating season
     const obPrefs = {
       goals: obGoals.value || undefined,
       experience: obExperience.value || undefined,
@@ -312,11 +333,8 @@ if (obGenerateBtn) {
     };
     preferences = obPrefs;
     setPrefsUI(obPrefs);
-
-    // Save prefs (non-blocking)
     saveTrainingPreferences(obPrefs).catch(() => {});
 
-    // Show progress
     onboardingPrefs.style.display = 'none';
     onboardingCTA.style.display = 'none';
     onboardingProgress.classList.add('visible');
@@ -325,8 +343,6 @@ if (obGenerateBtn) {
     try {
       await startNewSeason();
       onboardingBlock.classList.remove('visible');
-      viewToggle.style.display = '';
-      prefsCard.style.display = '';
       await loadSeasonState();
     } catch (err) {
       onboardingProgress.classList.remove('visible');
@@ -339,7 +355,6 @@ if (obGenerateBtn) {
 
 if (obSkipBtn) {
   obSkipBtn.addEventListener('click', () => {
-    // Save any preferences they entered
     const obPrefs = {
       goals: obGoals.value || undefined,
       experience: obExperience.value || undefined,
@@ -352,9 +367,9 @@ if (obSkipBtn) {
     }
 
     onboardingBlock.classList.remove('visible');
-    viewToggle.style.display = '';
-    prefsCard.style.display = '';
-    loadView(currentView);
+    heroCard.style.display = '';
+    zoneWeek.style.display = '';
+    loadAllZones();
   });
 }
 
@@ -372,9 +387,8 @@ function showSeasonCompletionPrompt() {
     seasonModalActions.innerHTML = '<div class="loading-spinner" style="margin:0 auto"></div>';
     try {
       const prevId = activeSeason.id;
-      const result = await finishSeason();
+      await finishSeason();
       seasonModal.classList.remove('visible');
-      // Could render a review screen here in the future
       showNewSeasonPrompt(prevId);
     } catch (err) {
       seasonModalText.textContent = `Error: ${err.message}`;
@@ -418,39 +432,14 @@ function showNewSeasonPrompt(previousSeasonId) {
   });
 }
 
-async function renderSeasonBanner() {
-  if (!activeSeason || !seasonState) {
-    seasonBanner.classList.remove('visible');
-    return;
-  }
-
-  const plan = activeSeason.plan_json || {};
-  const phase = getCurrentPhase(plan, seasonState.currentWeek);
-  const phaseLabel = phase ? ` · ${phase.name}` : '';
-
-  seasonNameEl.textContent = activeSeason.name;
-  seasonProgressEl.textContent = `Week ${seasonState.currentWeek} of ${activeSeason.duration_weeks}${phaseLabel} · ${seasonState.daysRemaining} days left`;
-  seasonProgressFill.style.width = `${seasonState.progressPct}%`;
-  seasonBanner.classList.add('visible');
-
-  // Load adherence stats asynchronously
-  try {
-    const logs = await getWorkoutLogsForSeason(activeSeason.id);
-    if (logs.length > 0) {
-      const completed = logs.filter(l => l.status === 'completed').length;
-      const avgAdherence = logs.reduce((s, l) => s + (l.adherence_score || 0), 0) / logs.length;
-      seasonAdherenceEl.textContent = `${completed} logged · ${Math.round(avgAdherence)}% adherence`;
-    }
-  } catch { /* silent */ }
-}
-
 // ── Stop & Restart Season ────────────────────────────────────
 
 stopRestartBtn.addEventListener('click', () => {
   if (!activeSeason) return;
+  overflowBackdrop.classList.remove('visible');
 
   seasonModalTitle.textContent = 'Stop & New Plan?';
-  seasonModalText.textContent = `This will abandon "${activeSeason.name}" and let you build a brand-new training plan from scratch. Your workout logs from this season will be preserved in history. This cannot be undone.`;
+  seasonModalText.textContent = `This will abandon "${activeSeason.name}" and let you build a brand-new training plan from scratch. Your workout logs will be preserved in history.`;
   seasonModalActions.innerHTML = `
     <button class="btn-danger" id="confirmStopRestart">Stop & New Plan</button>
     <button class="btn-ghost" id="cancelStopRestart">Cancel</button>
@@ -471,7 +460,6 @@ stopRestartBtn.addEventListener('click', () => {
       activeSeason = null;
       seasonState = null;
       Object.keys(viewCache).forEach(k => delete viewCache[k]);
-      // loadSeasonState will detect no active season and show the plan builder wizard
       await loadSeasonState();
     } catch (err) {
       seasonModalText.textContent = `Failed: ${err.message}`;
@@ -483,29 +471,38 @@ stopRestartBtn.addEventListener('click', () => {
   });
 });
 
-// ── Readiness Hero Bar ───────────────────────────────────────
+// ── Readiness Chips ──────────────────────────────────────────
 
-async function loadReadinessHero() {
+async function loadReadinessChips() {
   try {
     const r = await getTodayReadiness();
-    document.getElementById('heroSleep').textContent = r.sleep_score ?? '--';
-    document.getElementById('heroBB').textContent = r.body_battery ?? '--';
-    document.getElementById('heroHRV').textContent = r.hrv_value ?? '--';
-    document.getElementById('heroStress').textContent = r.stress_avg ?? '--';
+    readinessData = r;
 
-    const badge = document.getElementById('heroHRVBadge');
-    if (r.hrv_status) {
-      badge.textContent = r.hrv_status;
-      badge.style.display = '';
-      badge.className = 'hm-badge';
-      const cls = r.hrv_status.toLowerCase();
-      if (cls === 'balanced') badge.classList.add('badge-green');
-      else if (cls === 'low' || cls === 'unbalanced') badge.classList.add('badge-yellow');
-      else if (cls === 'high') badge.classList.add('badge-blue');
-      else badge.classList.add('badge-green');
-    }
+    chipSleepVal.textContent = r.sleep_score ?? '--';
+    chipBBVal.textContent = r.body_battery ?? '--';
+    chipHRVVal.textContent = r.hrv_status || (r.hrv_value ?? '--');
+
+    // Color dots based on values
+    const sleepScore = r.sleep_score || 0;
+    chipSleepDot.className = `readiness-chip-dot ${sleepScore >= 70 ? 'green' : sleepScore >= 50 ? 'yellow' : 'red'}`;
+
+    const bb = r.body_battery || 0;
+    chipBBDot.className = `readiness-chip-dot ${bb >= 60 ? 'green' : bb >= 30 ? 'yellow' : 'red'}`;
+
+    const hrvStatus = (r.hrv_status || '').toLowerCase();
+    chipHRVDot.className = `readiness-chip-dot ${hrvStatus === 'balanced' || hrvStatus === 'high' ? 'green' : hrvStatus === 'low' || hrvStatus === 'unbalanced' ? 'yellow' : 'green'}`;
+
+    // Also populate hidden legacy elements
+    const heroSleep = document.getElementById('heroSleep');
+    const heroBB = document.getElementById('heroBB');
+    const heroHRV = document.getElementById('heroHRV');
+    const heroStress = document.getElementById('heroStress');
+    if (heroSleep) heroSleep.textContent = r.sleep_score ?? '--';
+    if (heroBB) heroBB.textContent = r.body_battery ?? '--';
+    if (heroHRV) heroHRV.textContent = r.hrv_value ?? '--';
+    if (heroStress) heroStress.textContent = r.stress_avg ?? '--';
   } catch (err) {
-    console.error('Readiness hero error:', err);
+    console.error('Readiness chips error:', err);
   }
 }
 
@@ -531,40 +528,38 @@ async function loadQuickStats() {
   }
 }
 
-// ── View Loading ─────────────────────────────────────────────
+// ── Load All Zones ───────────────────────────────────────────
+
+const TYPE_ICONS = {
+  strength: 'STR',
+  cardio: 'CRD',
+  recovery: 'REC',
+  mixed: 'MIX',
+  rest: 'REST',
+};
 
 const CACHE_TTL = 5 * 60 * 1000;
 
-async function loadView(view, force = false) {
-  if (!force && viewCache[view] && (Date.now() - viewCache[view].fetchedAt) < CACHE_TTL) {
-    renderView(view, viewCache[view].data);
-    return;
-  }
-
+async function loadAllZones(force = false) {
   showLoading();
 
   try {
     if (activeSeason) {
-      await loadSeasonView(view);
+      await loadSeasonZones(force);
     } else {
-      // Fallback: stateless mode
-      if (view === 'week') {
-        const [weekData, todayData] = await Promise.all([
-          getTrainingRecommendation('week', preferences, force),
-          getTrainingRecommendation('today', preferences, force),
-        ]);
-        weekData._todayData = todayData;
-        viewCache[view] = { data: weekData, fetchedAt: Date.now() };
-        renderView(view, weekData);
-      } else {
-        const data = await getTrainingRecommendation(view, preferences, force);
-        viewCache[view] = { data, fetchedAt: Date.now() };
-        renderView(view, data);
-      }
+      // Stateless fallback
+      const [weekData, todayData] = await Promise.all([
+        getTrainingRecommendation('week', preferences, force),
+        getTrainingRecommendation('today', preferences, force),
+      ]);
+      weekData._todayData = todayData;
+      renderHeroZone(todayData);
+      renderTimelineZone(weekData);
+      hideLoading();
     }
   } catch (err) {
-    console.error('View load error:', err);
-    hideAllContent();
+    console.error('Zone load error:', err);
+    hideLoading();
     const isNetworkError = err instanceof TypeError &&
       (err.message === 'Load failed' || err.message === 'Failed to fetch');
     const message = isNetworkError
@@ -575,520 +570,251 @@ async function loadView(view, force = false) {
   }
 }
 
-function normalizePrescription(rx) {
-  if (!rx) return { warmup: null, main_workout: [], cooldown: null };
-
-  // Handle warmup: array of strings → { activities: [...] }
-  const warmup = Array.isArray(rx.warmup)
-    ? { duration_minutes: 5, activities: rx.warmup }
-    : rx.warmup || null;
-
-  // Handle exercises vs main_workout
-  const main_workout = rx.exercises || rx.main_workout || [];
-
-  // Handle cooldown: array of strings → { activities: [...] }
-  const cooldown = Array.isArray(rx.cooldown)
-    ? { duration_minutes: 5, activities: rx.cooldown }
-    : rx.cooldown || null;
-
-  return { warmup, main_workout, cooldown };
-}
-
-function computeWeekStats(workouts) {
-  const activeDays = workouts.filter(w => w.workout_type !== 'rest').length;
-  const totalMin = workouts.reduce((s, w) => s + (w.duration_minutes || 0), 0);
-  const typeCounts = {};
-  for (const w of workouts) {
-    if (w.workout_type !== 'rest') {
-      typeCounts[w.workout_type] = (typeCounts[w.workout_type] || 0) + 1;
-    }
-  }
-  return { activeDays, totalMin, typeCounts };
-}
-
-function getCurrentPhase(plan, currentWeek) {
-  const phases = plan.phases || [];
-  for (const p of phases) {
-    const weeks = p.weeks || [p.week];
-    if (weeks.includes(currentWeek)) return p;
-  }
-  return phases[0] || null;
-}
-
-function dayNameFromDate(dateStr) {
-  const NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const d = new Date(dateStr + 'T00:00:00');
-  return NAMES[d.getDay()];
-}
-
-async function loadSeasonView(view) {
+async function loadSeasonZones(force) {
   const plan = activeSeason.plan_json || {};
+  const today = new Date().toISOString().split('T')[0];
 
-  if (view === 'week') {
-    // Use the new weekly view component
-    const weekContainer = document.getElementById('contentWeek');
-    hideAllContent();
-    weekContainer.classList.add('visible');
-    controlsBar.style.display = '';
-    disclaimer.style.display = '';
-    generatedAtEl.textContent = `Season plan · Week ${seasonState?.currentWeek || '?'}`;
+  // Load this week's workouts + logs in parallel
+  const [weekWorkouts, allLogs] = await Promise.all([
+    getWeekWorkoutsByWeekNumber(activeSeason.id, seasonState.currentWeek),
+    getWorkoutLogsForSeason(activeSeason.id),
+  ]);
 
-    await renderWeeklyView(weekContainer, {
-      season: activeSeason,
-      seasonState,
-      onWeekChange: async (weekNum) => {
-        await renderWeekByNumber(weekContainer, weekNum, {
-          season: activeSeason,
-          seasonState,
-          onWeekChange: async (wn) => {
-            await renderWeekByNumber(weekContainer, wn, {
-              season: activeSeason,
-              seasonState,
-              onWeekChange: null,
-            });
-          },
-        });
-      },
-    });
-    return;
+  const logMap = new Map(allLogs.map(l => [l.workout_id, l]));
+  const todayWorkout = weekWorkouts.find(w => w.date === today);
 
-  } else if (view === 'plan') {
-    const allWorkouts = await getSeasonWorkouts(activeSeason.id);
-
-    // Build per-phase data from actual workout rows
-    const enrichedPhases = (plan.phases || []).map(p => {
-      const weeks = p.weeks || [p.week];
-      const phaseWorkouts = allWorkouts.filter(w => weeks.includes(w.week_number));
-      const activeWorkouts = phaseWorkouts.filter(w => w.workout_type !== 'rest');
-      const activePerWeek = activeWorkouts.length / (weeks.length || 1);
-
-      // Type distribution
-      const typeCounts = {};
-      for (const w of activeWorkouts) {
-        typeCounts[w.workout_type] = (typeCounts[w.workout_type] || 0) + 1;
-      }
-      const typeSummary = Object.entries(typeCounts)
-        .map(([t, c]) => `${Math.round(c / (weeks.length || 1))}x ${t}`)
-        .join(', ');
-
-      // Weekly schedule from first week in phase
-      const firstWeek = weeks[0];
-      const scheduleWorkouts = phaseWorkouts
-        .filter(w => w.week_number === firstWeek)
-        .sort((a, b) => a.day_of_week - b.day_of_week);
-
-      const weeklySchedule = scheduleWorkouts.map(w => ({
-        day: dayNameFromDate(w.date),
-        dayShort: dayNameFromDate(w.date).slice(0, 3),
-        title: w.title,
-        type: w.workout_type,
-        intensity: w.intensity,
-        duration: w.duration_minutes,
-      }));
-
-      // Key exercises (unique, across all workouts in phase)
-      const allExercises = new Set();
-      for (const w of activeWorkouts) {
-        const rx = w.prescription_json || {};
-        const exList = rx.exercises || rx.main_workout || [];
-        for (const ex of exList) {
-          if (ex.exercise) allExercises.add(ex.exercise);
-        }
-      }
-      const keyExercises = [...allExercises].slice(0, 8);
-
-      // Total volume
-      const totalMin = phaseWorkouts.reduce((s, w) => s + (w.duration_minutes || 0), 0);
-
-      return {
-        ...p,
-        sessions_per_week: Math.round(activePerWeek),
-        type_summary: typeSummary,
-        key_workouts: p.key_workouts || weeklySchedule.filter(w => w.type !== 'rest').map(w => w.title),
-        weekly_schedule: weeklySchedule,
-        key_exercises: keyExercises,
-        total_minutes: totalMin,
-        total_sessions: activeWorkouts.length,
-      };
-    });
-
-    // Season-level stats
-    const totalActive = allWorkouts.filter(w => w.workout_type !== 'rest').length;
-    const totalMinutes = allWorkouts.reduce((s, w) => s + (w.duration_minutes || 0), 0);
-
-    const data = {
-      view: 'plan',
-      _from_season: true,
-      plan_name: activeSeason.name,
-      plan_summary: plan.summary || '',
-      current_assessment: plan.current_assessment || {},
-      phases: enrichedPhases,
-      principles: plan.principles || [],
-      milestones: plan.milestones || [],
-      season_stats: {
-        total_sessions: totalActive,
-        total_minutes: totalMinutes,
-        duration_weeks: activeSeason.duration_weeks,
-      },
-    };
-
-    viewCache[view] = { data, fetchedAt: Date.now() };
-    renderView(view, data);
+  // Render Hero (today's workout)
+  if (todayWorkout) {
+    renderSeasonHero(todayWorkout, logMap.get(todayWorkout.id));
+  } else {
+    renderRestDayHero();
   }
-}
 
-async function loadWeekByNumber(weekNumber) {
-  if (!activeSeason) return;
-  showLoading();
+  // Render Timeline (this week)
+  renderSeasonTimeline(weekWorkouts, logMap, today);
 
-  try {
-    const plan = activeSeason.plan_json || {};
-    const workouts = await getWeekWorkoutsByWeekNumber(activeSeason.id, weekNumber);
-    const logs = await getWorkoutLogsForSeason(activeSeason.id);
-    const logMap = new Map(logs.map(l => [l.workout_id, l]));
-    const today = new Date().toISOString().split('T')[0];
-    const phase = getCurrentPhase(plan, weekNumber);
-    const weekStats = computeWeekStats(workouts);
+  // Render Plan overview
+  renderPlanOverview(plan);
 
-    const weekLogs = workouts.map(w => logMap.get(w.id)).filter(Boolean);
-    const completedCount = weekLogs.filter(l => l.status === 'completed').length;
-    const loadLabel = weekStats.activeDays >= 6 ? 'High' : weekStats.activeDays >= 4 ? 'Moderate' : 'Low';
-    const typeLabels = Object.entries(weekStats.typeCounts).map(([t, c]) => `${c}x ${t}`).join(', ');
-
-    const data = {
-      view: 'week',
-      _from_season: true,
-      _weekNumber: weekNumber,
-      weekly_summary: phase
-        ? `Week ${weekNumber} · ${phase.name} — ${phase.focus || ''}`
-        : `Week ${weekNumber} of ${activeSeason.name}`,
-      training_load_assessment: {
-        recent_load: loadLabel,
-        trend: phase ? phase.intensity_range || '--' : '--',
-        phase_name: phase ? phase.name : '--',
-        total_minutes: weekStats.totalMin,
-        active_days: weekStats.activeDays,
-      },
-      days: workouts.map(w => {
-        const log = logMap.get(w.id);
-        const rx = w.prescription_json || {};
-        const exercises = rx.exercises || rx.main_workout || [];
-        const exercisePreview = exercises.slice(0, 3).map(e => e.exercise).filter(Boolean);
-        return {
-          date: w.date,
-          day_name: dayNameFromDate(w.date),
-          type: w.workout_type,
-          title: w.title,
-          intensity: w.intensity,
-          duration_minutes: w.duration_minutes,
-          focus: rx.description || '',
-          exercisePreview,
-          is_today: w.date === today,
-          _log: log || null,
-          _is_adapted: w.is_adapted,
-          _workout_id: w.id,
-        };
-      }),
-      weekly_goals: [
-        { metric: 'Active Days', target: `${weekStats.activeDays} sessions (${typeLabels || 'rest week'})` },
-        { metric: 'Training Volume', target: `${weekStats.totalMin} minutes total` },
-        ...(completedCount > 0 ? [{ metric: 'Progress', target: `${completedCount} of ${weekStats.activeDays} completed` }] : []),
-        ...(phase && phase.focus ? [{ metric: 'Phase Focus', target: phase.focus }] : []),
-      ],
-      alerts: [],
-      _todayData: (weekNumber === seasonState.currentWeek && viewCache['week']?.data?._todayData) || null,
-    };
-
-    // Clean up previous week nav
-    const existingNav = document.querySelector('#weekNavContainer');
-    if (existingNav) existingNav.remove();
-
-    renderView('week', data);
-  } catch (err) {
-    console.error('Week load error:', err);
-  }
-}
-
-function showLoading() {
-  hideAllContent();
-  aiLoading.classList.add('visible');
-}
-
-function hideAllContent() {
-  aiLoading.classList.remove('visible');
-  aiError.classList.remove('visible');
-  document.getElementById('contentWeek').classList.remove('visible');
-  document.getElementById('contentPlan').classList.remove('visible');
-  controlsBar.style.display = 'none';
-  disclaimer.style.display = 'none';
-}
-
-function renderView(view, data) {
-  hideAllContent();
-
-  if (view === 'week') renderWeek(data);
-  else if (view === 'plan') renderPlan(data);
+  hideLoading();
 
   controlsBar.style.display = '';
   disclaimer.style.display = '';
-
-  if (data._from_season) {
-    generatedAtEl.textContent = `Season plan · Week ${seasonState?.currentWeek || '?'}`;
-  } else {
-    const genAt = data._generated_at;
-    if (genAt) {
-      const mins = Math.round((Date.now() - new Date(genAt).getTime()) / 60000);
-      generatedAtEl.textContent = mins < 1 ? 'Generated just now' : `Generated ${mins} min ago`;
-      if (data._cached) generatedAtEl.textContent += ' (cached)';
-    }
-  }
+  generatedAtEl.textContent = `Season plan · Week ${seasonState?.currentWeek || '?'}`;
 }
 
-// ── Render: Today Section (within Week view) ─────────────────
-
-function renderTodaySection(data) {
-  const ra = data.readiness_assessment || {};
-  const banner = document.getElementById('todayReadinessBanner');
-  banner.className = `readiness-banner ${ra.level || 'moderate'}`;
-  document.getElementById('todayReadinessLevel').textContent = `${ra.level || 'moderate'} readiness`;
-  document.getElementById('todayReadinessSummary').textContent = ra.summary || '';
-
-  const factors = document.getElementById('todayReadinessFactors');
-  factors.innerHTML = (ra.key_factors || []).map(f =>
-    `<span class="readiness-factor">${esc(f)}</span>`
-  ).join('');
-
-  const rec = data.recommendation || {};
-  document.getElementById('todayWorkoutTitle').textContent = rec.title || 'No recommendation';
-
-  const badge = document.getElementById('todayIntensityBadge');
-  badge.textContent = rec.intensity || '--';
-  badge.className = `workout-badge ${rec.intensity || 'moderate'}`;
-
-  document.getElementById('todayDuration').textContent = rec.duration_minutes ? `${rec.duration_minutes} min` : '';
-  document.getElementById('todayWorkoutDesc').textContent = rec.description || '';
-
-  const warmup = rec.warmup;
-  const warmupSection = document.getElementById('todayWarmup');
-  if (warmup && warmup.activities && warmup.activities.length) {
-    warmupSection.style.display = '';
-    document.getElementById('todayWarmupItems').textContent =
-      `${warmup.duration_minutes || 5} min — ${warmup.activities.join(', ')}`;
-  } else {
-    warmupSection.style.display = 'none';
-  }
-
-  const tbody = document.getElementById('todayExerciseBody');
-  const exercises = rec.main_workout || [];
-  tbody.innerHTML = exercises.map(ex => `
-    <tr>
-      <td>${esc(ex.exercise)}${ex.notes ? `<span class="exercise-notes">${esc(ex.notes)}</span>` : ''}</td>
-      <td>${ex.sets || '--'}</td>
-      <td>${esc(String(ex.reps || '--'))}</td>
-      <td>${ex.rest_seconds ? `${ex.rest_seconds}s` : '--'}</td>
-    </tr>
-  `).join('');
-
-  const cooldown = rec.cooldown;
-  const cooldownSection = document.getElementById('todayCooldown');
-  if (cooldown && cooldown.activities && cooldown.activities.length) {
-    cooldownSection.style.display = '';
-    document.getElementById('todayCooldownItems').textContent =
-      `${cooldown.duration_minutes || 5} min — ${cooldown.activities.join(', ')}`;
-  } else {
-    cooldownSection.style.display = 'none';
-  }
-
-  renderAlerts('todayAlerts', data.alerts);
-
-  const nutCard = document.getElementById('todayNutrition');
-  if (data.nutrition_tip) {
-    nutCard.style.display = '';
-    document.getElementById('todayNutritionText').textContent = data.nutrition_tip;
-  } else {
-    nutCard.style.display = 'none';
-  }
-
-  // Workout logger (season mode only)
-  const loggerContainer = document.getElementById('workoutLoggerContainer');
-  if (data._from_season && data._workout) {
-    renderWorkoutConfirmation(loggerContainer, data._workout);
-  } else {
-    loggerContainer.innerHTML = '';
-  }
+function showLoading() {
+  aiError.classList.remove('visible');
+  aiLoading.classList.add('visible');
 }
 
-// ── Render: Week ─────────────────────────────────────────────
+function hideLoading() {
+  aiLoading.classList.remove('visible');
+}
 
-const TYPE_ICONS = {
-  strength: 'STR',
-  cardio: 'CRD',
-  recovery: 'REC',
-  mixed: 'MIX',
-  rest: 'REST',
-};
+// ── Zone 1: Hero Card ────────────────────────────────────────
 
-function renderWeek(data) {
-  const container = document.getElementById('contentWeek');
+function renderSeasonHero(workout, log) {
+  const rx = workout.prescription_json || {};
+  const typeAbbr = TYPE_ICONS[workout.workout_type] || workout.workout_type?.toUpperCase()?.slice(0, 3) || '---';
 
-  // Render today's workout section
-  const todaySection = document.getElementById('todaySection');
-  const td = data._todayData;
-  if (td) {
-    todaySection.style.display = '';
-    renderTodaySection(td);
-  } else {
-    todaySection.style.display = 'none';
-  }
+  heroTypeTag.textContent = typeAbbr;
+  heroDuration.innerHTML = workout.duration_minutes ? `${workout.duration_minutes}<span>m</span>` : '--<span>m</span>';
+  heroTitle.textContent = workout.title || 'Today\'s Workout';
 
-  document.getElementById('weekSummary').textContent = data.weekly_summary || '';
-
-  const tla = data.training_load_assessment || {};
-  document.getElementById('weekLoad').textContent = tla.recent_load || '--';
-  document.getElementById('weekTrend').textContent = tla.trend || '--';
-  document.getElementById('weekPhase').textContent = tla.phase_name || '--';
-
-  // Week navigation for browsing past weeks
-  const weekNavHtml = (activeSeason && seasonState) ? `
-    <div class="week-nav">
-      <div class="week-nav-label">Week ${data._weekNumber || seasonState.currentWeek} of ${activeSeason.duration_weeks}</div>
-      <div class="week-nav-btns">
-        <button class="week-nav-btn" id="weekPrevBtn" ${(data._weekNumber || seasonState.currentWeek) <= 1 ? 'disabled' : ''}>&larr; Prev</button>
-        <button class="week-nav-btn" id="weekNextBtn" ${(data._weekNumber || seasonState.currentWeek) >= seasonState.currentWeek ? 'disabled' : ''}>Next &rarr;</button>
-      </div>
-    </div>
-  ` : '';
-
-  const cal = document.getElementById('weekCalendar');
-  const today = new Date().toISOString().split('T')[0];
-
-  // Insert week nav before calendar (replace any previous)
-  let navContainer = container.querySelector('#weekNavContainer');
-  if (!navContainer) {
-    navContainer = document.createElement('div');
-    navContainer.id = 'weekNavContainer';
-    cal.parentElement.insertBefore(navContainer, cal);
-  }
-  navContainer.innerHTML = weekNavHtml;
-
-  cal.innerHTML = (data.days || []).map((d, idx) => {
-    const isPast = d.date < today;
-    const isToday = d.date === today || d.is_today;
-
-    let logBadge = '';
-    if (data._from_season && !data._isUpcoming) {
-      if (d._log) {
-        const cls = d._log.status === 'completed' ? 'done' : d._log.status === 'skipped' ? 'skipped' : 'partial';
-        logBadge = `<div class="day-log-badge ${cls}">${d._log.status}${d._log.adherence_score != null ? ` ${Math.round(d._log.adherence_score)}%` : ''}</div>`;
-      } else if (isPast && !isToday) {
-        logBadge = '<div class="day-log-badge pending">not logged</div>';
-      }
+  // Build context string from readiness data
+  let context = rx.description || '';
+  if (readinessData) {
+    const parts = [];
+    if (readinessData.sleep_score) parts.push(`${readinessData.sleep_score} sleep score`);
+    if (readinessData.hrv_status) parts.push(`${readinessData.hrv_status.toLowerCase()} HRV`);
+    if (parts.length) {
+      context = `Your ${parts.join(' and ')} suggest ${(workout.intensity || 'moderate').toLowerCase()} effort today.`;
     }
+  }
+  heroContext.textContent = context;
 
-    // Exercise preview for non-rest days
-    const previewHtml = (d.exercisePreview && d.exercisePreview.length)
-      ? `<div class="day-exercises">${d.exercisePreview.map(e => `<span class="day-ex-pill">${esc(e)}</span>`).join('')}</div>`
-      : '';
+  // Start button behavior
+  if (log && log.status === 'completed') {
+    heroStartBtn.textContent = 'Completed ✓';
+    heroStartBtn.style.background = 'var(--status-green)';
+    heroStartBtn.style.boxShadow = '0 0 20px rgba(74, 222, 128, 0.2)';
+    heroStartBtn.disabled = true;
+  } else {
+    heroStartBtn.innerHTML = 'Start Workout <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>';
+    heroStartBtn.style.background = '';
+    heroStartBtn.style.boxShadow = '';
+    heroStartBtn.disabled = false;
+  }
+
+  // Click opens day detail
+  heroStartBtn.onclick = () => {
+    if (!heroStartBtn.disabled) {
+      openDayDetail(workout, getDayDetailContext());
+    }
+  };
+
+  heroCard.style.display = '';
+}
+
+function renderHeroZone(todayData) {
+  if (!todayData || !todayData.recommendation) {
+    renderRestDayHero();
+    return;
+  }
+
+  const rec = todayData.recommendation;
+  const typeAbbr = TYPE_ICONS[rec.type] || rec.type?.toUpperCase()?.slice(0, 3) || '---';
+
+  heroTypeTag.textContent = typeAbbr;
+  heroDuration.innerHTML = rec.duration_minutes ? `${rec.duration_minutes}<span>m</span>` : '--<span>m</span>';
+  heroTitle.textContent = rec.title || 'Today\'s Workout';
+
+  let context = rec.description || '';
+  if (readinessData && readinessData.sleep_score) {
+    const parts = [];
+    if (readinessData.sleep_score) parts.push(`${readinessData.sleep_score} sleep score`);
+    if (readinessData.hrv_status) parts.push(`${readinessData.hrv_status.toLowerCase()} HRV`);
+    if (parts.length) {
+      context = `Your ${parts.join(' and ')} suggest ${(rec.intensity || 'moderate').toLowerCase()} effort today.`;
+    }
+  }
+  heroContext.textContent = context;
+  heroCard.style.display = '';
+}
+
+function renderRestDayHero() {
+  heroTypeTag.textContent = 'REST';
+  heroDuration.innerHTML = '--<span>m</span>';
+  heroTitle.textContent = 'Rest Day';
+
+  let context = 'Recovery is part of the plan. Let your body adapt.';
+  if (readinessData && readinessData.body_battery) {
+    context = `Body battery at ${readinessData.body_battery}. Focus on recovery and mobility today.`;
+  }
+  heroContext.textContent = context;
+
+  heroStartBtn.innerHTML = 'Rest Day';
+  heroStartBtn.style.background = 'var(--bg-surface-3)';
+  heroStartBtn.style.boxShadow = 'none';
+  heroStartBtn.style.color = 'var(--text-secondary)';
+  heroStartBtn.disabled = true;
+  heroCard.style.display = '';
+}
+
+// ── Zone 2: Timeline ─────────────────────────────────────────
+
+function renderSeasonTimeline(workouts, logMap, today) {
+  const phase = getCurrentPhase(activeSeason.plan_json || {}, seasonState.currentWeek);
+  weekTitle.textContent = `Week ${seasonState.currentWeek}`;
+  weekSubtitle.textContent = phase ? phase.name : '';
+
+  const dayAbbrs = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+  timelineScroll.innerHTML = workouts.map((w, idx) => {
+    const d = new Date(w.date + 'T00:00:00');
+    const abbr = dayAbbrs[d.getDay()];
+    const isToday = w.date === today;
+    const isPast = w.date < today;
+    const log = logMap.get(w.id);
+    const isCompleted = log && log.status === 'completed';
+    const typeAbbr = TYPE_ICONS[w.workout_type] || '—';
+
+    let statusHtml = '';
+    if (isCompleted) {
+      statusHtml = '<span class="tl-day-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>';
+    } else if (w.duration_minutes) {
+      statusHtml = `<span class="tl-day-dur">${w.duration_minutes}m</span>`;
+    }
 
     return `
-      <div class="day-card${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}" data-day-index="${idx}" style="cursor:pointer">
-        <div class="day-name">${esc(d.day_name || '')}</div>
-        <div class="day-date">${esc(d.date || '')}</div>
-        <div class="day-type-icon">${TYPE_ICONS[d.type] || '—'}</div>
-        <div class="day-title">${esc(d.title || '')}</div>
-        <div class="day-focus">${esc(d.focus || '')}</div>
-        ${previewHtml}
-        <div class="day-intensity-bar ${d.intensity || 'moderate'}"></div>
-        <div class="day-duration">${d.duration_minutes ? `${d.duration_minutes} min` : ''}</div>
-        ${d._is_adapted ? '<div class="day-log-badge" style="background:#dbeafe;color:#1e40af">adapted</div>' : ''}
-        ${logBadge}
+      <div class="tl-day${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}" data-workout-id="${w.id}" data-day-idx="${idx}">
+        <span class="tl-day-abbr">${abbr}</span>
+        <span class="tl-day-type">${typeAbbr}</span>
+        ${statusHtml}
       </div>
     `;
   }).join('');
 
+  // Scroll today into view
+  requestAnimationFrame(() => {
+    const todayCard = timelineScroll.querySelector('.tl-day.is-today');
+    if (todayCard) {
+      todayCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  });
+
   // Day card click → open day detail
-  cal.querySelectorAll('.day-card').forEach(card => {
+  timelineScroll.querySelectorAll('.tl-day').forEach(card => {
     card.addEventListener('click', async () => {
-      const idx = parseInt(card.dataset.dayIndex);
-      const dayData = (data.days || [])[idx];
-      if (!dayData || !dayData._workout_id) return;
-
-      // Fetch the full workout from the season
-      try {
-        const { getSupabaseClient } = await import('./supabase.js');
-        const client = getSupabaseClient();
-        if (!client) return;
-        const { data: workout } = await client
-          .from('season_workouts')
-          .select('*')
-          .eq('id', dayData._workout_id)
-          .single();
-
-        if (workout) openDayDetail(workout, getDayDetailContext());
-      } catch (err) {
-        console.error('Day detail fetch error:', err);
-      }
+      const idx = parseInt(card.dataset.dayIdx);
+      const workout = workouts[idx];
+      if (!workout) return;
+      openDayDetail(workout, getDayDetailContext());
     });
   });
 
-  // Week navigation handlers
-  const prevBtn = container.querySelector('#weekPrevBtn');
-  const nextBtn = container.querySelector('#weekNextBtn');
-  if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
-      const targetWeek = (data._weekNumber || seasonState.currentWeek) - 1;
-      if (targetWeek >= 1) loadWeekByNumber(targetWeek);
-    });
-  }
-  if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
-      const targetWeek = (data._weekNumber || seasonState.currentWeek) + 1;
-      if (targetWeek <= seasonState.currentWeek) loadWeekByNumber(targetWeek);
-    });
-  }
-
-  const goalsCard = document.getElementById('weekGoalsCard');
-  const goalsList = document.getElementById('weekGoalsList');
-  if (data.weekly_goals && data.weekly_goals.length) {
-    goalsCard.style.display = '';
-    goalsList.innerHTML = data.weekly_goals.map(g => `
-      <li>
-        <div class="goal-check"></div>
-        <span><span class="goal-metric">${esc(g.metric)}</span> — ${esc(g.target)}</span>
-      </li>
-    `).join('');
-  } else {
-    goalsCard.style.display = 'none';
-  }
-
-  renderAlerts('weekAlerts', data.alerts);
-  container.classList.add('visible');
+  zoneWeek.style.display = '';
 }
 
-// ── Render: Plan ─────────────────────────────────────────────
+function renderTimelineZone(weekData) {
+  const days = weekData.days || [];
+  const today = new Date().toISOString().split('T')[0];
+  weekTitle.textContent = 'This Week';
+  weekSubtitle.textContent = weekData.weekly_summary || '';
 
-function renderPlan(data) {
-  const container = document.getElementById('contentPlan');
+  timelineScroll.innerHTML = days.map((d, idx) => {
+    const isToday = d.date === today || d.is_today;
+    const isPast = d.date < today && !isToday;
+    const typeAbbr = TYPE_ICONS[d.type] || '—';
 
-  document.getElementById('planName').textContent = data.plan_name || 'Training Plan';
-  document.getElementById('planSummary').textContent = data.plan_summary || '';
+    return `
+      <div class="tl-day${isToday ? ' is-today' : ''}${isPast ? ' is-past' : ''}" data-day-idx="${idx}">
+        <span class="tl-day-abbr">${(d.day_name || '').slice(0, 3).toUpperCase()}</span>
+        <span class="tl-day-type">${typeAbbr}</span>
+        ${d.duration_minutes ? `<span class="tl-day-dur">${d.duration_minutes}m</span>` : ''}
+      </div>
+    `;
+  }).join('');
 
-  // Season overview stats
-  const ss = data.season_stats || {};
+  requestAnimationFrame(() => {
+    const todayCard = timelineScroll.querySelector('.tl-day.is-today');
+    if (todayCard) todayCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  });
+
+  zoneWeek.style.display = '';
+}
+
+// ── Zone 3: Plan Overview ────────────────────────────────────
+
+function renderPlanOverview(plan) {
+  if (!activeSeason || !plan) {
+    zonePlan.style.display = 'none';
+    return;
+  }
+
+  planName.textContent = activeSeason.name || 'Training Plan';
+  planMeta.textContent = `Week ${seasonState.currentWeek} of ${activeSeason.duration_weeks} · ${seasonState.daysRemaining} days left`;
+  planProgressFillNew.style.width = `${seasonState.progressPct}%`;
+
+  // Fill plan detail content
+  const planSummaryEl = document.getElementById('planSummary');
+  planSummaryEl.textContent = plan.summary || '';
+
+  // Season stats
   const overviewEl = document.getElementById('planOverview');
-  if (overviewEl && ss.total_sessions) {
-    overviewEl.style.display = '';
+  if (overviewEl) {
+    overviewEl.style.display = 'flex';
     overviewEl.innerHTML = `
-      <div class="plan-stat"><div class="plan-stat-val">${ss.duration_weeks}</div><div class="plan-stat-label">Weeks</div></div>
-      <div class="plan-stat"><div class="plan-stat-val">${ss.total_sessions}</div><div class="plan-stat-label">Workouts</div></div>
-      <div class="plan-stat"><div class="plan-stat-val">${Math.round(ss.total_minutes / 60)}h</div><div class="plan-stat-label">Total Time</div></div>
-      <div class="plan-stat"><div class="plan-stat-val">${(data.phases || []).length}</div><div class="plan-stat-label">Phases</div></div>
+      <div class="plan-stat"><div class="plan-stat-val">${activeSeason.duration_weeks}</div><div class="plan-stat-label">Weeks</div></div>
+      <div class="plan-stat"><div class="plan-stat-val">${(plan.phases || []).length}</div><div class="plan-stat-label">Phases</div></div>
     `;
   }
 
-  const ca = data.current_assessment || {};
-  const grid = document.getElementById('planAssessment');
-  grid.innerHTML = `
+  // Assessment
+  const ca = plan.current_assessment || {};
+  const assessGrid = document.getElementById('planAssessment');
+  assessGrid.innerHTML = `
     <div class="assessment-item">
       <div class="assessment-label">Fitness Level</div>
       <div class="assessment-pills"><span class="assessment-pill">${esc(ca.fitness_level || '--')}</span></div>
@@ -1107,81 +833,65 @@ function renderPlan(data) {
     </div>
   `;
 
-  const timeline = document.getElementById('planTimeline');
+  // Phase timeline
   const currentWeek = seasonState?.currentWeek || 1;
-  timeline.innerHTML = (data.phases || []).map((p) => {
+  const timeline = document.getElementById('planTimeline');
+  timeline.innerHTML = (plan.phases || []).map((p) => {
     const weeks = p.weeks || [p.week];
     const isCurrent = weeks.some(w => w === currentWeek);
-    const sessionsText = p.sessions_per_week ? `${p.sessions_per_week} sessions/week` : '';
-    const detailParts = [p.intensity_range, sessionsText, p.type_summary].filter(Boolean).join(' · ');
-
-    // Weekly schedule mini-table
-    const schedule = p.weekly_schedule || [];
-    const scheduleHtml = schedule.length ? `
-      <div class="phase-schedule">
-        ${schedule.map(s => `
-          <div class="phase-sched-day">
-            <span class="phase-sched-label">${esc(s.dayShort)}</span>
-            <span class="phase-sched-type ${s.type}">${TYPE_ICONS[s.type] || ''}</span>
-            <span class="phase-sched-title">${esc(s.title)}</span>
-            ${s.duration ? `<span class="phase-sched-dur">${s.duration}m</span>` : ''}
-          </div>
-        `).join('')}
-      </div>
-    ` : '';
-
-    // Key exercises
-    const exercisesHtml = (p.key_exercises && p.key_exercises.length) ? `
-      <div class="phase-exercises">
-        <span class="phase-ex-label">Key exercises:</span>
-        ${p.key_exercises.map(e => `<span class="phase-ex-pill">${esc(e)}</span>`).join('')}
-      </div>
-    ` : '';
 
     return `
       <div class="phase-node${isCurrent ? ' current' : ''}">
         <div class="phase-week">Week${weeks.length > 1 ? 's' : ''} ${weeks.join('-')}${isCurrent ? ' (current)' : ''}</div>
         <div class="phase-name-text">${esc(p.name || '')}</div>
         <div class="phase-focus">${esc(p.focus || '')}</div>
-        ${detailParts ? `<div class="phase-details">${esc(detailParts)}</div>` : ''}
-        ${scheduleHtml}
-        ${exercisesHtml}
       </div>
     `;
   }).join('');
 
-  const principlesCard = document.getElementById('planPrinciplesCard');
+  // Principles
   const principlesList = document.getElementById('planPrinciples');
-  if (data.principles && data.principles.length) {
-    principlesCard.style.display = '';
-    principlesList.innerHTML = data.principles.map(p => `<li>${esc(p)}</li>`).join('');
-  } else {
-    principlesCard.style.display = 'none';
+  if (plan.principles && plan.principles.length) {
+    principlesList.style.display = '';
+    principlesList.innerHTML = plan.principles.map(p => `<li>${esc(p)}</li>`).join('');
   }
 
-  const milestonesCard = document.getElementById('planMilestonesCard');
+  // Milestones
   const milestonesList = document.getElementById('planMilestones');
-  if (data.milestones && data.milestones.length) {
-    milestonesCard.style.display = '';
-    milestonesList.innerHTML = data.milestones.map(m => `
+  if (plan.milestones && plan.milestones.length) {
+    milestonesList.style.display = '';
+    milestonesList.innerHTML = plan.milestones.map(m => `
       <div class="milestone-item">
         <span class="milestone-time">${esc(m.timeframe)}</span>
         <span class="milestone-goal">${esc(m.goal)}</span>
       </div>
     `).join('');
-  } else {
-    milestonesCard.style.display = 'none';
   }
 
-  container.classList.add('visible');
+  zonePlan.style.display = '';
 }
 
 // ── Helpers ──────────────────────────────────────────────────
 
+function getCurrentPhase(plan, currentWeek) {
+  const phases = plan.phases || [];
+  for (const p of phases) {
+    const weeks = p.weeks || [p.week];
+    if (weeks.includes(currentWeek)) return p;
+  }
+  return phases[0] || null;
+}
+
+function dayNameFromDate(dateStr) {
+  const NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const d = new Date(dateStr + 'T00:00:00');
+  return NAMES[d.getDay()];
+}
+
 function renderAlerts(containerId, alerts) {
   const el = document.getElementById(containerId);
+  if (!el) return;
   if (!alerts || !alerts.length) { el.innerHTML = ''; return; }
-
   el.innerHTML = alerts.map(a =>
     `<span class="alert-pill ${a.type || 'info'}">${esc(a.message)}</span>`
   ).join('');
@@ -1201,10 +911,12 @@ function initSeasonHistory() {
   const container = document.getElementById('historyContainer');
 
   if (!section || !toggle || !container) return;
-  section.style.display = '';
+  toggle.style.display = '';
 
   toggle.addEventListener('click', () => {
+    overflowBackdrop.classList.remove('visible');
     const isOpen = container.classList.contains('visible');
+    section.style.display = '';
     container.classList.toggle('visible', !isOpen);
     if (!isOpen && !container.dataset.loaded) {
       renderSeasonHistory(container);
@@ -1221,10 +933,26 @@ function getDayDetailContext() {
     esc,
     activeSeason,
     viewCache,
-    loadView,
-    get currentView() { return currentView; },
+    loadView: () => loadAllZones(),
+    get currentView() { return 'week'; },
   };
 }
+
+function normalizePrescription(rx) {
+  if (!rx) return { warmup: null, main_workout: [], cooldown: null };
+  const warmup = Array.isArray(rx.warmup)
+    ? { duration_minutes: 5, activities: rx.warmup }
+    : rx.warmup || null;
+  const main_workout = rx.exercises || rx.main_workout || [];
+  const cooldown = Array.isArray(rx.cooldown)
+    ? { duration_minutes: 5, activities: rx.cooldown }
+    : rx.cooldown || null;
+  return { warmup, main_workout, cooldown };
+}
+
+// ── Legacy compat: keep these functions for modules that import context
+function renderView() { loadAllZones(); }
+function loadView() { loadAllZones(); }
 
 // ── Init ─────────────────────────────────────────────────────
 

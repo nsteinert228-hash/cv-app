@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>CV — Exercise Tracker</title>
-  <link rel="stylesheet" href="src/styles.css?v=2">
+  <title>CV — Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="src/styles.css?v=3">
   <style>
-    .intro-msg {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
+    /* ════════════════════════════════════════════════════
+       CV Tracker — Precision HUD Design
+       ════════════════════════════════════════════════════ */
 
     main {
       position: relative;
@@ -22,18 +22,151 @@
       align-items: center;
     }
 
-    /* ── Camera Stage ── */
+    /* ── Onboarding Overlay (pre-camera) ── */
+    .onboarding-overlay {
+      position: relative;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 24px 32px;
+      text-align: center;
+    }
+
+    .onboarding-overlay.hidden { display: none; }
+
+    @keyframes silhouettePulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .onboarding-silhouette {
+      width: 120px;
+      height: 160px;
+      margin-bottom: 24px;
+    }
+
+    .onboarding-silhouette svg {
+      width: 100%;
+      height: 100%;
+      animation: silhouettePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes blinkCursor {
+      0%, 100% { border-right-color: var(--accent); }
+      50% { border-right-color: transparent; }
+    }
+
+    .onboarding-beta {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      border-radius: 4px;
+      padding: 3px 8px 3px 8px;
+      margin-bottom: 16px;
+      border-right-width: 2px;
+      animation: blinkCursor 1.2s step-end infinite;
+    }
+
+    .onboarding-title {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+
+    .onboarding-sub {
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 320px;
+      margin-bottom: 24px;
+    }
+
+    .onboarding-enable-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(200, 255, 0, 0.2);
+      transition: box-shadow var(--duration-medium) var(--ease-snappy),
+                  transform var(--duration-short) var(--ease-snappy);
+    }
+
+    .onboarding-enable-btn:hover {
+      box-shadow: 0 0 32px rgba(200, 255, 0, 0.35);
+      transform: scale(1.02);
+    }
+
+    .onboarding-enable-btn:active { transform: scale(0.99); }
+
+    .onboarding-disclaimer {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      margin-top: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .onboarding-fallback {
+      display: none;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .onboarding-fallback.visible { display: flex; }
+
+    .onboarding-fallback-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: var(--bg-surface-1);
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color var(--duration-short);
+    }
+
+    .onboarding-fallback-btn:hover { border-color: var(--border-active); }
+
+    .onboarding-fallback-btn input[type="file"] {
+      position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;
+    }
+
+    /* ── Camera Stage (HUD) ── */
     .camera-stage {
       position: relative;
       width: 100%;
       aspect-ratio: 4/3;
       background: #000;
-      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: var(--shadow-lg);
-      border: 1px solid var(--glass-border);
-      border-bottom: none;
+      border: 2px solid var(--accent);
+      display: none;
     }
+
+    .camera-stage.active { display: block; }
 
     .camera-stage canvas {
       display: block;
@@ -42,11 +175,99 @@
       object-fit: contain;
     }
 
-    .camera-stage video {
-      display: none;
+    .camera-stage video { display: none; }
+
+    /* Corner brackets (viewfinder) */
+    .corner-bracket {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .corner-bracket::before,
+    .corner-bracket::after {
+      content: '';
+      position: absolute;
+      background: var(--accent);
+    }
+    .corner-bracket.tl { top: 8px; left: 8px; }
+    .corner-bracket.tl::before { top: 0; left: 0; width: 2px; height: 14px; }
+    .corner-bracket.tl::after { top: 0; left: 0; width: 14px; height: 2px; }
+
+    .corner-bracket.tr { top: 8px; right: 8px; }
+    .corner-bracket.tr::before { top: 0; right: 0; width: 2px; height: 14px; }
+    .corner-bracket.tr::after { top: 0; right: 0; width: 14px; height: 2px; }
+
+    .corner-bracket.bl { bottom: 52px; left: 8px; }
+    .corner-bracket.bl::before { bottom: 0; left: 0; width: 2px; height: 14px; }
+    .corner-bracket.bl::after { bottom: 0; left: 0; width: 14px; height: 2px; }
+
+    .corner-bracket.br { bottom: 52px; right: 8px; }
+    .corner-bracket.br::before { bottom: 0; right: 0; width: 2px; height: 14px; }
+    .corner-bracket.br::after { bottom: 0; right: 0; width: 14px; height: 2px; }
+
+    /* Vignette overlay */
+    .vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 50%, rgba(0,0,0,0.4) 100%);
+      pointer-events: none;
+      z-index: 3;
     }
 
-    /* ── Loading Overlay ── */
+    /* HUD: Top-left BETA badge */
+    .hud-beta {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      z-index: 10;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      border-radius: 3px;
+      padding: 2px 6px;
+      pointer-events: none;
+    }
+
+    /* HUD: Top-right LIVE indicator */
+    .hud-live {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      pointer-events: none;
+    }
+
+    .hud-live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-red);
+      animation: pulse-dot 1.2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hud-live-text {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Loading overlay (model loading) ── */
     .loading-overlay {
       position: absolute;
       inset: 0;
@@ -54,9 +275,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: var(--bg-page);
+      background: rgba(8, 8, 8, 0.92);
       z-index: 20;
-      transition: opacity 0.4s var(--ease-out);
+      transition: opacity 0.4s var(--ease-snappy);
     }
 
     .loading-overlay.fade-out {
@@ -64,69 +285,93 @@
       pointer-events: none;
     }
 
-    .loading-overlay.hidden {
-      display: none;
+    .loading-overlay.hidden { display: none; }
+
+    /* Scanning laser line */
+    @keyframes scanLaser {
+      0% { top: 0%; }
+      100% { top: 100%; }
     }
 
-    .loading-overlay p {
-      font-size: 0.85rem;
+    .scan-laser {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(200, 255, 0, 0.3);
+      animation: scanLaser 2s ease-in-out infinite;
+      z-index: 21;
+    }
+
+    .loading-overlay .loading-text {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
       color: var(--text-secondary);
-      margin-top: 14px;
+      z-index: 22;
+    }
+
+    .loading-overlay .loading-beta {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      border-radius: 3px;
+      padding: 2px 6px;
     }
 
     .loading-overlay .fallback-controls {
       display: none;
       margin-top: 20px;
-      gap: 12px;
+      gap: 10px;
+      z-index: 22;
     }
 
-    .loading-overlay .fallback-controls.visible {
-      display: flex;
-    }
+    .loading-overlay .fallback-controls.visible { display: flex; }
 
     .fallback-btn {
-      padding: 10px 20px;
-      border: 1px solid var(--glass-border);
-      border-radius: var(--radius-sm);
-      background: var(--bg-surface);
-      color: var(--text-primary);
-      font-size: 0.88rem;
+      padding: 8px 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: var(--bg-surface-1);
+      color: var(--text-secondary);
+      font-size: var(--text-xs);
       cursor: pointer;
-      backdrop-filter: blur(10px);
-      transition: background var(--duration-fast);
-      font-family: inherit;
+      transition: border-color var(--duration-short);
+      font-family: var(--font-body);
     }
 
-    .fallback-btn:hover {
-      background: var(--bg-surface-hover);
-    }
+    .fallback-btn:hover { border-color: var(--border-active); }
 
     .fallback-btn input[type="file"] {
-      position: absolute;
-      width: 0;
-      height: 0;
-      opacity: 0;
-      pointer-events: none;
+      position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;
     }
 
-    /* ── Rep Overlay ── */
+    /* ── Rep counter overlay ── */
     .rep-overlay {
       display: none;
       position: absolute;
       top: 16px;
-      right: 20px;
+      right: 50px;
       text-align: right;
       pointer-events: none;
       z-index: 10;
     }
 
     .rep-count {
+      font-family: var(--font-display);
       font-size: 56px;
       font-weight: 800;
       color: #ffffff;
-      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 40px var(--accent-glow);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(200, 255, 0, 0.15);
       line-height: 1;
-      transition: transform var(--duration-fast) var(--ease-spring), color var(--duration-fast);
+      transition: transform var(--duration-short) var(--ease-snappy), color var(--duration-short);
     }
 
     .rep-count.flash {
@@ -135,197 +380,165 @@
     }
 
     .rep-label {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
       margin-top: 4px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-
-    /* ── Mode Selector ── */
-    .mode-selector {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      z-index: 10;
-    }
-
-    .mode-bottom {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .mode-trigger {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 7px 12px 7px 14px;
-      border: none;
-      border-radius: var(--radius-full);
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background var(--duration-fast);
-      font-family: inherit;
-    }
-
-    .mode-trigger:hover {
-      background: rgba(0, 0, 0, 0.55);
-    }
-
-    .trigger-chevron {
-      width: 10px;
-      height: 10px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 1.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: transform var(--duration-fast) var(--ease-out);
-    }
-
-    .mode-selector.open .trigger-chevron {
-      transform: rotate(180deg);
-    }
-
-    .mode-options {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 4px;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      margin-bottom: 6px;
-      transform: scaleY(0);
-      transform-origin: bottom left;
-      opacity: 0;
-      transition: transform var(--duration-fast) var(--ease-out), opacity var(--duration-fast);
-      pointer-events: none;
-    }
-
-    .mode-selector.open .mode-options {
-      transform: scaleY(1);
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .exercise-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.8rem;
       font-weight: 500;
-      cursor: pointer;
-      transition: background var(--duration-fast), color var(--duration-fast);
-      white-space: nowrap;
-      text-align: left;
-      font-family: inherit;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
-    .exercise-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .exercise-btn.active {
-      background: var(--accent-dark);
-      color: #ffffff;
-      font-weight: 600;
-    }
-
-    .exercise-btn.active[data-exercise="off"] {
-      background: rgba(255, 255, 255, 0.15);
-      color: rgba(255, 255, 255, 0.6);
-    }
-
-    #resetBtn {
-      display: none;
-      padding: 6px 12px;
-      border: none;
-      border-radius: var(--radius-full);
-      background: rgba(248, 113, 113, 0.6);
-      color: #ffffff;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background var(--duration-fast);
-      font-family: inherit;
-    }
-
-    #resetBtn:hover {
-      background: rgba(248, 113, 113, 0.8);
-    }
-
-    /* ── Secondary Controls ── */
-    .secondary-controls {
+    /* ── Bottom HUD bar (glassmorphism controls) ── */
+    .hud-bar {
       position: absolute;
-      bottom: 12px;
-      right: 12px;
-      display: flex;
-      gap: 8px;
+      bottom: 0;
+      left: 0;
+      right: 0;
       z-index: 10;
-    }
-
-    .icon-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      color: rgba(255, 255, 255, 0.8);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      min-height: 44px;
+    }
+
+    .hud-bar-left {
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 6px;
+    }
+
+    .hud-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Mode segmented control */
+    .mode-segment {
+      display: flex;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .mode-seg-btn {
+      padding: 5px 10px;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: background var(--duration-fast);
-      position: relative;
+      transition: all var(--duration-short);
     }
 
-    .icon-btn:hover {
-      background: rgba(0, 0, 0, 0.55);
+    .mode-seg-btn.active {
+      background: var(--accent);
+      color: var(--text-inverse);
     }
 
-    .icon-btn input[type="file"] {
-      position: absolute;
-      width: 0;
-      height: 0;
-      opacity: 0;
-      pointer-events: none;
+    .mode-seg-btn:hover:not(.active) {
+      color: rgba(255, 255, 255, 0.8);
     }
 
-    .icon-btn svg {
-      width: 18px;
-      height: 18px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+    /* HUD pill buttons */
+    .hud-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: transparent;
+      color: rgba(255, 255, 255, 0.7);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all var(--duration-short);
     }
+
+    .hud-pill:hover { border-color: rgba(255, 255, 255, 0.25); color: #fff; }
+
+    .hud-pill svg {
+      width: 12px; height: 12px;
+      stroke: currentColor; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .hud-pill.danger {
+      border-color: rgba(248, 113, 113, 0.25);
+      color: var(--status-red);
+      background: rgba(248, 113, 113, 0.08);
+    }
+
+    .hud-pill.danger:hover { border-color: rgba(248, 113, 113, 0.5); }
+
+    /* Legacy mode selector (hidden, kept for app.js compat) */
+    .mode-selector { display: none !important; }
+
+    /* Upload controls (hidden, functionality moved to HUD bar) */
+    .secondary-controls { display: none !important; }
+
+    /* ── Training Plan Callout ── */
+    .training-callout {
+      display: none;
+      width: 100%;
+      padding: 14px 16px;
+      margin-top: 12px;
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-inner);
+    }
+
+    .training-callout.visible { display: flex; align-items: center; gap: 12px; }
+
+    .training-callout-text {
+      flex: 1;
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .training-callout-text strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .training-callout-link {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .training-callout-link:hover { text-decoration: underline; }
 
     /* ── Session Log ── */
     .session-log {
       display: none;
       width: 100%;
-      background: var(--bg-surface);
-      border: 1px solid var(--glass-border);
-      border-top: none;
-      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
       padding: 16px 20px 20px;
-      backdrop-filter: blur(var(--glass-blur));
-      -webkit-backdrop-filter: blur(var(--glass-blur));
+      margin-top: 12px;
     }
 
     .session-header {
@@ -336,13 +549,16 @@
     }
 
     .session-header h3 {
-      font-size: 0.88rem;
-      font-weight: 700;
+      font-family: var(--font-display);
+      font-size: var(--text-base);
+      font-weight: 800;
       color: var(--text-primary);
+      text-transform: uppercase;
     }
 
     .session-summary {
-      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
       color: var(--text-secondary);
     }
 
@@ -359,14 +575,14 @@
       justify-content: space-between;
       align-items: center;
       padding: 10px 14px;
-      background: var(--bg-elevated);
-      border-radius: var(--radius-sm);
-      font-size: 0.85rem;
-      border: 1px solid var(--border-light);
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-inner);
+      font-size: var(--text-sm);
+      border: 1px solid var(--border-subtle);
     }
 
     .log-entry.new {
-      animation: slideUp 0.35s var(--ease-out) forwards;
+      animation: slideUp 0.35s var(--ease-snappy) forwards;
     }
 
     .log-exercise {
@@ -377,77 +593,70 @@
 
     .log-reps {
       color: var(--accent);
-      font-weight: 700;
+      font-family: var(--font-mono);
+      font-weight: 500;
       margin: 0 12px;
     }
 
     .log-time {
-      color: var(--text-muted);
-      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
     }
 
     .session-log-empty {
       display: none;
       width: 100%;
-      background: var(--bg-surface);
-      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      background: var(--bg-surface-1);
+      border-radius: var(--radius-card);
       padding: 20px;
-      border: 1px solid var(--glass-border);
-      border-top: none;
+      border: 1px solid var(--border-subtle);
       text-align: center;
-      backdrop-filter: blur(var(--glass-blur));
     }
 
     #clearSessionBtn {
       display: none;
       background: none;
       border: none;
-      color: var(--red);
-      font-size: 0.75rem;
+      color: var(--status-red);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
       cursor: pointer;
       padding: 0;
-      font-weight: 600;
-      font-family: inherit;
-      transition: opacity var(--duration-fast);
+      font-weight: 500;
+      transition: opacity var(--duration-short);
     }
 
-    #clearSessionBtn:hover {
-      opacity: 0.7;
-    }
+    #clearSessionBtn:hover { opacity: 0.7; }
 
     /* ── Responsive ── */
     @media (max-width: 640px) {
-      main {
-        max-width: 100%;
-      }
-      .camera-stage {
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-      }
-      .session-log {
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-      }
-      .exercise-btn {
-        font-size: 0.75rem;
-        padding: 7px 14px;
-      }
+      main { max-width: 100%; padding: 0; }
+      .camera-stage { border-radius: 0; border-left: none; border-right: none; }
+      .corner-bracket.tl, .corner-bracket.tr,
+      .corner-bracket.bl, .corner-bracket.br { display: none; }
+      .session-log { border-radius: 0; margin-top: 0; }
+      .training-callout { margin: 0; border-radius: 0; }
     }
   </style>
 </head>
 <body>
 
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loading-wordmark">C<span>V</span></div>
+    <div class="scan-line-container"><div class="scan-line"></div></div>
+    <div class="loading-phrase" id="loadingPhrase">Loading tracker...</div>
+  </div>
+
   <header>
     <div class="header-top">
-      <h1>CV <span>Exercise Tracker</span></h1>
+      <h1>CV <span>Tracker</span></h1>
       <div class="auth-section hidden" id="authSection">
         <span class="auth-user" id="authUser"></span>
         <button class="auth-btn" id="authBtn">Sign In</button>
       </div>
     </div>
-    <p class="intro-msg">Currently supports pushup, squat, and lunge tracking in profile view.</p>
   </header>
 
   <!-- Auth Modal -->
@@ -470,36 +679,100 @@
 
   <!-- Bottom Tab Bar -->
   <nav class="tab-bar">
-    <a class="tab-link active" href="index.html">
-      <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v5m-3 3l3-3 3 3m-6 3v2m6-2v2"/></svg>
-      Tracker
+    <div class="tab-indicator" data-active="2"></div>
+    <a class="tab-link" href="training.html" aria-label="Home">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <span class="tab-label">Home</span>
     </a>
-    <a class="tab-link" href="garmin.html">
-      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-      Garmin
+    <a class="tab-link" href="garmin.html" aria-label="Readiness">
+      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 12h3l2-4 4 8 2-4h3"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+      <span class="tab-label">Readiness</span>
     </a>
-    <a class="tab-link" href="training.html">
-      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      Training AI
+    <a class="tab-link active" href="index.html" aria-label="Tracker">
+      <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 5v1m0 12v1m-7-7h1m12 0h1m-2.5-5.5l-.7.7m-8.6 8.6l-.7.7m0-10l.7.7m8.6 8.6l.7.7"/></svg>
+      <span class="tab-label">Tracker</span>
+      <span class="tab-badge" aria-label="Beta feature">BETA</span>
     </a>
   </nav>
 
   <main>
-    <div class="camera-stage">
-      <!-- Loading overlay -->
+    <!-- Onboarding (pre-camera state) -->
+    <div class="onboarding-overlay" id="onboardingOverlay">
+      <div class="onboarding-silhouette">
+        <svg viewBox="0 0 100 140" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Head -->
+          <circle cx="50" cy="18" r="8" />
+          <!-- Neck -->
+          <line x1="50" y1="26" x2="50" y2="34" />
+          <!-- Torso (bent forward for squat) -->
+          <line x1="50" y1="34" x2="48" y2="60" />
+          <!-- Arms -->
+          <line x1="50" y1="38" x2="35" y2="52" />
+          <line x1="50" y1="38" x2="65" y2="52" />
+          <!-- Upper legs (squat position) -->
+          <line x1="48" y1="60" x2="35" y2="80" />
+          <line x1="48" y1="60" x2="62" y2="80" />
+          <!-- Lower legs -->
+          <line x1="35" y1="80" x2="30" y2="110" />
+          <line x1="62" y1="80" x2="65" y2="110" />
+          <!-- Feet -->
+          <line x1="30" y1="110" x2="22" y2="112" />
+          <line x1="65" y1="110" x2="72" y2="112" />
+          <!-- Knee dots -->
+          <circle cx="35" cy="80" r="2" fill="var(--accent)" stroke="none" opacity="0.6" />
+          <circle cx="62" cy="80" r="2" fill="var(--accent)" stroke="none" opacity="0.6" />
+        </svg>
+      </div>
+      <span class="onboarding-beta" aria-label="Beta feature">BETA</span>
+      <h2 class="onboarding-title">AI Rep Tracking</h2>
+      <p class="onboarding-sub">Point your camera side-on for pushups, squats, and lunges. Works best in good lighting.</p>
+      <button class="onboarding-enable-btn" id="enableCameraBtn">Enable Camera</button>
+      <p class="onboarding-disclaimer">This feature is in beta and may not be accurate.</p>
+      <div class="onboarding-fallback" id="onboardingFallback">
+        <label class="onboarding-fallback-btn">
+          Upload Photo
+          <input type="file" id="uploadInput" accept="image/*">
+        </label>
+        <label class="onboarding-fallback-btn">
+          Take Photo
+          <input type="file" id="cameraInput" accept="image/*" capture="environment">
+        </label>
+      </div>
+    </div>
+
+    <!-- Camera Stage (HUD) -->
+    <div class="camera-stage" id="cameraStage">
+      <!-- Model loading overlay -->
       <div id="loadingOverlay" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <p id="status">Loading model...</p>
+        <div class="scan-laser"></div>
+        <span class="loading-beta">BETA</span>
+        <p class="loading-text" id="status">Initializing AI Model...</p>
         <div class="fallback-controls" id="fallbackControls">
           <label class="fallback-btn">
             Upload Photo
-            <input type="file" id="uploadInput" accept="image/*">
+            <input type="file" id="uploadInputFallback" accept="image/*">
           </label>
           <label class="fallback-btn">
             Take Photo
-            <input type="file" id="cameraInput" accept="image/*" capture="environment">
+            <input type="file" id="cameraInputFallback" accept="image/*" capture="environment">
           </label>
         </div>
+      </div>
+
+      <!-- Corner brackets -->
+      <div class="corner-bracket tl"></div>
+      <div class="corner-bracket tr"></div>
+      <div class="corner-bracket bl"></div>
+      <div class="corner-bracket br"></div>
+
+      <!-- Vignette -->
+      <div class="vignette"></div>
+
+      <!-- HUD overlays -->
+      <div class="hud-beta" aria-label="Beta feature">BETA</div>
+      <div class="hud-live">
+        <span class="hud-live-dot"></span>
+        <span class="hud-live-text">LIVE</span>
       </div>
 
       <!-- Video + Canvas -->
@@ -512,34 +785,35 @@
         <div class="rep-label" id="repLabel"></div>
       </div>
 
-      <!-- Mode selector (collapsible) -->
-      <div class="mode-selector" id="modeSelector">
-        <div class="mode-options" id="modeOptions">
-          <button class="exercise-btn active" data-exercise="auto">Auto</button>
-          <button class="exercise-btn" data-exercise="squat">Squats</button>
-          <button class="exercise-btn" data-exercise="pushup">Pushups</button>
-          <button class="exercise-btn" data-exercise="lunge">Lunges</button>
-          <button class="exercise-btn" data-exercise="off">Off</button>
+      <!-- Bottom HUD bar -->
+      <div class="hud-bar">
+        <div class="hud-bar-left">
+          <div class="mode-segment" id="modeSegment">
+            <button class="mode-seg-btn active" data-exercise="auto">AUTO</button>
+            <button class="mode-seg-btn" data-exercise="squat">SQT</button>
+            <button class="mode-seg-btn" data-exercise="pushup">PSH</button>
+            <button class="mode-seg-btn" data-exercise="lunge">LNG</button>
+          </div>
         </div>
-        <div class="mode-bottom">
-          <button class="mode-trigger" id="modeTrigger">
-            <span id="modeTriggerLabel">Auto</span>
-            <svg class="trigger-chevron" viewBox="0 0 12 12"><polyline points="3,8 6,5 9,8"/></svg>
+        <div class="hud-bar-right">
+          <button class="hud-pill" id="resetBtn" style="display:none" aria-label="Reset rep counter">
+            <svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Reset
           </button>
-          <button id="resetBtn">Reset</button>
+          <button class="hud-pill danger" id="cameraToggle" aria-label="Stop camera">
+            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            Stop
+          </button>
         </div>
       </div>
+    </div>
 
-      <!-- Secondary controls -->
-      <div class="secondary-controls" id="uploadControls">
-        <label class="icon-btn" title="Upload Photo">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <input type="file" id="uploadInput2" accept="image/*">
-        </label>
-        <button class="icon-btn" id="cameraToggle" title="Stop Camera">
-          <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-        </button>
+    <!-- Training Plan Callout -->
+    <div class="training-callout" id="trainingCallout">
+      <div class="training-callout-text">
+        Today's workout: <strong id="calloutTitle">--</strong>
       </div>
+      <a href="training.html" class="training-callout-link">View details &rarr;</a>
     </div>
 
     <!-- Session Log -->
@@ -553,6 +827,25 @@
       </div>
       <div id="sessionEntries" class="session-entries"></div>
     </div>
+
+    <!-- Hidden legacy elements for app.js compat -->
+    <div style="display:none">
+      <div id="modeSelector">
+        <div id="modeOptions">
+          <button class="exercise-btn active" data-exercise="auto">Auto</button>
+          <button class="exercise-btn" data-exercise="squat">Squats</button>
+          <button class="exercise-btn" data-exercise="pushup">Pushups</button>
+          <button class="exercise-btn" data-exercise="lunge">Lunges</button>
+          <button class="exercise-btn" data-exercise="off">Off</button>
+        </div>
+        <div class="mode-bottom">
+          <button id="modeTrigger"><span id="modeTriggerLabel">Auto</span></button>
+        </div>
+      </div>
+      <div id="uploadControls">
+        <label><input type="file" id="uploadInput2" accept="image/*"></label>
+      </div>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -560,5 +853,96 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>
   <script type="module" src="src/app.js"></script>
+  <script>
+    (function() {
+      // Loading screen
+      const phrases = ['Loading tracker...', 'Initializing camera...', 'Preparing models...'];
+      const el = document.getElementById('loadingPhrase');
+      const screen = document.getElementById('loadingScreen');
+      let i = 0;
+      const interval = setInterval(() => { i = (i + 1) % phrases.length; if (el) el.textContent = phrases[i]; }, 1500);
+      function dismiss() {
+        clearInterval(interval);
+        if (screen) { screen.classList.add('dismissed'); setTimeout(() => screen.remove(), 700); }
+      }
+      window.dismissLoadingScreen = dismiss;
+      setTimeout(dismiss, 4500);
+
+      // Onboarding → Camera transition
+      const enableBtn = document.getElementById('enableCameraBtn');
+      const onboarding = document.getElementById('onboardingOverlay');
+      const cameraStage = document.getElementById('cameraStage');
+
+      enableBtn.addEventListener('click', () => {
+        onboarding.classList.add('hidden');
+        cameraStage.classList.add('active');
+        // Trigger the app.js camera start if it hasn't started yet
+        if (window._startCamera) window._startCamera();
+      });
+
+      // Wire up fallback file inputs to the main ones (for onboarding state)
+      const uploadFallback = document.getElementById('uploadInputFallback');
+      const cameraFallback = document.getElementById('cameraInputFallback');
+      const uploadMain = document.getElementById('uploadInput');
+      const cameraMain = document.getElementById('cameraInput');
+
+      if (uploadFallback && uploadMain) {
+        uploadFallback.addEventListener('change', (e) => {
+          const dt = new DataTransfer();
+          for (const f of e.target.files) dt.items.add(f);
+          uploadMain.files = dt.files;
+          uploadMain.dispatchEvent(new Event('change'));
+        });
+      }
+      if (cameraFallback && cameraMain) {
+        cameraFallback.addEventListener('change', (e) => {
+          const dt = new DataTransfer();
+          for (const f of e.target.files) dt.items.add(f);
+          cameraMain.files = dt.files;
+          cameraMain.dispatchEvent(new Event('change'));
+        });
+      }
+
+      // Mode segment buttons → sync with hidden legacy mode selector
+      const modeSegment = document.getElementById('modeSegment');
+      const legacyBtns = document.querySelectorAll('#modeOptions .exercise-btn');
+      modeSegment.addEventListener('click', (e) => {
+        const btn = e.target.closest('.mode-seg-btn');
+        if (!btn) return;
+        modeSegment.querySelectorAll('.mode-seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const exercise = btn.dataset.exercise;
+        // Click the corresponding legacy button to trigger app.js logic
+        legacyBtns.forEach(lb => {
+          if (lb.dataset.exercise === exercise) lb.click();
+        });
+      });
+
+      // Training callout — check if today's workout is strength
+      async function checkTrainingCallout() {
+        try {
+          const { getSupabaseClient } = await import('./src/supabase.js');
+          const client = getSupabaseClient();
+          if (!client) return;
+          const { data: { session } } = await client.auth.getSession();
+          if (!session) return;
+          const today = new Date().toISOString().split('T')[0];
+          const { data: workout } = await client
+            .from('season_workouts')
+            .select('title, workout_type, duration_minutes')
+            .eq('date', today)
+            .in('workout_type', ['strength', 'mixed'])
+            .maybeSingle();
+          if (workout) {
+            const callout = document.getElementById('trainingCallout');
+            const title = document.getElementById('calloutTitle');
+            title.textContent = `${workout.title} · ${workout.duration_minutes || '--'}m`;
+            callout.classList.add('visible');
+          }
+        } catch {}
+      }
+      checkTrainingCallout();
+    })();
+  </script>
 </body>
 </html>
