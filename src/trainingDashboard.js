@@ -454,7 +454,7 @@ async function renderSeasonBanner() {
 
 // ── Stop & Restart Season ────────────────────────────────────
 
-stopRestartBtn.addEventListener('click', () => {
+stopRestartBtn?.addEventListener('click', () => {
   if (!activeSeason) return;
 
   seasonModalTitle.textContent = 'Stop & New Plan?';
