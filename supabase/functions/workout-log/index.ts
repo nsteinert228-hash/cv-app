@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 
     // ── Parse request ──
     const body = await req.json();
-    const { workout_id, status, actual_json, garmin_activity_id, notes } = body;
+    const { workout_id, status, actual_json, garmin_activity_id, notes, source: requestedSource } = body;
 
     if (!workout_id) return jsonResponse({ error: "workout_id required" }, 400);
     if (!status || !["completed", "partial", "skipped", "substituted"].includes(status)) {
@@ -133,7 +133,10 @@ Deno.serve(async (req) => {
       status,
     );
 
-    const source = garmin_activity_id ? "garmin_confirmed" : "manual";
+    const validSources = ["manual", "garmin_auto", "garmin_confirmed"];
+    const source = (requestedSource && validSources.includes(requestedSource))
+      ? requestedSource
+      : garmin_activity_id ? "garmin_confirmed" : "manual";
 
     // ── Insert or update ──
     if (existing) {

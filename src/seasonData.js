@@ -210,14 +210,16 @@ export async function getWorkoutLogsForSeason(seasonId) {
   return data || [];
 }
 
-export async function submitWorkoutLog(workoutId, status, actualJson = {}, garminActivityId = null, notes = null) {
-  return _callEdgeFunction('workout-log', {
+export async function submitWorkoutLog(workoutId, status, actualJson = {}, garminActivityId = null, notes = null, source = null) {
+  const payload = {
     workout_id: workoutId,
     status,
     actual_json: actualJson,
     garmin_activity_id: garminActivityId,
     notes,
-  });
+  };
+  if (source) payload.source = source;
+  return _callEdgeFunction('workout-log', payload);
 }
 
 // ── Adaptations ──────────────────────────────────────────────
