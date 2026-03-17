@@ -23,6 +23,8 @@ import {
   getWorkoutLog,
   getWorkoutLogsForSeason,
   getWeekWorkoutsByWeekNumber,
+  findMatchingGarminActivity,
+  submitWorkoutLog,
 } from './seasonData.js';
 import { renderWorkoutConfirmation } from './workoutLogger.js';
 import { renderAdaptationFeed } from './adaptationFeed.js';
@@ -585,6 +587,28 @@ async function loadSeasonZones(force) {
 
   const logMap = new Map(allLogs.map(l => [l.workout_id, l]));
   const todayWorkout = weekWorkouts.find(w => w.date === today);
+
+  // Auto-match: if today has no log and is a cardio type, check Garmin
+  const AUTO_MATCH_TYPES = new Set(['running', 'cycling', 'swimming', 'cardio']);
+  if (todayWorkout && !logMap.has(todayWorkout.id) && AUTO_MATCH_TYPES.has(todayWorkout.workout_type)) {
+    try {
+      const garminActivity = await findMatchingGarminActivity(todayWorkout.workout_type, todayWorkout.date);
+      if (garminActivity) {
+        const result = await submitWorkoutLog(
+          todayWorkout.id, 'completed', {}, garminActivity.activity_id, null, 'garmin_auto'
+        );
+        if (result && result.log_id) {
+          logMap.set(todayWorkout.id, {
+            id: result.log_id, workout_id: todayWorkout.id,
+            status: 'completed', source: 'garmin_auto',
+            garmin_activity_id: garminActivity.activity_id,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Garmin auto-match failed:', err);
+    }
+  }
 
   // Render Hero (today's workout)
   if (todayWorkout) {
