@@ -306,6 +306,9 @@ function renderPastDayContent(workout, log, garminMatch, rx, exercises) {
     matchStatus = 'partial';
   }
 
+  // Build a human-readable narrative for the match
+  const narrative = buildMatchNarrative(matchStatus, workout, log, garminMatch);
+
   return `
     <div class="wv-comparison wv-match-${matchStatus}">
       <div class="wv-comparison-col">
@@ -320,6 +323,7 @@ function renderPastDayContent(workout, log, garminMatch, rx, exercises) {
         ${actualHtml}
       </div>
     </div>
+    ${narrative ? `<div class="wv-match-narrative wv-narrative-${matchStatus}">${esc(narrative)}</div>` : ''}
   `;
 }
 
@@ -358,6 +362,43 @@ function renderFutureContent(workout, rx, exercises) {
       ${prescribedHtml}
     </div>
   `;
+}
+
+// ── Match Narrative ─────────────────────────────────────────
+
+function buildMatchNarrative(matchStatus, workout, log, garminMatch) {
+  if (matchStatus === 'matched' && log && log.adherence_score != null) {
+    const score = Math.round(log.adherence_score);
+    if (score >= 90) return `Completed as prescribed — ${score}% adherence.`;
+    if (score >= 70) return `Mostly followed the plan — ${score}% adherence.`;
+    return `Completed with modifications — ${score}% adherence.`;
+  }
+
+  if (matchStatus === 'matched' && garminMatch) {
+    const durMin = garminMatch.duration_seconds ? Math.round(garminMatch.duration_seconds / 60) : null;
+    const prescribed = workout.duration_minutes;
+    if (durMin && prescribed && Math.abs(durMin - prescribed) <= 5) {
+      return `${garminMatch.name || garminMatch.activity_type} matches the plan.`;
+    }
+    if (durMin && prescribed) {
+      return `${garminMatch.name || garminMatch.activity_type} — ${durMin} min vs. ${prescribed} min prescribed.`;
+    }
+    return `Verified via Garmin activity.`;
+  }
+
+  if (matchStatus === 'substituted' && garminMatch) {
+    return `Did ${garminMatch.name || garminMatch.activity_type} instead of ${workout.workout_type} — still counts.`;
+  }
+
+  if (matchStatus === 'partial') {
+    return 'Partially completed — some exercises modified or skipped.';
+  }
+
+  if (matchStatus === 'missed') {
+    return 'No activity recorded for this day.';
+  }
+
+  return '';
 }
 
 // ── Shared Renderers ────────────────────────────────────────
@@ -458,7 +499,16 @@ async function fetchGarminActivitiesForWeek(workouts) {
 }
 
 function findGarminMatch(activities, workout) {
-  return activities.find(a => a.date === workout.date) || null;
+  // Find the best match: prefer type-matched activities, then fall back to same-date
+  const sameDateActivities = activities.filter(a => a.date === workout.date);
+  if (!sameDateActivities.length) return null;
+
+  // Try to find a type-matched activity first
+  const typeMatch = sameDateActivities.find(a => isTypeMatch(workout.workout_type, a.activity_type));
+  if (typeMatch) return typeMatch;
+
+  // Fall back to any activity on that date
+  return sameDateActivities[0];
 }
 
 const GARMIN_TYPE_MAP = {
