@@ -1,7 +1,8 @@
 """Garmin Connect client with token persistence, singleton pattern, and retry logic.
 
 Handles authentication (tokens first, credentials fallback), rate-limit
-backoff, and automatic re-auth on stale sessions.
+backoff, automatic re-auth on stale sessions, and login cooldown to avoid
+triggering Garmin's SSO rate limits.
 """
 
 import logging
@@ -28,6 +29,11 @@ RATE_LIMIT_BASE_DELAY = 60
 RATE_LIMIT_MAX_DELAY = 900
 RATE_LIMIT_MAX_RETRIES = 5
 
+# Login cooldown: prevent repeated SSO login attempts that trigger 429s
+LOGIN_COOLDOWN_SECONDS = 300  # 5 minutes between credential login attempts
+_last_login_attempt: float = 0.0
+_consecutive_login_failures: int = 0
+
 _client: Garmin | None = None
 
 
@@ -38,11 +44,35 @@ def _save_tokens(client: Garmin, token_dir: Path) -> None:
     log.info("Saved tokens to %s", token_dir)
 
 
+def _check_login_cooldown() -> None:
+    """Raise if we're within the login cooldown window to avoid SSO rate limits."""
+    global _consecutive_login_failures
+    elapsed = time.monotonic() - _last_login_attempt
+    # Exponential cooldown: 5min, 10min, 20min... up to 30min based on failures
+    cooldown = min(LOGIN_COOLDOWN_SECONDS * (2 ** _consecutive_login_failures), 1800)
+    if _last_login_attempt > 0 and elapsed < cooldown:
+        remaining = int(cooldown - elapsed)
+        raise GarminConnectTooManyRequestsError(
+            f"Login cooldown active ({remaining}s remaining). "
+            f"Skipping SSO login to avoid Garmin 429 rate limit."
+        )
+
+
 def _login_with_credentials() -> Garmin:
     """Authenticate with email/password and save tokens."""
+    global _last_login_attempt, _consecutive_login_failures
+    _check_login_cooldown()
+    _last_login_attempt = time.monotonic()
     log.info("Logging in with credentials")
-    client = Garmin(email=config.GARMIN_EMAIL, password=config.GARMIN_PASSWORD)
-    client.login()
+    try:
+        client = Garmin(email=config.GARMIN_EMAIL, password=config.GARMIN_PASSWORD)
+        client.login()
+    except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError):
+        _consecutive_login_failures += 1
+        log.warning("Credential login failed (attempt %d), cooldown will increase",
+                     _consecutive_login_failures)
+        raise
+    _consecutive_login_failures = 0
     _save_tokens(client, Path(config.GARMIN_TOKEN_DIR).expanduser())
     return client
 
@@ -84,6 +114,7 @@ def get_client_for_user(email: str, password: str, token_dir: str | None = None)
     """Create a Garmin client for a specific user (no singleton caching).
 
     Tries saved tokens first if token_dir is provided, then falls back to credentials.
+    Respects login cooldown to avoid triggering Garmin SSO rate limits.
     """
     if token_dir:
         td = Path(token_dir).expanduser()
@@ -93,9 +124,19 @@ def get_client_for_user(email: str, password: str, token_dir: str | None = None)
         except (FileNotFoundError, GarthHTTPError, GarminConnectAuthenticationError) as exc:
             log.warning("Token login failed for %s (%s), using credentials", email, type(exc).__name__)
 
+    global _last_login_attempt, _consecutive_login_failures
+    _check_login_cooldown()
+    _last_login_attempt = time.monotonic()
     log.info("Logging in user %s with credentials", email)
-    client = Garmin(email=email, password=password)
-    client.login()
+    try:
+        client = Garmin(email=email, password=password)
+        client.login()
+    except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError):
+        _consecutive_login_failures += 1
+        log.warning("Credential login failed for %s (attempt %d), cooldown will increase",
+                     email, _consecutive_login_failures)
+        raise
+    _consecutive_login_failures = 0
     if token_dir:
         _save_tokens(client, Path(token_dir).expanduser())
     return client
@@ -106,6 +147,13 @@ def reset_client() -> None:
     global _client
     _client = None
     log.info("Client reset")
+
+
+def reset_login_cooldown() -> None:
+    """Reset the login cooldown state. Useful for testing or manual recovery."""
+    global _last_login_attempt, _consecutive_login_failures
+    _last_login_attempt = 0.0
+    _consecutive_login_failures = 0
 
 
 def with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
@@ -134,9 +182,12 @@ def with_retry(fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         except GarminConnectAuthenticationError:
             log.warning("Auth error during API call, re-authenticating")
             reset_client()
-            _refresh = get_client()
-            # Replace the client reference in args if it was the first positional arg
-            # and retry once — do NOT loop on auth errors
+            try:
+                get_client()
+            except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError) as exc:
+                log.error("Re-authentication failed: %s", exc)
+                raise
+            # Retry once with the refreshed singleton — do NOT loop on auth errors
             return fn(*args, **kwargs)
 
         except GarminConnectConnectionError:
