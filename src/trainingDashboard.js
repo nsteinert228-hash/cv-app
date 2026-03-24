@@ -589,21 +589,15 @@ async function loadSeasonZones(force) {
   const todayWorkout = weekWorkouts.find(w => w.date === today);
 
   // Auto-match: if today has no log and is a cardio type, check Garmin
+  // Instead of silently submitting, show a confirmation banner so the user
+  // can verify the match before it's logged.
+  let pendingGarminMatch = null;
   const AUTO_MATCH_TYPES = new Set(['running', 'cycling', 'swimming', 'cardio']);
   if (todayWorkout && !logMap.has(todayWorkout.id) && AUTO_MATCH_TYPES.has(todayWorkout.workout_type)) {
     try {
       const garminActivity = await findMatchingGarminActivity(todayWorkout.workout_type, todayWorkout.date);
       if (garminActivity) {
-        const result = await submitWorkoutLog(
-          todayWorkout.id, 'completed', {}, garminActivity.activity_id, null, 'garmin_auto'
-        );
-        if (result && result.log_id) {
-          logMap.set(todayWorkout.id, {
-            id: result.log_id, workout_id: todayWorkout.id,
-            status: 'completed', source: 'garmin_auto',
-            garmin_activity_id: garminActivity.activity_id,
-          });
-        }
+        pendingGarminMatch = garminActivity;
       }
     } catch (err) {
       console.warn('Garmin auto-match failed:', err);
@@ -612,7 +606,7 @@ async function loadSeasonZones(force) {
 
   // Render Hero (today's workout)
   if (todayWorkout) {
-    renderSeasonHero(todayWorkout, logMap.get(todayWorkout.id));
+    renderSeasonHero(todayWorkout, logMap.get(todayWorkout.id), pendingGarminMatch);
   } else {
     renderRestDayHero();
   }
@@ -644,7 +638,7 @@ function hideLoading() {
 
 // ── Zone 1: Hero Card ────────────────────────────────────────
 
-function renderSeasonHero(workout, log) {
+function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   const rx = workout.prescription_json || {};
   const typeAbbr = TYPE_ICONS[workout.workout_type] || workout.workout_type?.toUpperCase()?.slice(0, 3) || '---';
 
@@ -668,6 +662,59 @@ function renderSeasonHero(workout, log) {
   const heroCoachNotes = document.getElementById('heroCoachNotes');
   if (heroCoachNotes) {
     heroCoachNotes.innerHTML = buildCoachingNotes(readinessData, workout);
+  }
+
+  // Garmin match confirmation banner — show detected activity for user to confirm
+  const existingBanner = heroCard.querySelector('.garmin-confirm-banner');
+  if (existingBanner) existingBanner.remove();
+
+  if (pendingGarminMatch && !(log && log.status === 'completed')) {
+    const durMin = pendingGarminMatch.duration_seconds ? Math.round(pendingGarminMatch.duration_seconds / 60) : '--';
+    const banner = document.createElement('div');
+    banner.className = 'garmin-confirm-banner';
+    banner.innerHTML = `
+      <div class="garmin-confirm-header">
+        <span class="garmin-confirm-icon">GARMIN</span>
+        <span class="garmin-confirm-label">Activity detected</span>
+      </div>
+      <div class="garmin-confirm-detail">
+        ${esc(pendingGarminMatch.name || pendingGarminMatch.activity_type)} · ${durMin} min${pendingGarminMatch.avg_heart_rate ? ` · ${pendingGarminMatch.avg_heart_rate} avg HR` : ''}
+      </div>
+      <div class="garmin-confirm-actions">
+        <button class="btn-primary garmin-confirm-yes">Confirm match</button>
+        <button class="btn-ghost garmin-confirm-no">Not this one</button>
+      </div>
+    `;
+    heroCard.querySelector('.hero-card-inner').appendChild(banner);
+
+    banner.querySelector('.garmin-confirm-yes').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      try {
+        const result = await submitWorkoutLog(
+          workout.id, 'completed',
+          { source_activity: pendingGarminMatch, duration_minutes: durMin },
+          pendingGarminMatch.activity_id, null, 'garmin_confirmed'
+        );
+        banner.remove();
+        renderSeasonHero(workout, {
+          status: 'completed', source: 'garmin_confirmed',
+          adherence_score: result?.adherence_score,
+          garmin_activity_id: pendingGarminMatch.activity_id,
+        });
+        // Refresh timeline to show the checkmark
+        loadAllZones();
+      } catch (err) {
+        btn.textContent = 'Error — try again';
+        btn.disabled = false;
+      }
+    });
+
+    banner.querySelector('.garmin-confirm-no').addEventListener('click', () => {
+      banner.classList.add('dismissed');
+      setTimeout(() => banner.remove(), 300);
+    });
   }
 
   // Start button behavior
@@ -753,6 +800,16 @@ function renderSeasonTimeline(workouts, logMap, today) {
 
   const dayAbbrs = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
+  // Calculate streak for visual momentum
+  let streak = 0;
+  for (const w of workouts) {
+    if (w.date > today) break;
+    if (w.workout_type === 'rest') { streak++; continue; }
+    const log = logMap.get(w.id);
+    if (log && (log.status === 'completed' || log.status === 'partial')) { streak++; }
+    else if (w.date < today) { streak = 0; }
+  }
+
   timelineScroll.innerHTML = workouts.map((w, idx) => {
     const d = new Date(w.date + 'T00:00:00');
     const abbr = dayAbbrs[d.getDay()];
@@ -760,20 +817,43 @@ function renderSeasonTimeline(workouts, logMap, today) {
     const isPast = w.date < today;
     const log = logMap.get(w.id);
     const isCompleted = log && log.status === 'completed';
+    const isPartial = log && log.status === 'partial';
+    const isSkipped = log && log.status === 'skipped';
+    const isMissed = isPast && !isToday && !log && w.workout_type !== 'rest';
+    const isRest = w.workout_type === 'rest';
     const typeAbbr = TYPE_ICONS[w.workout_type] || '—';
 
+    // Determine visual state class
+    let stateClass = '';
+    if (isCompleted) stateClass = ' is-completed';
+    else if (isPartial) stateClass = ' is-partial';
+    else if (isSkipped) stateClass = ' is-skipped';
+    else if (isMissed) stateClass = ' is-missed';
+    else if (isRest && isPast) stateClass = ' is-completed';
+
     let statusHtml = '';
-    if (isCompleted) {
+    if (isCompleted || (isRest && isPast)) {
       statusHtml = '<span class="tl-day-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>';
+    } else if (isPartial) {
+      statusHtml = '<span class="tl-day-partial">~</span>';
+    } else if (isMissed) {
+      statusHtml = '<span class="tl-day-missed">—</span>';
     } else if (w.duration_minutes) {
       statusHtml = `<span class="tl-day-dur">${w.duration_minutes}m</span>`;
     }
 
+    // Adherence score for completed workouts
+    let adherenceHtml = '';
+    if (log && log.adherence_score != null && isCompleted) {
+      adherenceHtml = `<span class="tl-day-adherence">${Math.round(log.adherence_score)}%</span>`;
+    }
+
     return `
-      <div class="tl-day${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}" data-workout-id="${w.id}" data-day-idx="${idx}">
+      <div class="tl-day${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}${stateClass}" data-workout-id="${w.id}" data-day-idx="${idx}">
         <span class="tl-day-abbr">${abbr}</span>
         <span class="tl-day-type">${typeAbbr}</span>
         ${statusHtml}
+        ${adherenceHtml}
       </div>
     `;
   }).join('');
@@ -1023,7 +1103,16 @@ function renderWeekSummary(weekWorkouts, logMap, state, plan) {
   const nextWeek = (state?.currentWeek || 1) + 1;
   const nextPhase = getCurrentPhase(plan, nextWeek);
 
-  let html = '<div class="week-summary">';
+  // Build coaching narrative based on progress
+  const remaining = total - completed - missedCount;
+  const dayOfWeek = new Date().getDay(); // 0=Sun
+  const narrative = buildWeekNarrative(completed, total, remaining, missedCount, avgAdherence, dayOfWeek, weekWorkouts, logMap, today);
+
+  let html = '';
+  if (narrative) {
+    html += `<div class="week-summary-narrative">${esc(narrative)}</div>`;
+  }
+  html += '<div class="week-summary">';
   html += `<div class="week-summary-stat"><strong>${completed}</strong> of <strong>${total}</strong> workouts</div>`;
   html += '<div class="week-summary-divider"></div>';
   if (avgAdherence !== null) {
@@ -1044,6 +1133,48 @@ function renderWeekSummary(weekWorkouts, logMap, state, plan) {
   html += '</div>';
 
   container.innerHTML = html;
+}
+
+// ── Week Narrative ──────────────────────────────────────────
+
+function buildWeekNarrative(completed, total, remaining, missed, avgAdherence, dayOfWeek, workouts, logMap, today) {
+  if (total === 0) return '';
+
+  // All done
+  if (completed === total && missed === 0) {
+    return 'All workouts completed this week — great consistency.';
+  }
+
+  // Perfect so far, more to go
+  if (completed > 0 && missed === 0 && remaining > 0) {
+    // Describe what's next
+    const nextWorkout = workouts.find(w => w.date >= today && w.workout_type !== 'rest' && !logMap.get(w.id));
+    const nextType = nextWorkout ? nextWorkout.workout_type : null;
+    if (remaining === 1 && nextType) {
+      return `One ${nextType} session left to close out the week.`;
+    }
+    return `On track — ${remaining} session${remaining > 1 ? 's' : ''} remaining this week.`;
+  }
+
+  // Some missed
+  if (missed > 0 && completed > 0) {
+    if (remaining > 0) {
+      return `${completed} done, ${remaining} left — stay with it.`;
+    }
+    return `${completed} of ${total} completed this week. Every session counts.`;
+  }
+
+  // Nothing done yet, early in week
+  if (completed === 0 && dayOfWeek <= 2) {
+    return `${total} sessions planned this week — let's get started.`;
+  }
+
+  // Nothing done, mid/late week
+  if (completed === 0 && missed > 0) {
+    return `${remaining} session${remaining > 1 ? 's' : ''} still ahead — pick one and go.`;
+  }
+
+  return '';
 }
 
 // ── Recovery Signals (Item 6) ───────────────────────────────
