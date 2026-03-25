@@ -13,10 +13,12 @@ import garmin_client
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
-    """Ensure each test starts with a fresh singleton."""
+    """Ensure each test starts with fresh singleton and cooldown state."""
     garmin_client._client = None
+    garmin_client.reset_login_cooldown()
     yield
     garmin_client._client = None
+    garmin_client.reset_login_cooldown()
 
 
 # ── Token persistence ──────────────────────────────────────────
