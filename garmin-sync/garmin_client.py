@@ -38,11 +38,43 @@ def _save_tokens(client: Garmin, token_dir: Path) -> None:
     log.info("Saved tokens to %s", token_dir)
 
 
+def _login_with_retry(client: Garmin, token_path: str | None = None) -> None:
+    """Call client.login() with exponential backoff on rate limits (429s).
+
+    The garminconnect library wraps 429 responses from Garmin's SSO as a
+    GarminConnectConnectionError with "Login failed" in the message, so we
+    catch both that and GarminConnectTooManyRequestsError.
+    """
+    delay = RATE_LIMIT_BASE_DELAY
+
+    for attempt in range(1, RATE_LIMIT_MAX_RETRIES + 1):
+        try:
+            client.login(token_path) if token_path else client.login()
+            return
+        except (GarminConnectTooManyRequestsError, GarminConnectConnectionError) as exc:
+            is_rate_limit = (
+                isinstance(exc, GarminConnectTooManyRequestsError)
+                or "429" in str(exc)
+                or "Too Many Requests" in str(exc)
+            )
+            if not is_rate_limit:
+                raise
+            if attempt == RATE_LIMIT_MAX_RETRIES:
+                log.error("Login rate-limited after %d attempts, giving up", attempt)
+                raise
+            log.warning(
+                "Login rate-limited (attempt %d/%d), backing off %ds",
+                attempt, RATE_LIMIT_MAX_RETRIES, delay,
+            )
+            time.sleep(delay)
+            delay = min(delay * 2, RATE_LIMIT_MAX_DELAY)
+
+
 def _login_with_credentials() -> Garmin:
     """Authenticate with email/password and save tokens."""
     log.info("Logging in with credentials")
     client = Garmin(email=config.GARMIN_EMAIL, password=config.GARMIN_PASSWORD)
-    client.login()
+    _login_with_retry(client)
     _save_tokens(client, Path(config.GARMIN_TOKEN_DIR).expanduser())
     return client
 
@@ -51,7 +83,7 @@ def _login_with_tokens(token_dir: Path) -> Garmin:
     """Load a session from saved tokens. Raises on failure."""
     log.info("Loading session from tokens: %s", token_dir)
     client = Garmin()
-    client.login(str(token_dir))
+    _login_with_retry(client, str(token_dir))
     log.info("Session loaded from tokens")
     return client
 
@@ -95,7 +127,7 @@ def get_client_for_user(email: str, password: str, token_dir: str | None = None)
 
     log.info("Logging in user %s with credentials", email)
     client = Garmin(email=email, password=password)
-    client.login()
+    _login_with_retry(client)
     if token_dir:
         _save_tokens(client, Path(token_dir).expanduser())
     return client
