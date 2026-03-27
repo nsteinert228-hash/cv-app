@@ -18,8 +18,45 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 from garth.exc import GarthHTTPError
+import garth.sso as _garth_sso
+from urllib.parse import parse_qs
 
 import config
+
+
+# ── Monkey-patch garth's OAuth1 token exchange ────────────────
+# garth 0.7.x uses mobile.integration.garmin.com as the login-url
+# and follows redirects to that host. That hostname doesn't resolve
+# from cloud servers (e.g. GitHub Actions). We patch get_oauth1_token
+# to disable redirect following — the preauthorized endpoint returns
+# the OAuth1 tokens directly in the response body, no redirect needed.
+
+_orig_get_oauth1_token = _garth_sso.get_oauth1_token
+
+
+def _patched_get_oauth1_token(
+    ticket: str, client: "garth.http.Client",
+) -> "_garth_sso.OAuth1Token":
+    sess = _garth_sso.GarminOAuth1Session(parent=client.sess)
+    base_url = f"https://connectapi.{client.domain}/oauth-service/oauth/"
+    login_url = f"https://mobile.integration.{client.domain}/gcm/android"
+    url = (
+        f"{base_url}preauthorized?ticket={ticket}&login-url={login_url}"
+        "&accepts-mfa-tokens=true"
+    )
+    resp = sess.get(
+        url,
+        headers=_garth_sso.OAUTH_USER_AGENT,
+        timeout=client.timeout,
+        allow_redirects=False,
+    )
+    resp.raise_for_status()
+    parsed = parse_qs(resp.text)
+    token = {k: v[0] for k, v in parsed.items()}
+    return _garth_sso.OAuth1Token(domain=client.domain, **token)
+
+
+_garth_sso.get_oauth1_token = _patched_get_oauth1_token
 
 log = logging.getLogger(__name__)
 
