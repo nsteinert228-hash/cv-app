@@ -1,9 +1,8 @@
 name: Garmin Sync
 
 on:
-  schedule:
-    # Every hour at :00
-    - cron: '0 * * * *'
+  # schedule temporarily disabled to let Garmin rate limit clear
+  # - cron: '0 * * * *'
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
