@@ -21,6 +21,7 @@ from garth.exc import GarthHTTPError
 
 import config
 
+log = logging.getLogger(__name__)
 
 # ── Monkey-patch: block redirects to mobile.integration.garmin.com ──
 # garth 0.7.x SSO flow redirects to mobile.integration.garmin.com which
@@ -50,8 +51,6 @@ def _patch_garmin_session(client: Garmin) -> None:
     adapter = _BlockMobileRedirectAdapter()
     client.garth.sess.mount("https://", adapter)
     log.info("Patched Garmin client session to block mobile.integration redirects")
-
-log = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -144,6 +143,7 @@ def _login_with_tokens(token_dir: Path) -> Garmin:
     """Load a session from saved tokens. Raises on failure."""
     log.info("Loading session from tokens: %s", token_dir)
     client = Garmin()
+    _patch_garmin_session(client)
     _login_with_retry(client, str(token_dir))
     log.info("Session loaded from tokens")
     return client
