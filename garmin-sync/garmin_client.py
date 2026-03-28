@@ -50,8 +50,31 @@ def _patched_get_oauth1_token(
         timeout=client.timeout,
         allow_redirects=False,
     )
-    resp.raise_for_status()
-    parsed = parse_qs(resp.text)
+    # With allow_redirects=False, the preauthorized endpoint returns
+    # either the tokens directly (200) or a redirect (302/303).
+    # If redirected, the tokens are in the response body, not at the
+    # redirect target. If body is empty, try the Location header query.
+    body = resp.text.strip()
+    if body and "oauth_token" in body:
+        parsed = parse_qs(body)
+    elif resp.is_redirect and resp.headers.get("Location"):
+        from urllib.parse import urlparse
+        loc = resp.headers["Location"]
+        parsed = parse_qs(urlparse(loc).query)
+    else:
+        # Fall back to original behavior but catch DNS errors
+        try:
+            resp2 = sess.get(
+                url,
+                headers=_garth_sso.OAUTH_USER_AGENT,
+                timeout=client.timeout,
+                allow_redirects=True,
+            )
+            resp2.raise_for_status()
+            parsed = parse_qs(resp2.text)
+        except Exception:
+            raise
+    log.info("OAuth1 token exchange completed (patched)")
     token = {k: v[0] for k, v in parsed.items()}
     return _garth_sso.OAuth1Token(domain=client.domain, **token)
 
