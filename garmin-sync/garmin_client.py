@@ -18,68 +18,38 @@ from garminconnect import (
     GarminConnectTooManyRequestsError,
 )
 from garth.exc import GarthHTTPError
-import garth.sso as _garth_sso
-from urllib.parse import parse_qs
 
 import config
 
 
-# ── Monkey-patch garth's OAuth1 token exchange ────────────────
-# garth 0.7.x uses mobile.integration.garmin.com as the login-url
-# and follows redirects to that host. That hostname doesn't resolve
-# from cloud servers (e.g. GitHub Actions). We patch get_oauth1_token
-# to disable redirect following — the preauthorized endpoint returns
-# the OAuth1 tokens directly in the response body, no redirect needed.
+# ── Monkey-patch: block redirects to mobile.integration.garmin.com ──
+# garth 0.7.x SSO flow redirects to mobile.integration.garmin.com which
+# doesn't resolve from cloud servers (GitHub Actions). We mount a custom
+# HTTPAdapter on each Garmin client's session to intercept and block
+# redirects to that unresolvable host.
 
-_orig_get_oauth1_token = _garth_sso.get_oauth1_token
-
-
-def _patched_get_oauth1_token(
-    ticket: str, client: "garth.http.Client",
-) -> "_garth_sso.OAuth1Token":
-    sess = _garth_sso.GarminOAuth1Session(parent=client.sess)
-    base_url = f"https://connectapi.{client.domain}/oauth-service/oauth/"
-    login_url = f"https://mobile.integration.{client.domain}/gcm/android"
-    url = (
-        f"{base_url}preauthorized?ticket={ticket}&login-url={login_url}"
-        "&accepts-mfa-tokens=true"
-    )
-    resp = sess.get(
-        url,
-        headers=_garth_sso.OAUTH_USER_AGENT,
-        timeout=client.timeout,
-        allow_redirects=False,
-    )
-    # With allow_redirects=False, the preauthorized endpoint returns
-    # either the tokens directly (200) or a redirect (302/303).
-    # If redirected, the tokens are in the response body, not at the
-    # redirect target. If body is empty, try the Location header query.
-    body = resp.text.strip()
-    if body and "oauth_token" in body:
-        parsed = parse_qs(body)
-    elif resp.is_redirect and resp.headers.get("Location"):
-        from urllib.parse import urlparse
-        loc = resp.headers["Location"]
-        parsed = parse_qs(urlparse(loc).query)
-    else:
-        # Fall back to original behavior but catch DNS errors
-        try:
-            resp2 = sess.get(
-                url,
-                headers=_garth_sso.OAUTH_USER_AGENT,
-                timeout=client.timeout,
-                allow_redirects=True,
-            )
-            resp2.raise_for_status()
-            parsed = parse_qs(resp2.text)
-        except Exception:
-            raise
-    log.info("OAuth1 token exchange completed (patched)")
-    token = {k: v[0] for k, v in parsed.items()}
-    return _garth_sso.OAuth1Token(domain=client.domain, **token)
+from requests.adapters import HTTPAdapter as _HTTPAdapter
 
 
-_garth_sso.get_oauth1_token = _patched_get_oauth1_token
+class _BlockMobileRedirectAdapter(_HTTPAdapter):
+    """HTTPAdapter that blocks redirects to mobile.integration.garmin.com."""
+
+    def send(self, request, *args, **kwargs):
+        resp = super().send(request, *args, **kwargs)
+        if resp.is_redirect:
+            location = resp.headers.get("Location", "")
+            if "mobile.integration.garmin.com" in location:
+                log.info("Blocked redirect to unresolvable host: %s", location)
+                resp.headers.pop("Location", None)
+                resp.status_code = 200
+        return resp
+
+
+def _patch_garmin_session(client: Garmin) -> None:
+    """Mount redirect-blocking adapter on a Garmin client's session."""
+    adapter = _BlockMobileRedirectAdapter()
+    client.garth.sess.mount("https://", adapter)
+    log.info("Patched Garmin client session to block mobile.integration redirects")
 
 log = logging.getLogger(__name__)
 
@@ -158,6 +128,7 @@ def _login_with_credentials() -> Garmin:
     log.info("Logging in with credentials")
     try:
         client = Garmin(email=config.GARMIN_EMAIL, password=config.GARMIN_PASSWORD)
+        _patch_garmin_session(client)
         _login_with_retry(client)
     except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError):
         _consecutive_login_failures += 1
@@ -222,6 +193,7 @@ def get_client_for_user(email: str, password: str, token_dir: str | None = None)
     log.info("Logging in user %s with credentials", email)
     try:
         client = Garmin(email=email, password=password)
+        _patch_garmin_session(client)
         _login_with_retry(client)
     except (GarminConnectTooManyRequestsError, GarminConnectAuthenticationError):
         _consecutive_login_failures += 1
