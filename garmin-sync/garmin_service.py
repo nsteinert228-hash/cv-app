@@ -89,9 +89,18 @@ def get_client() -> APIClient:
     auth_client = AuthClient(token_dir=token_dir)
     _api_client = APIClient(auth_client=auth_client)
 
-    # AuthClient loads tokens from disk on init. Only hit SSO if needed.
+    # AuthClient loads tokens from disk on init.
+    # Try: valid tokens → refresh expired tokens → SSO login as last resort.
     if auth_client.is_authenticated:
         log.info("Resumed session from cached tokens in %s", token_dir)
+    elif auth_client.needs_refresh:
+        log.info("Access token expired, refreshing via refresh token")
+        try:
+            auth_client.refresh_tokens()
+            log.info("Token refresh successful")
+        except Exception as exc:
+            log.warning("Token refresh failed (%s), falling back to SSO login", exc)
+            _do_login(_api_client, email, password)
     else:
         log.info("No valid cached tokens, performing SSO login")
         _do_login(_api_client, email, password)
@@ -112,6 +121,14 @@ def get_client_for_user(
 
     if auth_client.is_authenticated:
         log.info("Resumed session for user from cached tokens in %s", td)
+    elif auth_client.needs_refresh:
+        log.info("Access token expired for user, refreshing via refresh token")
+        try:
+            auth_client.refresh_tokens()
+            log.info("Token refresh successful for user")
+        except Exception as exc:
+            log.warning("Token refresh failed for user (%s), falling back to SSO login", exc)
+            _do_login(api_client, email, password)
     else:
         log.info("No valid cached tokens for user, performing SSO login")
         _do_login(api_client, email, password)
