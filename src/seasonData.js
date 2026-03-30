@@ -43,9 +43,13 @@ export async function getActiveSeason() {
   const client = getSupabaseClient();
   if (!client) return null;
 
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return null;
+
   const { data, error } = await client
     .from('training_seasons')
     .select('*')
+    .eq('user_id', user.id)
     .eq('status', 'active')
     .maybeSingle();
 
