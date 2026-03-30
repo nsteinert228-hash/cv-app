@@ -29,10 +29,18 @@ jobs:
       # Restore garmy OAuth tokens from GitHub Secrets so we never hit SSO.
       # sync-all uses per-user token dirs: ~/.garmy/<user-uuid>/
       - name: Restore Garmin tokens
+        env:
+          OAUTH1: ${{ secrets.GARMIN_OAUTH1_TOKEN }}
+          OAUTH2: ${{ secrets.GARMIN_OAUTH2_TOKEN }}
         run: |
           mkdir -p ~/.garmy/f294591a-c538-4370-8903-dcbeab4af1be
-          echo '${{ secrets.GARMIN_OAUTH1_TOKEN }}' > ~/.garmy/f294591a-c538-4370-8903-dcbeab4af1be/oauth1_token.json
-          echo '${{ secrets.GARMIN_OAUTH2_TOKEN }}' > ~/.garmy/f294591a-c538-4370-8903-dcbeab4af1be/oauth2_token.json
+          python3 -c "
+          import os, pathlib
+          d = pathlib.Path.home() / '.garmy' / 'f294591a-c538-4370-8903-dcbeab4af1be'
+          (d / 'oauth1_token.json').write_text(os.environ['OAUTH1'])
+          (d / 'oauth2_token.json').write_text(os.environ['OAUTH2'])
+          print('Tokens written to', d)
+          "
 
       - name: Run sync-all
         env:
