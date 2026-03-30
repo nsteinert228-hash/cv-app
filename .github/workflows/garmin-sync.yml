@@ -26,46 +26,26 @@ jobs:
           pip install garmy==2.0.0
           pip install supabase==2.28.0 python-dotenv==1.2.2
 
-      # Restore garmy OAuth tokens from GitHub Secrets so we never hit SSO.
+      # Restore garmy OAuth tokens from base64-encoded GitHub Secrets.
+      # Base64 avoids JSON corruption from GitHub's secret masking.
       # sync-all uses per-user token dirs: ~/.garmy/<user-uuid>/
       - name: Restore Garmin tokens
         env:
-          OAUTH1: ${{ secrets.GARMIN_OAUTH1_TOKEN }}
-          OAUTH2: ${{ secrets.GARMIN_OAUTH2_TOKEN }}
+          OAUTH1_B64: ${{ secrets.GARMIN_OAUTH1_TOKEN_B64 }}
+          OAUTH2_B64: ${{ secrets.GARMIN_OAUTH2_TOKEN_B64 }}
         run: |
           python3 -c "
-          import os, pathlib, json
+          import os, pathlib, base64, json
           d = pathlib.Path.home() / '.garmy' / 'f294591a-c538-4370-8903-dcbeab4af1be'
           d.mkdir(parents=True, exist_ok=True)
-          o1 = os.environ['OAUTH1']
-          o2 = os.environ['OAUTH2']
+          o1 = base64.b64decode(os.environ['OAUTH1_B64']).decode()
+          o2 = base64.b64decode(os.environ['OAUTH2_B64']).decode()
           (d / 'oauth1_token.json').write_text(o1)
           (d / 'oauth2_token.json').write_text(o2)
-          # Verify files are valid JSON and parseable
-          t1 = json.loads((d / 'oauth1_token.json').read_text())
-          t2 = json.loads((d / 'oauth2_token.json').read_text())
-          print(f'OAuth1: {len(t1)} keys, has oauth_token={\"oauth_token\" in t1}')
-          print(f'OAuth2: {len(t2)} keys, has access_token={\"access_token\" in t2}, expires_at={t2.get(\"expires_at\")}')
-          "
-
-      - name: Debug token loading
-        env:
-          GARMIN_TOKEN_DIR: ~/.garmy
-        run: |
-          python3 -c "
-          from garmy import AuthClient
-          import time
-          td = '$HOME/.garmy/f294591a-c538-4370-8903-dcbeab4af1be'
-          auth = AuthClient(token_dir=td)
-          o1 = auth.token_manager.oauth1_token
-          o2 = auth.token_manager.oauth2_token
-          print(f'OAuth1 loaded: {o1 is not None}')
-          print(f'OAuth2 loaded: {o2 is not None}')
-          if o2:
-              print(f'  expired: {o2.expired}, refresh_expired: {o2.refresh_expired}')
-              print(f'  expires_at: {o2.expires_at}, now: {int(time.time())}')
-          print(f'is_authenticated: {auth.is_authenticated}')
-          print(f'needs_refresh: {auth.needs_refresh}')
+          t1 = json.loads(o1)
+          t2 = json.loads(o2)
+          print(f'OAuth1: OK ({len(t1)} keys)')
+          print(f'OAuth2: OK ({len(t2)} keys, expires_at={t2.get(\"expires_at\")})')
           "
 
       - name: Run sync-all
