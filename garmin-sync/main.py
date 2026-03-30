@@ -182,7 +182,7 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
             except Exception as auth_exc:
                 log.error("Garmin auth failed for user %s: %s", uid, auth_exc)
                 sb.table("garmin_connections").update({
-                    "status": "auth_error",
+                    "status": "error",
                     "error_message": f"Garmin auth failed: {str(auth_exc)[:400]}",
                 }).eq("user_id", uid).execute()
                 failed += 1

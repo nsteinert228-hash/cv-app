@@ -26,12 +26,12 @@ jobs:
           pip install garmy==2.0.0
           pip install supabase==2.28.0 python-dotenv==1.2.2
 
-      # Restore cached garmy OAuth tokens so we skip SSO login
+      # Restore garmy OAuth tokens from GitHub Secrets so we never hit SSO
       - name: Restore Garmin tokens
-        uses: actions/cache@v4
-        with:
-          path: ~/.garmy
-          key: garmin-tokens-${{ secrets.GARMIN_ENCRYPTION_KEY && 'active' || 'none' }}
+        run: |
+          mkdir -p ~/.garmy
+          echo '${{ secrets.GARMIN_OAUTH1_TOKEN }}' > ~/.garmy/oauth1_token.json
+          echo '${{ secrets.GARMIN_OAUTH2_TOKEN }}' > ~/.garmy/oauth2_token.json
 
       - name: Run sync-all
         env:
@@ -40,11 +40,3 @@ jobs:
           GARMIN_ENCRYPTION_KEY: ${{ secrets.GARMIN_ENCRYPTION_KEY }}
           GARMIN_TOKEN_DIR: ~/.garmy
         run: python main.py sync-all
-
-      # Always save tokens after sync (even on failure) so next run can resume
-      - name: Save Garmin tokens
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: ~/.garmy
-          key: garmin-tokens-${{ secrets.GARMIN_ENCRYPTION_KEY && 'active' || 'none' }}
