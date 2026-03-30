@@ -1,8 +1,8 @@
 name: Garmin Sync
 
 on:
-  schedule:
-    - cron: '0 */4 * * *'  # Every 4 hours
+  # schedule disabled — Garmin blocks cloud/datacenter IPs
+  # Run locally: python main.py sync --today --user-id f294591a-c538-4370-8903-dcbeab4af1be
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
