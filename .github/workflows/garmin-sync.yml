@@ -48,6 +48,25 @@ jobs:
           print(f'OAuth2: OK ({len(t2)} keys, expires_at={t2.get(\"expires_at\")})')
           "
 
+      # Force token refresh before sync — the access token from secrets
+      # may be expired, but the refresh token (valid ~30 days) can get a new one.
+      - name: Refresh tokens
+        run: |
+          python3 -c "
+          from garmy import AuthClient
+          td = '$HOME/.garmy/f294591a-c538-4370-8903-dcbeab4af1be'
+          auth = AuthClient(token_dir=td)
+          if auth.is_authenticated:
+              print('Tokens valid, no refresh needed')
+          elif auth.needs_refresh:
+              print('Access token expired, refreshing...')
+              auth.refresh_tokens()
+              print('Refresh successful')
+          else:
+              print('ERROR: No valid tokens and cannot refresh')
+              exit(1)
+          "
+
       - name: Run sync-all
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
