@@ -16,7 +16,7 @@ SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY", "")
 GARMIN_EMAIL: str = os.getenv("GARMIN_EMAIL", "")
 GARMIN_PASSWORD: str = os.getenv("GARMIN_PASSWORD", "")
-GARMIN_TOKEN_DIR: str = os.getenv("GARMIN_TOKEN_DIR", str(Path.home() / ".garmin_tokens"))
+GARMIN_TOKEN_DIR: str = os.getenv("GARMIN_TOKEN_DIR", str(Path.home() / ".garmy"))
 GARMIN_ENCRYPTION_KEY: str = os.getenv("GARMIN_ENCRYPTION_KEY", "")
 FETCH_DELAY: float = float(os.getenv("FETCH_DELAY", "1.0"))
 

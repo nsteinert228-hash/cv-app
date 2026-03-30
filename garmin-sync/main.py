@@ -5,13 +5,20 @@ import json
 import logging
 import sys
 import time
+from pathlib import Path
 
 import config
-import garmin_client
+import garmin_service
 import supabase_client
 import sync
 
 log = logging.getLogger(__name__)
+
+# Exit codes
+EXIT_OK = 0
+EXIT_GARMIN_AUTH_FAILED = 10
+EXIT_SUPABASE_UNAVAILABLE = 11
+EXIT_PARTIAL_FAILURE = 12
 
 
 def _parse_types(types_str: str | None) -> list[str] | None:
@@ -32,22 +39,45 @@ def _print_summary(agg: dict) -> None:
     if not agg:
         print("No data synced.")
         return
-    print(f"\n{'Type':<20} {'OK':>5} {'Err':>5} {'Skip':>5} {'Records':>8}")
-    print("-" * 47)
+    print(f"\n{'Type':<20} {'OK':>5} {'Err':>5} {'Cache':>6} {'Records':>8}")
+    print("-" * 50)
     for dtype, counts in sorted(agg.items()):
         ok = counts.get("success", 0)
         err = counts.get("error", 0)
-        skip = counts.get("skipped", 0)
+        cached = counts.get("cached", counts.get("skipped", 0))
         recs = counts.get("records", 0)
-        print(f"{dtype:<20} {ok:>5} {err:>5} {skip:>5} {recs:>8}")
+        print(f"{dtype:<20} {ok:>5} {err:>5} {cached:>6} {recs:>8}")
+
+
+def _get_garmin_or_exit() -> garmin_service.APIClient:
+    """Authenticate with Garmin, or print error and exit."""
+    try:
+        return garmin_service.get_client()
+    except Exception as exc:
+        log.error("Garmin authentication failed: %s", exc)
+        print(f"Error: Could not connect to Garmin — {exc}")
+        print("Check GARMIN_EMAIL and GARMIN_PASSWORD in .env")
+        sys.exit(EXIT_GARMIN_AUTH_FAILED)
+
+
+def _get_supabase_or_exit() -> supabase_client.Client:
+    """Connect to Supabase, or print error and exit."""
+    try:
+        return supabase_client.get_client()
+    except Exception as exc:
+        log.error("Supabase connection failed: %s", exc)
+        print(f"Error: Could not connect to Supabase — {exc}")
+        print("Check SUPABASE_URL and SUPABASE_SERVICE_KEY in .env")
+        sys.exit(EXIT_SUPABASE_UNAVAILABLE)
 
 
 def cmd_sync(args: argparse.Namespace) -> None:
     """Run a sync for --today, --date, or --range."""
-    garmin = garmin_client.get_client()
-    sb = supabase_client.get_client()
+    garmin = _get_garmin_or_exit()
+    sb = _get_supabase_or_exit()
     data_types = _parse_types(args.types)
     user_id = args.user_id
+    force = getattr(args, "force", False)
 
     if args.today:
         results = sync.sync_today(garmin, sb, user_id, data_types)
@@ -56,14 +86,18 @@ def cmd_sync(args: argparse.Namespace) -> None:
         )}}) if results else None
 
     elif args.date:
-        results = sync.sync_date(garmin, sb, args.date, user_id, data_types)
+        results = sync.sync_date(garmin, sb, args.date, user_id, data_types, force=force)
         for dtype, r in results.items():
-            status = "ok" if r["status"] == "success" else f"ERROR: {r['error']}"
-            print(f"  {dtype}: {status} ({r['records']} records)")
+            if r["status"] == "cached":
+                print(f"  {dtype}: cached (skipped)")
+            elif r["status"] == "success":
+                print(f"  {dtype}: ok ({r['records']} records)")
+            else:
+                print(f"  {dtype}: ERROR: {r['error']}")
 
     elif args.range:
         start, end = args.range
-        agg = sync.sync_date_range(garmin, sb, start, end, user_id, data_types)
+        agg = sync.sync_date_range(garmin, sb, start, end, user_id, data_types, force=force)
         _print_summary(agg)
 
     else:
@@ -72,12 +106,14 @@ def cmd_sync(args: argparse.Namespace) -> None:
 
 
 def cmd_backfill(args: argparse.Namespace) -> None:
-    """Backfill the last N days, skipping already-synced date/type pairs."""
-    garmin = garmin_client.get_client()
-    sb = supabase_client.get_client()
+    """Backfill the last N days, skipping dates with existing data."""
+    garmin = _get_garmin_or_exit()
+    sb = _get_supabase_or_exit()
     data_types = _parse_types(args.types)
+    force = getattr(args, "force", False)
 
-    agg = sync.backfill(garmin, sb, args.user_id, days=args.days, data_types=data_types)
+    agg = sync.backfill(garmin, sb, args.user_id, days=args.days,
+                        data_types=data_types, force=force)
     _print_summary(agg)
 
 
@@ -85,16 +121,27 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
     """Sync all connected Garmin users (multi-user mode)."""
     config.validate(multi_user=True)
 
-    sb = supabase_client.get_client()
+    try:
+        sb = supabase_client.get_client()
+    except Exception as exc:
+        log.error("Supabase connection failed: %s", exc)
+        print(f"Error: Could not connect to Supabase — {exc}")
+        return
+
     encryption_key = config.GARMIN_ENCRYPTION_KEY
 
     # Fetch all connections that need processing
-    result = (
-        sb.table("garmin_connections")
-        .select("user_id, status")
-        .in_("status", ["pending", "active", "sync_requested"])
-        .execute()
-    )
+    try:
+        result = (
+            sb.table("garmin_connections")
+            .select("user_id, status")
+            .in_("status", ["pending", "active", "sync_requested"])
+            .execute()
+        )
+    except Exception as exc:
+        log.error("Failed to query garmin_connections: %s", exc)
+        print(f"Error: Could not query connections — {exc}")
+        return
 
     connections = result.data or []
     if not connections:
@@ -102,11 +149,16 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
         return
 
     print(f"Processing {len(connections)} connection(s)...")
+    succeeded = 0
+    failed = 0
 
     for conn in connections:
         uid = conn["user_id"]
         status = conn["status"]
         log.info("Processing user %s (status: %s)", uid, status)
+
+        # Per-user token directory avoids SSO login on every run
+        token_dir = str(Path(config.GARMIN_TOKEN_DIR).expanduser() / uid)
 
         try:
             # Get decrypted credentials
@@ -117,29 +169,40 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
 
             if not creds_result.data:
                 log.error("No credentials found for user %s", uid)
+                failed += 1
                 continue
 
             creds = creds_result.data[0]
 
-            if status == "pending":
-                # Initial auth — verify credentials work
-                garmin = garmin_client.get_client_for_user(
-                    creds["garmin_email"], creds["garmin_password"]
+            try:
+                garmin = garmin_service.get_client_for_user(
+                    creds["garmin_email"], creds["garmin_password"],
+                    token_dir=token_dir,
                 )
+            except Exception as auth_exc:
+                log.error("Garmin auth failed for user %s: %s", uid, auth_exc)
+                sb.table("garmin_connections").update({
+                    "status": "auth_error",
+                    "error_message": f"Garmin auth failed: {str(auth_exc)[:400]}",
+                }).eq("user_id", uid).execute()
+                failed += 1
+                continue
+
+            if status == "pending":
                 sb.table("garmin_connections").update({
                     "status": "active",
                     "error_message": None,
                 }).eq("user_id", uid).execute()
                 log.info("Activated user %s, running initial sync", uid)
 
-            else:
-                # Active/sync_requested — create client from credentials
-                garmin = garmin_client.get_client_for_user(
-                    creds["garmin_email"], creds["garmin_password"]
-                )
-
             # Run today's sync
-            sync.sync_today(garmin, sb, uid)
+            results = sync.sync_today(garmin, sb, uid)
+
+            # Check if any types had errors
+            errors = {k: v for k, v in results.items() if v["status"] == "error"}
+            if errors:
+                error_summary = "; ".join(f"{k}: {v['error'][:80]}" for k, v in errors.items())
+                log.warning("Partial sync failure for user %s: %s", uid, error_summary)
 
             # Update last_sync_at and reset status
             sb.table("garmin_connections").update({
@@ -148,9 +211,11 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
                 "error_message": None,
             }).eq("user_id", uid).execute()
 
+            succeeded += 1
             log.info("Sync complete for user %s", uid)
 
         except Exception as exc:
+            failed += 1
             log.error("Sync failed for user %s: %s", uid, exc)
             try:
                 sb.table("garmin_connections").update({
@@ -160,24 +225,81 @@ def cmd_sync_all(args: argparse.Namespace) -> None:
             except Exception:
                 log.error("Failed to update error status for user %s", uid)
 
-    print("sync-all complete.")
+    print(f"sync-all complete: {succeeded} succeeded, {failed} failed out of {len(connections)}")
 
 
 def cmd_sync_all_watch(args: argparse.Namespace) -> None:
-    """Run sync-all in a loop, polling every --interval seconds."""
+    """Run sync-all in a loop, polling every --interval seconds.
+
+    Individual sync-all runs that fail are logged but do not stop the
+    watch loop — it will retry on the next interval.
+    """
     interval = args.interval
     print(f"Watching for sync requests every {interval}s  (Ctrl+C to stop)")
     try:
         while True:
-            cmd_sync_all(args)
+            try:
+                cmd_sync_all(args)
+            except Exception as exc:
+                log.error("sync-all watch iteration failed: %s", exc)
+                print(f"Warning: sync-all failed ({exc}), will retry in {interval}s")
             time.sleep(interval)
     except KeyboardInterrupt:
         print("\nStopped.")
 
 
+def cmd_health(args: argparse.Namespace) -> None:
+    """Check connectivity to Garmin and Supabase."""
+    checks: dict[str, dict] = {}
+
+    # Check Supabase
+    try:
+        sb = supabase_client.get_client()
+        sb.table("sync_log").select("id").limit(1).execute()
+        checks["supabase"] = {"status": "connected"}
+    except Exception as exc:
+        checks["supabase"] = {"status": "error", "detail": str(exc)}
+
+    # Check Garmin auth
+    try:
+        client = garmin_service.get_client()
+        checks["garmin"] = {"status": "connected"}
+        # Try a lightweight API call to verify the session is live
+        try:
+            profile = client.get_user_profile()
+            username = profile.get("userName") or profile.get("displayName")
+            if username:
+                checks["garmin"]["user"] = username
+        except Exception:
+            checks["garmin"]["note"] = "authenticated but profile fetch failed"
+    except Exception as exc:
+        checks["garmin"] = {"status": "error", "detail": str(exc)}
+
+    # Print results
+    all_ok = all(c["status"] == "connected" for c in checks.values())
+
+    for service, info in checks.items():
+        status = info["status"]
+        if status == "connected":
+            extra = ""
+            if "user" in info:
+                extra = f" (user: {info['user']})"
+            elif "note" in info:
+                extra = f" ({info['note']})"
+            print(f"  {service}: OK{extra}")
+        else:
+            print(f"  {service}: FAILED — {info.get('detail', 'unknown error')}")
+
+    if all_ok:
+        print("\nAll services healthy.")
+    else:
+        print("\nSome services are unhealthy.")
+        sys.exit(1)
+
+
 def cmd_status(args: argparse.Namespace) -> None:
     """Query sync_log and display the most recent successful sync per data type."""
-    sb = supabase_client.get_client()
+    sb = _get_supabase_or_exit()
 
     query = (
         sb.table("sync_log")
@@ -228,6 +350,7 @@ def main() -> None:
   python main.py sync --today --user-id <uuid> --types sleep,hrv
   python main.py backfill --days 90 --user-id <uuid>
   python main.py sync-all
+  python main.py health
   python main.py status --user-id <uuid>""",
     )
     subparsers = parser.add_subparsers(dest="command")
@@ -244,6 +367,8 @@ def main() -> None:
                          f"Options: {', '.join(sync.ALL_DATA_TYPES)}")
     sp.add_argument("--user-id", type=str, required=True,
                     help="UUID of the user to sync data for")
+    sp.add_argument("--force", action="store_true",
+                    help="Bypass cache and re-fetch from Garmin even if data exists")
 
     # backfill
     bp = subparsers.add_parser("backfill", help="Backfill historical data")
@@ -253,6 +378,8 @@ def main() -> None:
                     help="Comma-separated data types (default: all)")
     bp.add_argument("--user-id", type=str, required=True,
                     help="UUID of the user to backfill data for")
+    bp.add_argument("--force", action="store_true",
+                    help="Bypass cache and re-fetch from Garmin even if data exists")
 
     # sync-all
     sa = subparsers.add_parser("sync-all",
@@ -261,6 +388,9 @@ def main() -> None:
                     help="Poll continuously for sync requests")
     sa.add_argument("--interval", type=int, default=10,
                     help="Seconds between polls in watch mode (default: 10)")
+
+    # health
+    subparsers.add_parser("health", help="Check Garmin and Supabase connectivity")
 
     # status
     stp = subparsers.add_parser("status", help="Show last sync status per data type")
@@ -273,6 +403,8 @@ def main() -> None:
         config.validate()
     elif args.command == "sync-all":
         config.validate(multi_user=True)
+    elif args.command == "health":
+        config.validate()
 
     if args.command == "sync":
         cmd_sync(args)
@@ -283,6 +415,8 @@ def main() -> None:
             cmd_sync_all_watch(args)
         else:
             cmd_sync_all(args)
+    elif args.command == "health":
+        cmd_health(args)
     elif args.command == "status":
         cmd_status(args)
     else:

@@ -22,13 +22,13 @@ def _mock_garmin():
 
 
 def _mock_supabase():
-    """Supabase client mock; sync_log queries return empty by default."""
+    """Supabase client mock; queries return empty by default."""
     sb = MagicMock()
     builder = MagicMock()
     builder.select.return_value = builder
     builder.eq.return_value = builder
     builder.limit.return_value = builder
-    builder.execute.return_value = MagicMock(data=[])
+    builder.execute.return_value = MagicMock(data=[], count=0)
     sb.table.return_value = builder
     return sb
 
@@ -37,10 +37,11 @@ def _mock_supabase():
 
 
 class TestSyncDate:
+    @patch("sync._has_cached_data", return_value=False)
     @patch("sync.supabase_client")
     @patch("sync.data_fetchers")
     @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
-    def test_syncs_all_types_and_returns_summary(self, _retry, mock_fetchers, mock_sb):
+    def test_syncs_all_types_and_returns_summary(self, _retry, mock_fetchers, mock_sb, _cache):
         mock_fetchers.fetch_daily_summary.return_value = {"date": DATE, "steps": 100}
         mock_fetchers.fetch_heart_rates.return_value = [{"hr": 65}]
         mock_fetchers.fetch_hrv.return_value = {"date": DATE}
@@ -61,7 +62,7 @@ class TestSyncDate:
         mock_sb.upsert_respiration.return_value = 1
         mock_sb.upsert_stress_details.return_value = 1
 
-        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID)
+        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID, force=True)
 
         assert len(results) == len(sync.ALL_DATA_TYPES)
         for dtype, result in results.items():
@@ -71,10 +72,11 @@ class TestSyncDate:
         for log_call in mock_sb.log_sync.call_args_list:
             assert log_call[0][4] == USER_ID  # user_id is 5th positional arg
 
+    @patch("sync._has_cached_data", return_value=False)
     @patch("sync.supabase_client")
     @patch("sync.data_fetchers")
     @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
-    def test_continues_on_individual_type_failure(self, _retry, mock_fetchers, mock_sb):
+    def test_continues_on_individual_type_failure(self, _retry, mock_fetchers, mock_sb, _cache):
         """A failure in one type should not block others."""
         mock_fetchers.fetch_daily_summary.side_effect = Exception("API down")
         mock_fetchers.fetch_heart_rates.return_value = [{"hr": 65}]
@@ -89,7 +91,7 @@ class TestSyncDate:
         mock_sb.upsert_heart_rate_intraday.return_value = 1
         mock_sb.upsert_sleep.return_value = 1
 
-        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID)
+        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID, force=True)
 
         # daily_summaries should be error
         assert results["daily_summaries"]["status"] == "error"
@@ -100,15 +102,16 @@ class TestSyncDate:
         assert results["hrv"]["status"] == "success"
         assert results["hrv"]["records"] == 0
 
+    @patch("sync._has_cached_data", return_value=False)
     @patch("sync.supabase_client")
     @patch("sync.data_fetchers")
     @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
-    def test_syncs_subset_of_types(self, _retry, mock_fetchers, mock_sb):
+    def test_syncs_subset_of_types(self, _retry, mock_fetchers, mock_sb, _cache):
         mock_fetchers.fetch_sleep.return_value = {"date": DATE}
         mock_sb.upsert_sleep.return_value = 1
 
         results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID,
-                                 data_types=["sleep"])
+                                 data_types=["sleep"], force=True)
 
         assert len(results) == 1
         assert "sleep" in results
@@ -122,16 +125,17 @@ class TestSyncDate:
                                  data_types=["nonexistent"])
         assert results["nonexistent"]["status"] == "error"
 
+    @patch("sync._has_cached_data", return_value=False)
     @patch("sync.supabase_client")
     @patch("sync.data_fetchers")
     @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
-    def test_logs_success_and_error_to_sync_log(self, _retry, mock_fetchers, mock_sb):
+    def test_logs_success_and_error_to_sync_log(self, _retry, mock_fetchers, mock_sb, _cache):
         mock_fetchers.fetch_sleep.return_value = {"date": DATE}
         mock_fetchers.fetch_hrv.side_effect = Exception("timeout")
         mock_sb.upsert_sleep.return_value = 1
 
         sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID,
-                       data_types=["sleep", "hrv"])
+                       data_types=["sleep", "hrv"], force=True)
 
         log_calls = mock_sb.log_sync.call_args_list
         assert len(log_calls) == 2
@@ -144,20 +148,92 @@ class TestSyncDate:
         for c in log_calls:
             assert c[0][4] == USER_ID
 
+    @patch("sync._has_cached_data", return_value=False)
     @patch("sync.supabase_client")
     @patch("sync.data_fetchers")
     @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
-    def test_upsert_receives_user_id(self, _retry, mock_fetchers, mock_sb):
+    def test_upsert_receives_user_id(self, _retry, mock_fetchers, mock_sb, _cache):
         """Verify user_id flows through to upsert calls."""
         mock_fetchers.fetch_sleep.return_value = {"date": DATE}
         mock_sb.upsert_sleep.return_value = 1
 
         sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID,
-                       data_types=["sleep"])
+                       data_types=["sleep"], force=True)
 
         # upsert_sleep called with (sb, data, user_id) via dispatch lambda
         mock_sb.upsert_sleep.assert_called_once()
         assert mock_sb.upsert_sleep.call_args[0][2] == USER_ID
+
+
+# ── Cache layer ───────────────────────────────────────────────
+
+
+class TestCacheLayer:
+    @patch("sync._is_today", return_value=False)
+    @patch("sync._has_cached_data", return_value=True)
+    @patch("sync.supabase_client")
+    @patch("sync.data_fetchers")
+    @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
+    def test_skips_fetch_when_data_cached(self, _retry, mock_fetchers, mock_sb, _cache, _today):
+        """Historical date with existing data should return 'cached' without calling Garmin."""
+        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID,
+                                 data_types=["sleep"])
+
+        assert results["sleep"]["status"] == "cached"
+        # fetch_sleep should NOT have been called
+        mock_fetchers.fetch_sleep.assert_not_called()
+        # log_sync should NOT be called for cache hits
+        mock_sb.log_sync.assert_not_called()
+
+    @patch("sync._is_today", return_value=True)
+    @patch("sync._has_cached_data", return_value=True)
+    @patch("sync.supabase_client")
+    @patch("sync.data_fetchers")
+    @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
+    def test_always_fetches_today(self, _retry, mock_fetchers, mock_sb, _cache, _today):
+        """Today's data should always be fetched even if cached."""
+        mock_fetchers.fetch_sleep.return_value = {"date": DATE}
+        mock_sb.upsert_sleep.return_value = 1
+
+        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID,
+                                 data_types=["sleep"])
+
+        assert results["sleep"]["status"] == "success"
+        mock_fetchers.fetch_sleep.assert_called_once()
+
+    @patch("sync._is_today", return_value=False)
+    @patch("sync._has_cached_data", return_value=True)
+    @patch("sync.supabase_client")
+    @patch("sync.data_fetchers")
+    @patch("sync.with_retry", side_effect=lambda fn, *a, **kw: fn(*a, **kw))
+    def test_force_bypasses_cache(self, _retry, mock_fetchers, mock_sb, _cache, _today):
+        """force=True should skip the cache check and always fetch."""
+        mock_fetchers.fetch_sleep.return_value = {"date": DATE}
+        mock_sb.upsert_sleep.return_value = 1
+
+        results = sync.sync_date(_mock_garmin(), _mock_supabase(), DATE, USER_ID,
+                                 data_types=["sleep"], force=True)
+
+        assert results["sleep"]["status"] == "success"
+        mock_fetchers.fetch_sleep.assert_called_once()
+
+    def test_has_cached_data_returns_true(self):
+        sb = _mock_supabase()
+        builder = sb.table.return_value
+        builder.execute.return_value = MagicMock(count=1)
+
+        assert sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID) is True
+        builder.eq.assert_any_call("user_id", USER_ID)
+        builder.eq.assert_any_call("date", DATE)
+
+    def test_has_cached_data_returns_false_when_empty(self):
+        sb = _mock_supabase()
+        assert sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID) is False
+
+    def test_has_cached_data_returns_false_on_error(self):
+        sb = _mock_supabase()
+        sb.table.side_effect = Exception("DB error")
+        assert sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID) is False
 
 
 # ── sync_date_range ────────────────────────────────────────────
@@ -200,6 +276,22 @@ class TestSyncDateRange:
 
         assert agg["sleep"]["success"] == 1
         assert agg["sleep"]["error"] == 1
+
+    @patch("sync.sync_date")
+    def test_aggregates_cached(self, mock_sync_date):
+        mock_sync_date.side_effect = [
+            {"sleep": {"status": "cached", "records": 0, "error": None}},
+            {"sleep": {"status": "success", "records": 1, "error": None}},
+        ]
+
+        agg = sync.sync_date_range(
+            _mock_garmin(), _mock_supabase(),
+            "2026-03-01", "2026-03-02", USER_ID,
+            data_types=["sleep"],
+        )
+
+        assert agg["sleep"]["cached"] == 1
+        assert agg["sleep"]["success"] == 1
 
     @patch("sync.sync_date")
     def test_single_day_range(self, mock_sync_date):
@@ -246,110 +338,69 @@ class TestSyncToday:
         assert mock_sync_date.call_args[0][4] == ["sleep"]
 
 
-# ── backfill ───────────────────────────────────────────────────
+# ── backfill ──────────────────────────────────────────────────
 
 
 class TestBackfill:
-    @patch("sync.sync_date")
-    @patch("sync._already_synced_today", return_value=False)
+    @patch("sync.sync_date_range")
     @patch("sync.date")
-    def test_backfills_n_days(self, mock_date_cls, mock_synced, mock_sync_date):
+    def test_backfills_n_days(self, mock_date_cls, mock_sync_range):
         mock_date_cls.today.return_value = date(2026, 3, 3)
         mock_date_cls.fromisoformat = date.fromisoformat
         mock_date_cls.side_effect = lambda *a, **kw: date(*a, **kw)
-        mock_sync_date.return_value = {
-            "sleep": {"status": "success", "records": 1, "error": None},
-        }
-
-        sync.backfill(_mock_garmin(), _mock_supabase(), USER_ID, days=3,
-                     data_types=["sleep"])
-
-        assert mock_sync_date.call_count == 3
-        dates = [c[0][2] for c in mock_sync_date.call_args_list]
-        assert dates == ["2026-03-01", "2026-03-02", "2026-03-03"]
-        # user_id passed through
-        for c in mock_sync_date.call_args_list:
-            assert c[0][3] == USER_ID
-
-    @patch("sync.sync_date")
-    @patch("sync._already_synced_today")
-    @patch("sync.date")
-    def test_skips_already_synced_dates(self, mock_date_cls, mock_synced, mock_sync_date):
-        mock_date_cls.today.return_value = date(2026, 3, 3)
-        mock_date_cls.fromisoformat = date.fromisoformat
-        mock_date_cls.side_effect = lambda *a, **kw: date(*a, **kw)
-
-        # Day 1: already synced; Day 2 & 3: not synced
-        def is_synced(sb, date_str, dtype, uid):
-            return date_str == "2026-03-01"
-
-        mock_synced.side_effect = is_synced
-        mock_sync_date.return_value = {
-            "sleep": {"status": "success", "records": 1, "error": None},
+        mock_sync_range.return_value = {
+            "sleep": {"success": 3, "error": 0, "cached": 0, "records": 3},
         }
 
         agg = sync.backfill(_mock_garmin(), _mock_supabase(), USER_ID, days=3,
                             data_types=["sleep"])
 
-        # Only day 2 and 3 should be synced
-        assert mock_sync_date.call_count == 2
-        dates = [c[0][2] for c in mock_sync_date.call_args_list]
-        assert "2026-03-01" not in dates
-        assert "2026-03-02" in dates
-        assert "2026-03-03" in dates
-        # Skipped count for sleep
-        assert agg["sleep"]["skipped"] == 1
+        mock_sync_range.assert_called_once()
+        call_args = mock_sync_range.call_args
+        assert call_args[0][2] == "2026-03-01"  # start_date
+        assert call_args[0][3] == "2026-03-03"  # end_date
+        assert call_args[0][4] == USER_ID
+        assert agg["sleep"]["success"] == 3
 
-    @patch("sync.sync_date")
-    @patch("sync._already_synced_today")
+    @patch("sync.sync_date_range")
     @patch("sync.date")
-    def test_skips_per_type_not_per_date(self, mock_date_cls, mock_synced, mock_sync_date):
-        """If only sleep is synced for a date, hrv should still be fetched."""
+    def test_passes_force_flag(self, mock_date_cls, mock_sync_range):
         mock_date_cls.today.return_value = date(2026, 3, 1)
         mock_date_cls.fromisoformat = date.fromisoformat
         mock_date_cls.side_effect = lambda *a, **kw: date(*a, **kw)
+        mock_sync_range.return_value = {}
 
-        def is_synced(sb, date_str, dtype, uid):
-            return dtype == "sleep"  # sleep already done, hrv not
+        sync.backfill(_mock_garmin(), _mock_supabase(), USER_ID, days=1, force=True)
 
-        mock_synced.side_effect = is_synced
-        mock_sync_date.return_value = {
-            "hrv": {"status": "success", "records": 1, "error": None},
-        }
-
-        sync.backfill(_mock_garmin(), _mock_supabase(), USER_ID, days=1,
-                     data_types=["sleep", "hrv"])
-
-        # sync_date should be called with only ["hrv"]
-        assert mock_sync_date.call_count == 1
-        types_arg = mock_sync_date.call_args[0][4]
-        assert types_arg == ["hrv"]
+        assert mock_sync_range.call_args[1]["force"] is True
 
 
-# ── _already_synced_today ──────────────────────────────────────
+# ── _has_cached_data ──────────────────────────────────────────
 
 
-class TestAlreadySynced:
-    def test_returns_true_when_success_exists(self):
+class TestHasCachedData:
+    def test_returns_true_when_data_exists(self):
         sb = _mock_supabase()
         builder = sb.table.return_value
-        builder.execute.return_value = MagicMock(data=[{"id": "abc"}])
+        builder.execute.return_value = MagicMock(count=5)
 
-        assert sync._already_synced_today(sb, DATE, "sleep", USER_ID) is True
+        assert sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID) is True
 
     def test_returns_false_when_no_records(self):
         sb = _mock_supabase()
-        assert sync._already_synced_today(sb, DATE, "sleep", USER_ID) is False
+        assert sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID) is False
 
     def test_returns_false_on_error(self):
         sb = _mock_supabase()
         sb.table.side_effect = Exception("DB error")
-        assert sync._already_synced_today(sb, DATE, "sleep", USER_ID) is False
+        assert sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID) is False
 
-    def test_filters_by_user_id(self):
+    def test_filters_by_user_id_and_date(self):
         sb = _mock_supabase()
         builder = sb.table.return_value
 
-        sync._already_synced_today(sb, DATE, "sleep", USER_ID)
+        sync._has_cached_data(sb, "sleep_summaries", DATE, USER_ID)
 
+        sb.table.assert_called_with("sleep_summaries")
         builder.eq.assert_any_call("user_id", USER_ID)
+        builder.eq.assert_any_call("date", DATE)

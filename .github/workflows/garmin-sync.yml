@@ -1,8 +1,8 @@
 name: Garmin Sync
 
 on:
-  # schedule temporarily disabled to let Garmin rate limit clear
-  # - cron: '0 * * * *'
+  schedule:
+    - cron: '0 */4 * * *'  # Every 4 hours
   workflow_dispatch: # Allow manual trigger from GitHub UI
 
 jobs:
@@ -23,13 +23,28 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install "garth==0.7.11"
-          pip install garminconnect==0.2.40 --no-deps
+          pip install garmy==2.0.0
           pip install supabase==2.28.0 python-dotenv==1.2.2
+
+      # Restore cached garmy OAuth tokens so we skip SSO login
+      - name: Restore Garmin tokens
+        uses: actions/cache@v4
+        with:
+          path: ~/.garmy
+          key: garmin-tokens-${{ secrets.GARMIN_ENCRYPTION_KEY && 'active' || 'none' }}
 
       - name: Run sync-all
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           GARMIN_ENCRYPTION_KEY: ${{ secrets.GARMIN_ENCRYPTION_KEY }}
+          GARMIN_TOKEN_DIR: ~/.garmy
         run: python main.py sync-all
+
+      # Always save tokens after sync (even on failure) so next run can resume
+      - name: Save Garmin tokens
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: ~/.garmy
+          key: garmin-tokens-${{ secrets.GARMIN_ENCRYPTION_KEY && 'active' || 'none' }}

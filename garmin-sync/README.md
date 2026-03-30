@@ -86,10 +86,14 @@ ruff check .
 ## Architecture
 
 ```
-main.py              CLI (argparse)
-  └─ sync.py         Orchestration: date iteration, error isolation, sync_log
-      ├─ data_fetchers.py   One function per data type (Garmin API → parsed dict)
-      ├─ supabase_client.py Upsert functions per table (chunked for intraday)
-      └─ garmin_client.py   Auth, token persistence, rate limit retry
-config.py            Env var loading from .env
+main.py                CLI (argparse)
+  └─ sync.py           Orchestration: date iteration, cache layer, sync_log
+      ├─ data_fetchers.py     One function per data type (raw API → parsed dict)
+      ├─ supabase_client.py   Upsert functions per table (chunked for intraday)
+      └─ garmin_service.py    Auth, token caching, retry, all Garmin API calls (garmy)
+config.py              Env var loading from .env
 ```
+
+> **Note:** The old `garmin_client.py` (python-garminconnect) was removed in the garmy migration.
+> If you have stale token files in `~/.garmin_tokens/` from the old library, they can be safely deleted.
+> garmy stores its tokens in `~/.garmy/` (or `GARMIN_TOKEN_DIR`).

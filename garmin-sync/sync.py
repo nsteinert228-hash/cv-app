@@ -1,6 +1,6 @@
 """Orchestration logic for Garmin → Supabase sync.
 
-All public functions accept a Garmin client and Supabase client and
+All public functions accept a garmy APIClient and Supabase client and
 coordinate fetching, upserting, and logging.  Individual data-type
 failures are logged but never stop the overall sync.
 """
@@ -8,14 +8,14 @@ failures are logged but never stop the overall sync.
 import logging
 import time
 from datetime import date, timedelta
+from typing import Any
 
-from garminconnect import Garmin
 from supabase import Client
 
 import config
 import data_fetchers
 import supabase_client
-from garmin_client import with_retry
+from garmin_service import with_retry
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ ALL_DATA_TYPES = [
 ]
 
 # Map data type name → (fetcher, upserter) pairs.
-# Fetchers all accept (garmin_client, date_str).
+# Fetchers all accept (api_client, date_str).
 # "single" upserters accept (sb_client, data_dict) and return int.
 # "multi"  upserters accept (sb_client, date_str, rows_list) and return int.
 # "list"   upserters accept (sb_client, rows_list) and return int.
@@ -43,63 +43,104 @@ _DISPATCH: dict[str, dict] = {
         "fetch": lambda g, d: data_fetchers.fetch_daily_summary(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_daily_summary(sb, data, uid),
         "kind": "single",
+        "table": "daily_summaries",
     },
     "heart_rate": {
         "fetch": lambda g, d: data_fetchers.fetch_heart_rates(g, d),
         "upsert": lambda sb, d, rows, uid: supabase_client.upsert_heart_rate_intraday(sb, d, rows, uid),
         "kind": "multi",
+        "table": "heart_rate_intraday",
     },
     "hrv": {
         "fetch": lambda g, d: data_fetchers.fetch_hrv(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_hrv(sb, data, uid),
         "kind": "single",
+        "table": "hrv_summaries",
     },
     "sleep": {
         "fetch": lambda g, d: data_fetchers.fetch_sleep(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_sleep(sb, data, uid),
         "kind": "single",
+        "table": "sleep_summaries",
     },
     "activities": {
         "fetch": lambda g, d: data_fetchers.fetch_activities(g, d),
         "upsert": lambda sb, d, rows, uid: supabase_client.upsert_activities(sb, rows, uid),
         "kind": "list",
+        "table": "activities",
     },
     "activity_metrics": {
         "kind": "custom",
+        "table": "activity_metrics",
     },
     "body_composition": {
         "fetch": lambda g, d: data_fetchers.fetch_body_composition(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_body_composition(sb, data, uid),
         "kind": "single",
+        "table": "body_composition",
     },
     "spo2": {
         "fetch": lambda g, d: data_fetchers.fetch_spo2(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_spo2(sb, data, uid),
         "kind": "single",
+        "table": "spo2_daily",
     },
     "respiration": {
         "fetch": lambda g, d: data_fetchers.fetch_respiration(g, d),
         "upsert": lambda sb, d, data, uid: supabase_client.upsert_respiration(sb, data, uid),
         "kind": "single",
+        "table": "respiration_daily",
     },
     "stress": {
         "fetch": lambda g, d: data_fetchers.fetch_stress_details(g, d),
         "upsert": lambda sb, d, rows, uid: supabase_client.upsert_stress_details(sb, d, rows, uid),
         "kind": "multi",
+        "table": "stress_details",
     },
 }
 
 
+# ── Supabase cache check ─────────────────────────────────────
+
+
+def _has_cached_data(sb: Client, table: str, date_str: str, user_id: str) -> bool:
+    """Check if data already exists in a Supabase table for a user+date.
+
+    Returns True if at least one row exists, meaning we can skip the
+    Garmin API call for this data type and date.
+    """
+    try:
+        result = (
+            sb.table(table)
+            .select("user_id", count="exact")
+            .eq("user_id", user_id)
+            .eq("date", date_str)
+            .limit(1)
+            .execute()
+        )
+        return bool(result.count and result.count > 0)
+    except Exception:
+        # On error, fall through to fetch — better to re-fetch than miss data
+        return False
+
+
+def _is_today(date_str: str) -> bool:
+    """Check if a date string is today's date."""
+    return date_str == date.today().isoformat()
+
+
 def _sync_activity_metrics(
-    garmin: Garmin,
+    garmin: Any,
     sb: Client,
     date_str: str,
     user_id: str,
+    force: bool = False,
 ) -> tuple[str, int]:
     """Fetch activity details and metrics for all aerobic activities on a date.
 
     First fetches the activity list for the date, then gets detailed metrics
-    for each aerobic activity.
+    for each aerobic activity. Skips activities that already have metrics
+    in the DB unless force=True.
     """
     activities = with_retry(data_fetchers.fetch_activities, garmin, date_str)
     if not activities:
@@ -110,6 +151,23 @@ def _sync_activity_metrics(
         activity_id = act.get("activity_id")
         if not activity_id:
             continue
+
+        # Check if we already have metrics for this activity
+        if not force:
+            try:
+                existing = (
+                    sb.table("activity_metrics")
+                    .select("activity_id", count="exact")
+                    .eq("user_id", user_id)
+                    .eq("activity_id", activity_id)
+                    .limit(1)
+                    .execute()
+                )
+                if existing.count and existing.count > 0:
+                    log.debug("Activity metrics for %d already cached, skipping", activity_id)
+                    continue
+            except Exception:
+                pass  # On error, fall through to fetch
 
         detail = with_retry(
             data_fetchers.fetch_activity_details,
@@ -132,13 +190,20 @@ def _sync_activity_metrics(
 
 
 def _sync_one_type(
-    garmin: Garmin,
+    garmin: Any,
     sb: Client,
     date_str: str,
     dtype: str,
     user_id: str,
+    force: bool = False,
 ) -> tuple[str, int]:
     """Fetch + upsert a single data type for one date.
+
+    Checks Supabase first — if data already exists for a historical date,
+    skips the Garmin API call entirely. Today's data is always re-fetched
+    since it accumulates throughout the day.
+
+    Pass force=True to bypass the cache and always fetch from Garmin.
 
     Returns (status, record_count).
     """
@@ -146,7 +211,14 @@ def _sync_one_type(
 
     # Custom handler for activity_metrics
     if spec.get("kind") == "custom" and dtype == "activity_metrics":
-        return _sync_activity_metrics(garmin, sb, date_str, user_id)
+        return _sync_activity_metrics(garmin, sb, date_str, user_id, force=force)
+
+    # Cache check: skip Garmin fetch if data exists and date is not today
+    if not force and not _is_today(date_str):
+        table = spec.get("table")
+        if table and _has_cached_data(sb, table, date_str, user_id):
+            log.debug("  %s for %s already in DB, skipping Garmin fetch", dtype, date_str)
+            return "cached", 0
 
     data = with_retry(spec["fetch"], garmin, date_str)
 
@@ -171,15 +243,20 @@ def _sync_one_type(
 
 
 def sync_date(
-    garmin: Garmin,
+    garmin: Any,
     sb: Client,
     date_str: str,
     user_id: str,
     data_types: list[str] | None = None,
+    force: bool = False,
 ) -> dict[str, dict]:
     """Sync all data types for a single date.
 
-    Returns {dtype: {"status": "success"|"error", "records": N, "error": msg|None}}
+    Historical dates are checked against Supabase first — if data already
+    exists, the Garmin API call is skipped. Today's data is always
+    re-fetched. Pass force=True to bypass caching entirely.
+
+    Returns {dtype: {"status": "success"|"cached"|"error", "records": N, "error": msg|None}}
     """
     types = data_types or ALL_DATA_TYPES
     results: dict[str, dict] = {}
@@ -192,11 +269,16 @@ def sync_date(
 
         started_at = supabase_client._now_iso()
         try:
-            status, count = _sync_one_type(garmin, sb, date_str, dtype, user_id)
+            status, count = _sync_one_type(garmin, sb, date_str, dtype, user_id, force=force)
             results[dtype] = {"status": status, "records": count, "error": None}
-            supabase_client.log_sync(sb, dtype, date_str, "success", user_id,
-                                     records_synced=count, started_at=started_at)
-            log.info("  %s: %d records", dtype, count)
+            # Only write sync_log for actual fetches, not cache hits
+            if status != "cached":
+                supabase_client.log_sync(sb, dtype, date_str, "success", user_id,
+                                         records_synced=count, started_at=started_at)
+            if status == "cached":
+                log.debug("  %s: cached", dtype)
+            else:
+                log.info("  %s: %d records", dtype, count)
         except Exception as exc:
             msg = str(exc)
             results[dtype] = {"status": "error", "records": 0, "error": msg}
@@ -204,23 +286,29 @@ def sync_date(
                                      error_message=msg, started_at=started_at)
             log.error("  %s: error — %s", dtype, msg)
 
-        # Rate-limit delay between API calls
-        time.sleep(config.FETCH_DELAY)
+        # Rate-limit delay between API calls — skip for cache hits
+        if results[dtype]["status"] != "cached":
+            time.sleep(config.FETCH_DELAY)
 
     return results
 
 
 def sync_date_range(
-    garmin: Garmin,
+    garmin: Any,
     sb: Client,
     start_date: str,
     end_date: str,
     user_id: str,
     data_types: list[str] | None = None,
+    force: bool = False,
 ) -> dict[str, dict]:
     """Sync a range of dates sequentially.
 
-    Returns aggregate summary: {dtype: {"success": N, "error": N, "records": N}}
+    Historical dates with existing data are automatically skipped
+    (via the cache check in _sync_one_type). Pass force=True to
+    bypass caching and re-fetch everything.
+
+    Returns aggregate summary: {dtype: {"success": N, "error": N, "cached": N, "records": N}}
     """
     start = date.fromisoformat(start_date)
     end = date.fromisoformat(end_date)
@@ -235,28 +323,31 @@ def sync_date_range(
         date_str = current.isoformat()
         log.info("Syncing %s  (%d/%d days)", date_str, day_num, total_days)
 
-        day_results = sync_date(garmin, sb, date_str, user_id, data_types)
+        day_results = sync_date(garmin, sb, date_str, user_id, data_types, force=force)
 
         for dtype, result in day_results.items():
             if dtype not in agg:
-                agg[dtype] = {"success": 0, "error": 0, "records": 0}
+                agg[dtype] = {"success": 0, "error": 0, "cached": 0, "records": 0}
             if result["status"] == "success":
                 agg[dtype]["success"] += 1
+            elif result["status"] == "cached":
+                agg[dtype]["cached"] += 1
             else:
                 agg[dtype]["error"] += 1
             agg[dtype]["records"] += result["records"]
 
         current += timedelta(days=1)
 
-        # Extra delay between dates to respect Garmin rate limits
-        if current <= end:
+        # Extra delay between dates — skip if everything was cached
+        all_cached = all(r["status"] == "cached" for r in day_results.values())
+        if current <= end and not all_cached:
             time.sleep(config.FETCH_DELAY)
 
     return agg
 
 
 def sync_today(
-    garmin: Garmin,
+    garmin: Any,
     sb: Client,
     user_id: str,
     data_types: list[str] | None = None,
@@ -286,63 +377,26 @@ def _already_synced_today(sb: Client, date_str: str, dtype: str, user_id: str) -
 
 
 def backfill(
-    garmin: Garmin,
+    garmin: Any,
     sb: Client,
     user_id: str,
     days: int = 30,
     data_types: list[str] | None = None,
+    force: bool = False,
 ) -> dict[str, dict]:
-    """Backfill the last N days, skipping dates already synced successfully.
+    """Backfill the last N days, skipping dates already in Supabase.
+
+    The cache layer in _sync_one_type automatically skips data types
+    that already exist for historical dates, so this just iterates
+    the date range and lets sync_date handle the rest.
 
     Returns aggregate summary.
     """
-    types = data_types or ALL_DATA_TYPES
     end = date.today()
     start = end - timedelta(days=days - 1)
-    total_days = days
+    start_str = start.isoformat()
+    end_str = end.isoformat()
 
-    agg: dict[str, dict] = {}
-    current = start
-    day_num = 0
-
-    while current <= end:
-        day_num += 1
-        date_str = current.isoformat()
-
-        # Filter to only types not yet synced for this date
-        needed = [t for t in types if not _already_synced_today(sb, date_str, t, user_id)]
-
-        if not needed:
-            log.info("Skipping %s — all types already synced  (%d/%d)", date_str, day_num, total_days)
-            for t in types:
-                if t not in agg:
-                    agg[t] = {"success": 0, "error": 0, "records": 0, "skipped": 0}
-                agg[t]["skipped"] += 1
-            current += timedelta(days=1)
-            continue
-
-        log.info("Backfilling %s  (%d/%d days, %d types)", date_str, day_num, total_days, len(needed))
-        day_results = sync_date(garmin, sb, date_str, user_id, needed)
-
-        for dtype, result in day_results.items():
-            if dtype not in agg:
-                agg[dtype] = {"success": 0, "error": 0, "records": 0, "skipped": 0}
-            if result["status"] == "success":
-                agg[dtype]["success"] += 1
-            else:
-                agg[dtype]["error"] += 1
-            agg[dtype]["records"] += result["records"]
-
-        # Count skipped types
-        for t in types:
-            if t not in needed:
-                if t not in agg:
-                    agg[t] = {"success": 0, "error": 0, "records": 0, "skipped": 0}
-                agg[t]["skipped"] += 1
-
-        current += timedelta(days=1)
-
-        if current <= end:
-            time.sleep(config.FETCH_DELAY)
-
-    return agg
+    log.info("Backfilling %d days: %s → %s", days, start_str, end_str)
+    return sync_date_range(garmin, sb, start_str, end_str, user_id,
+                           data_types=data_types, force=force)

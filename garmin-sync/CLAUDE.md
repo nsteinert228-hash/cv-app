@@ -2,7 +2,7 @@
 
 ## Stack
 - Python 3.11+
-- garminconnect (Garmin Connect API wrapper)
+- garmy (Garmin Connect API client — OAuth token management, type safety)
 - supabase-py (Supabase Python client)
 - python-dotenv for env management
 
@@ -22,16 +22,17 @@
 - Type hints on all functions
 
 ## Key Files
-- garmin_client.py — auth + session management
-- data_fetchers.py — one function per health data type
+- garmin_service.py — garmy client init, auth, retry, all Garmin API wrappers (only file that imports garmy)
+- data_fetchers.py — one function per health data type (parses raw API → Supabase schema)
 - supabase_client.py — upsert logic per table
-- sync.py — orchestration + date range iteration
+- sync.py — orchestration, date range iteration, Supabase cache layer
 - main.py — CLI entrypoint
 - config.py — env var loading
 
 ## Important Notes
 - Never commit .env or token files
 - Garmin rate limits aggressively — use 1s delay between date fetches
-- Token persistence in ~/.garmin_tokens avoids repeated logins
+- garmy caches OAuth tokens to GARMIN_TOKEN_DIR (default: ~/.garmy)
+- Historical dates are cache-checked against Supabase before fetching from Garmin
 - Supabase uses service_role key (bypasses RLS)
 - Intraday data (HR, stress) is batched in 500-row chunks

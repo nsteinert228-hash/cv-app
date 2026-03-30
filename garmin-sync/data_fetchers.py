@@ -1,15 +1,16 @@
 """Fetch functions for each Garmin health data type.
 
-Each function accepts a garminconnect.Garmin client and a date string
-(YYYY-MM-DD), calls the appropriate API method, and returns a parsed dict
+Each function accepts a garmy APIClient and a date string (YYYY-MM-DD),
+calls the appropriate garmin_service wrapper, and returns a parsed dict
 matching the Supabase table schema — or None if no data is available.
 """
 
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
-from garminconnect import Garmin
+import garmin_service
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +25,10 @@ def _ms_to_iso(ms: int | None) -> str | None:
 # ── 1. daily_summaries ─────────────────────────────────────────
 
 
-def fetch_daily_summary(client: Garmin, date_str: str) -> dict | None:
+def fetch_daily_summary(client: Any, date_str: str) -> dict | None:
     """Fetch daily summary stats for a single date."""
     log.info("Fetching daily summary for %s", date_str)
-    raw = client.get_stats(date_str)
+    raw = garmin_service.fetch_stats_raw(client, date_str)
     if not raw:
         log.debug("No daily summary data for %s", date_str)
         return None
@@ -61,10 +62,10 @@ def fetch_daily_summary(client: Garmin, date_str: str) -> dict | None:
 # ── 2. heart_rate_intraday ─────────────────────────────────────
 
 
-def fetch_heart_rates(client: Garmin, date_str: str) -> list[dict]:
+def fetch_heart_rates(client: Any, date_str: str) -> list[dict]:
     """Fetch intraday heart rate values as a list of (date, timestamp, hr) rows."""
     log.info("Fetching heart rates for %s", date_str)
-    raw = client.get_heart_rates(date_str)
+    raw = garmin_service.fetch_heart_rate_raw(client, date_str)
     if not raw:
         log.debug("No heart rate data for %s", date_str)
         return []
@@ -86,10 +87,10 @@ def fetch_heart_rates(client: Garmin, date_str: str) -> list[dict]:
 # ── 3. hrv_summaries ───────────────────────────────────────────
 
 
-def fetch_hrv(client: Garmin, date_str: str) -> dict | None:
+def fetch_hrv(client: Any, date_str: str) -> dict | None:
     """Fetch HRV summary data for a single date."""
     log.info("Fetching HRV for %s", date_str)
-    raw = client.get_hrv_data(date_str)
+    raw = garmin_service.fetch_hrv_raw(client, date_str)
     if not raw:
         log.debug("No HRV data for %s", date_str)
         return None
@@ -114,10 +115,10 @@ def fetch_hrv(client: Garmin, date_str: str) -> dict | None:
 # ── 4. sleep_summaries ─────────────────────────────────────────
 
 
-def fetch_sleep(client: Garmin, date_str: str) -> dict | None:
+def fetch_sleep(client: Any, date_str: str) -> dict | None:
     """Fetch sleep data for a single date."""
     log.info("Fetching sleep for %s", date_str)
-    raw = client.get_sleep_data(date_str)
+    raw = garmin_service.fetch_sleep_raw(client, date_str)
     if not raw:
         log.debug("No sleep data for %s", date_str)
         return None
@@ -157,10 +158,10 @@ def fetch_sleep(client: Garmin, date_str: str) -> dict | None:
 # ── 5. activities ───────────────────────────────────────────────
 
 
-def fetch_activities(client: Garmin, date_str: str) -> list[dict]:
+def fetch_activities(client: Any, date_str: str) -> list[dict]:
     """Fetch activities for a single date."""
     log.info("Fetching activities for %s", date_str)
-    raw_list = client.get_activities_by_date(date_str, date_str)
+    raw_list = garmin_service.fetch_activities_raw(client, date_str)
     if not raw_list:
         log.debug("No activities for %s", date_str)
         return []
@@ -400,7 +401,7 @@ def _classify_workout(
     return "mixed", details
 
 
-def fetch_activity_details(client: Garmin, activity_id: int, activity_type: str | None = None,
+def fetch_activity_details(client: Any, activity_id: int, activity_type: str | None = None,
                            avg_hr: int | None = None, max_hr: int | None = None,
                            duration_seconds: float | None = None) -> dict | None:
     """Fetch detailed metrics for a single activity.
@@ -416,7 +417,7 @@ def fetch_activity_details(client: Garmin, activity_id: int, activity_type: str 
     log.info("Fetching activity details for %d (type: %s)", activity_id, activity_type)
 
     try:
-        raw = client.get_activity_details(activity_id)
+        raw = garmin_service.fetch_activity_details_raw(client, activity_id)
     except Exception as exc:
         log.warning("Failed to fetch details for activity %d: %s", activity_id, exc)
         return None
@@ -482,7 +483,7 @@ def fetch_activity_details(client: Garmin, activity_id: int, activity_type: str 
     # Also try to get splits
     splits = []
     try:
-        splits_raw = client.get_activity_splits(activity_id)
+        splits_raw = garmin_service.fetch_activity_splits_raw(client, activity_id)
         if splits_raw:
             lap_list = splits_raw.get("lapDTOs") or splits_raw.get("splitDTOs") or []
             splits = _extract_splits(lap_list)
@@ -521,10 +522,10 @@ def fetch_activity_details(client: Garmin, activity_id: int, activity_type: str 
 # ── 6. body_composition ────────────────────────────────────────
 
 
-def fetch_body_composition(client: Garmin, date_str: str) -> dict | None:
+def fetch_body_composition(client: Any, date_str: str) -> dict | None:
     """Fetch body composition data for a single date."""
     log.info("Fetching body composition for %s", date_str)
-    raw = client.get_body_composition(date_str, date_str)
+    raw = garmin_service.fetch_body_composition_raw(client, date_str)
     if not raw:
         log.debug("No body composition data for %s", date_str)
         return None
@@ -554,10 +555,10 @@ def fetch_body_composition(client: Garmin, date_str: str) -> dict | None:
 # ── 7. spo2_daily ──────────────────────────────────────────────
 
 
-def fetch_spo2(client: Garmin, date_str: str) -> dict | None:
+def fetch_spo2(client: Any, date_str: str) -> dict | None:
     """Fetch SpO2 data for a single date."""
     log.info("Fetching SpO2 for %s", date_str)
-    raw = client.get_spo2_data(date_str)
+    raw = garmin_service.fetch_spo2_raw(client, date_str)
     if not raw:
         log.debug("No SpO2 data for %s", date_str)
         return None
@@ -574,10 +575,10 @@ def fetch_spo2(client: Garmin, date_str: str) -> dict | None:
 # ── 8. respiration_daily ───────────────────────────────────────
 
 
-def fetch_respiration(client: Garmin, date_str: str) -> dict | None:
+def fetch_respiration(client: Any, date_str: str) -> dict | None:
     """Fetch respiration data for a single date."""
     log.info("Fetching respiration for %s", date_str)
-    raw = client.get_respiration_data(date_str)
+    raw = garmin_service.fetch_respiration_raw(client, date_str)
     if not raw:
         log.debug("No respiration data for %s", date_str)
         return None
@@ -595,10 +596,10 @@ def fetch_respiration(client: Garmin, date_str: str) -> dict | None:
 # ── 9. stress_details ──────────────────────────────────────────
 
 
-def fetch_stress_details(client: Garmin, date_str: str) -> list[dict]:
+def fetch_stress_details(client: Any, date_str: str) -> list[dict]:
     """Fetch intraday stress values as a list of (date, timestamp, level) rows."""
     log.info("Fetching stress details for %s", date_str)
-    raw = client.get_stress_data(date_str)
+    raw = garmin_service.fetch_stress_raw(client, date_str)
     if not raw:
         log.debug("No stress data for %s", date_str)
         return []

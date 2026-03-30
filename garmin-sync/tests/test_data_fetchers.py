@@ -1,23 +1,17 @@
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import data_fetchers
 
 DATE = "2026-03-01"
 
 
-def _mock_client(**overrides) -> MagicMock:
-    client = MagicMock()
-    for method, return_value in overrides.items():
-        getattr(client, method).return_value = return_value
-    return client
-
-
 # ── fetch_daily_summary ────────────────────────────────────────
 
 
 class TestFetchDailySummary:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw = {
             "totalSteps": 8500,
             "floorsAscended": 12,
@@ -34,7 +28,8 @@ class TestFetchDailySummary:
             "maxHeartRate": 165,
             "minHeartRate": 48,
         }
-        result = data_fetchers.fetch_daily_summary(_mock_client(get_stats=raw), DATE)
+        mock_gs.fetch_stats_raw.return_value = raw
+        result = data_fetchers.fetch_daily_summary(MagicMock(), DATE)
 
         assert result["date"] == DATE
         assert result["steps"] == 8500
@@ -42,7 +37,7 @@ class TestFetchDailySummary:
         assert result["calories_total"] == 2100
         assert result["calories_active"] == 500
         assert result["calories_bmr"] == 1600
-        assert result["distance_meters"] == 6200.5
+        assert result["distance_meters"] == 6200  # _int() truncates to int
         assert result["intensity_minutes"] == 45  # 30 + 15
         assert result["stress_avg"] == 35
         assert result["stress_max"] == 80
@@ -52,15 +47,21 @@ class TestFetchDailySummary:
         assert result["min_heart_rate"] == 48
         assert json.loads(result["raw_json"]) == raw
 
-    def test_returns_none_when_no_data(self):
-        assert data_fetchers.fetch_daily_summary(_mock_client(get_stats=None), DATE) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_data(self, mock_gs):
+        mock_gs.fetch_stats_raw.return_value = None
+        assert data_fetchers.fetch_daily_summary(MagicMock(), DATE) is None
 
-    def test_returns_none_when_empty_dict(self):
-        assert data_fetchers.fetch_daily_summary(_mock_client(get_stats={}), DATE) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_empty_dict(self, mock_gs):
+        mock_gs.fetch_stats_raw.return_value = {}
+        assert data_fetchers.fetch_daily_summary(MagicMock(), DATE) is None
 
-    def test_handles_missing_intensity_fields(self):
+    @patch("data_fetchers.garmin_service")
+    def test_handles_missing_intensity_fields(self, mock_gs):
         raw = {"totalSteps": 100}
-        result = data_fetchers.fetch_daily_summary(_mock_client(get_stats=raw), DATE)
+        mock_gs.fetch_stats_raw.return_value = raw
+        result = data_fetchers.fetch_daily_summary(MagicMock(), DATE)
         assert result["intensity_minutes"] == 0
         assert result["steps"] == 100
 
@@ -69,14 +70,16 @@ class TestFetchDailySummary:
 
 
 class TestFetchHeartRates:
-    def test_parses_intraday_values(self):
+    @patch("data_fetchers.garmin_service")
+    def test_parses_intraday_values(self, mock_gs):
         raw = {
             "heartRateValues": [
                 [1709280000000, 65],
                 [1709280060000, 72],
             ],
         }
-        rows = data_fetchers.fetch_heart_rates(_mock_client(get_heart_rates=raw), DATE)
+        mock_gs.fetch_heart_rate_raw.return_value = raw
+        rows = data_fetchers.fetch_heart_rates(MagicMock(), DATE)
 
         assert len(rows) == 2
         assert rows[0]["date"] == DATE
@@ -84,7 +87,8 @@ class TestFetchHeartRates:
         assert rows[0]["timestamp"] == "2024-03-01T08:00:00+00:00"
         assert rows[1]["heart_rate"] == 72
 
-    def test_skips_none_heart_rate(self):
+    @patch("data_fetchers.garmin_service")
+    def test_skips_none_heart_rate(self, mock_gs):
         raw = {
             "heartRateValues": [
                 [1709280000000, 65],
@@ -92,14 +96,19 @@ class TestFetchHeartRates:
                 None,
             ],
         }
-        rows = data_fetchers.fetch_heart_rates(_mock_client(get_heart_rates=raw), DATE)
+        mock_gs.fetch_heart_rate_raw.return_value = raw
+        rows = data_fetchers.fetch_heart_rates(MagicMock(), DATE)
         assert len(rows) == 1
 
-    def test_returns_empty_when_no_data(self):
-        assert data_fetchers.fetch_heart_rates(_mock_client(get_heart_rates=None), DATE) == []
+    @patch("data_fetchers.garmin_service")
+    def test_returns_empty_when_no_data(self, mock_gs):
+        mock_gs.fetch_heart_rate_raw.return_value = None
+        assert data_fetchers.fetch_heart_rates(MagicMock(), DATE) == []
 
-    def test_returns_empty_when_no_values_key(self):
-        rows = data_fetchers.fetch_heart_rates(_mock_client(get_heart_rates={}), DATE)
+    @patch("data_fetchers.garmin_service")
+    def test_returns_empty_when_no_values_key(self, mock_gs):
+        mock_gs.fetch_heart_rate_raw.return_value = {}
+        rows = data_fetchers.fetch_heart_rates(MagicMock(), DATE)
         assert rows == []
 
 
@@ -107,7 +116,8 @@ class TestFetchHeartRates:
 
 
 class TestFetchHrv:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw = {
             "hrvSummary": {
                 "weeklyAvg": 45,
@@ -122,7 +132,8 @@ class TestFetchHrv:
                 "status": "BALANCED",
             }
         }
-        result = data_fetchers.fetch_hrv(_mock_client(get_hrv_data=raw), DATE)
+        mock_gs.fetch_hrv_raw.return_value = raw
+        result = data_fetchers.fetch_hrv(MagicMock(), DATE)
 
         assert result["date"] == DATE
         assert result["weekly_avg"] == 45
@@ -134,12 +145,16 @@ class TestFetchHrv:
         assert result["baseline_upper"] == 55
         assert result["status"] == "BALANCED"
 
-    def test_returns_none_when_no_data(self):
-        assert data_fetchers.fetch_hrv(_mock_client(get_hrv_data=None), DATE) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_data(self, mock_gs):
+        mock_gs.fetch_hrv_raw.return_value = None
+        assert data_fetchers.fetch_hrv(MagicMock(), DATE) is None
 
-    def test_handles_missing_baseline(self):
+    @patch("data_fetchers.garmin_service")
+    def test_handles_missing_baseline(self, mock_gs):
         raw = {"hrvSummary": {"weeklyAvg": 45, "status": "LOW"}}
-        result = data_fetchers.fetch_hrv(_mock_client(get_hrv_data=raw), DATE)
+        mock_gs.fetch_hrv_raw.return_value = raw
+        result = data_fetchers.fetch_hrv(MagicMock(), DATE)
         assert result["baseline_low"] is None
         assert result["status"] == "LOW"
 
@@ -148,7 +163,8 @@ class TestFetchHrv:
 
 
 class TestFetchSleep:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw = {
             "dailySleepDTO": {
                 "sleepStartTimestampGMT": 1709247600000,  # 2024-02-29 23:00 UTC
@@ -164,7 +180,8 @@ class TestFetchSleep:
                 },
             }
         }
-        result = data_fetchers.fetch_sleep(_mock_client(get_sleep_data=raw), DATE)
+        mock_gs.fetch_sleep_raw.return_value = raw
+        result = data_fetchers.fetch_sleep(MagicMock(), DATE)
 
         assert result["date"] == DATE
         assert result["sleep_start"] == "2024-02-29T23:00:00+00:00"
@@ -178,7 +195,8 @@ class TestFetchSleep:
         assert result["avg_spo2"] == 96.5
         assert result["avg_respiration"] == 15.2
 
-    def test_sleep_score_as_plain_int(self):
+    @patch("data_fetchers.garmin_service")
+    def test_sleep_score_as_plain_int(self, mock_gs):
         raw = {
             "dailySleepDTO": {
                 "sleepStartTimestampGMT": 1709247600000,
@@ -190,22 +208,28 @@ class TestFetchSleep:
                 "sleepScores": {"overall": 82},
             }
         }
-        result = data_fetchers.fetch_sleep(_mock_client(get_sleep_data=raw), DATE)
+        mock_gs.fetch_sleep_raw.return_value = raw
+        result = data_fetchers.fetch_sleep(MagicMock(), DATE)
         assert result["sleep_score"] == 82
 
-    def test_returns_none_when_no_data(self):
-        assert data_fetchers.fetch_sleep(_mock_client(get_sleep_data=None), DATE) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_data(self, mock_gs):
+        mock_gs.fetch_sleep_raw.return_value = None
+        assert data_fetchers.fetch_sleep(MagicMock(), DATE) is None
 
-    def test_returns_none_when_no_sleep_start(self):
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_sleep_start(self, mock_gs):
         raw = {"dailySleepDTO": {"sleepStartTimestampGMT": None}}
-        assert data_fetchers.fetch_sleep(_mock_client(get_sleep_data=raw), DATE) is None
+        mock_gs.fetch_sleep_raw.return_value = raw
+        assert data_fetchers.fetch_sleep(MagicMock(), DATE) is None
 
 
 # ── fetch_activities ───────────────────────────────────────────
 
 
 class TestFetchActivities:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw_list = [
             {
                 "activityId": 12345,
@@ -221,9 +245,8 @@ class TestFetchActivities:
                 "elevationGain": 50.0,
             }
         ]
-        rows = data_fetchers.fetch_activities(
-            _mock_client(get_activities_by_date=raw_list), DATE
-        )
+        mock_gs.fetch_activities_raw.return_value = raw_list
+        rows = data_fetchers.fetch_activities(MagicMock(), DATE)
 
         assert len(rows) == 1
         row = rows[0]
@@ -241,29 +264,30 @@ class TestFetchActivities:
         assert row["elevation_gain_meters"] == 50.0
         assert "raw_json" in row
 
-    def test_avg_pace_none_when_speed_zero(self):
+    @patch("data_fetchers.garmin_service")
+    def test_avg_pace_none_when_speed_zero(self, mock_gs):
         raw_list = [{"activityId": 1, "activityType": {}, "averageSpeed": 0}]
-        rows = data_fetchers.fetch_activities(
-            _mock_client(get_activities_by_date=raw_list), DATE
-        )
+        mock_gs.fetch_activities_raw.return_value = raw_list
+        rows = data_fetchers.fetch_activities(MagicMock(), DATE)
         assert rows[0]["avg_pace"] is None
 
-    def test_returns_empty_when_no_activities(self):
-        assert data_fetchers.fetch_activities(
-            _mock_client(get_activities_by_date=[]), DATE
-        ) == []
+    @patch("data_fetchers.garmin_service")
+    def test_returns_empty_when_no_activities(self, mock_gs):
+        mock_gs.fetch_activities_raw.return_value = []
+        assert data_fetchers.fetch_activities(MagicMock(), DATE) == []
 
-    def test_returns_empty_when_none(self):
-        assert data_fetchers.fetch_activities(
-            _mock_client(get_activities_by_date=None), DATE
-        ) == []
+    @patch("data_fetchers.garmin_service")
+    def test_returns_empty_when_none(self, mock_gs):
+        mock_gs.fetch_activities_raw.return_value = None
+        assert data_fetchers.fetch_activities(MagicMock(), DATE) == []
 
 
 # ── fetch_body_composition ─────────────────────────────────────
 
 
 class TestFetchBodyComposition:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw = {
             "dateWeightList": [
                 {
@@ -277,9 +301,8 @@ class TestFetchBodyComposition:
                 }
             ]
         }
-        result = data_fetchers.fetch_body_composition(
-            _mock_client(get_body_composition=raw), DATE
-        )
+        mock_gs.fetch_body_composition_raw.return_value = raw
+        result = data_fetchers.fetch_body_composition(MagicMock(), DATE)
 
         assert result["date"] == DATE
         assert result["weight_kg"] == 75.0
@@ -289,26 +312,26 @@ class TestFetchBodyComposition:
         assert result["bone_mass_kg"] == 3.2
         assert result["body_water_pct"] == 55.0
 
-    def test_returns_none_when_empty_list(self):
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_empty_list(self, mock_gs):
         raw = {"dateWeightList": []}
-        assert data_fetchers.fetch_body_composition(
-            _mock_client(get_body_composition=raw), DATE
-        ) is None
+        mock_gs.fetch_body_composition_raw.return_value = raw
+        assert data_fetchers.fetch_body_composition(MagicMock(), DATE) is None
 
-    def test_returns_none_when_no_data(self):
-        assert data_fetchers.fetch_body_composition(
-            _mock_client(get_body_composition=None), DATE
-        ) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_data(self, mock_gs):
+        mock_gs.fetch_body_composition_raw.return_value = None
+        assert data_fetchers.fetch_body_composition(MagicMock(), DATE) is None
 
-    def test_handles_none_weights(self):
+    @patch("data_fetchers.garmin_service")
+    def test_handles_none_weights(self, mock_gs):
         raw = {
             "dateWeightList": [
                 {"calendarDate": DATE, "weight": None, "muscleMass": None, "boneMass": None}
             ]
         }
-        result = data_fetchers.fetch_body_composition(
-            _mock_client(get_body_composition=raw), DATE
-        )
+        mock_gs.fetch_body_composition_raw.return_value = raw
+        result = data_fetchers.fetch_body_composition(MagicMock(), DATE)
         assert result["weight_kg"] is None
         assert result["muscle_mass_kg"] is None
         assert result["bone_mass_kg"] is None
@@ -318,37 +341,41 @@ class TestFetchBodyComposition:
 
 
 class TestFetchSpo2:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw = {
             "averageSpO2": 96.5,
             "lowestSpO2": 91,
             "latestSpO2": 97.0,
         }
-        result = data_fetchers.fetch_spo2(_mock_client(get_spo2_data=raw), DATE)
+        mock_gs.fetch_spo2_raw.return_value = raw
+        result = data_fetchers.fetch_spo2(MagicMock(), DATE)
 
         assert result["date"] == DATE
         assert result["avg_spo2"] == 96.5
         assert result["lowest_spo2"] == 91
         assert result["latest_spo2"] == 97.0
 
-    def test_returns_none_when_no_data(self):
-        assert data_fetchers.fetch_spo2(_mock_client(get_spo2_data=None), DATE) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_data(self, mock_gs):
+        mock_gs.fetch_spo2_raw.return_value = None
+        assert data_fetchers.fetch_spo2(MagicMock(), DATE) is None
 
 
 # ── fetch_respiration ──────────────────────────────────────────
 
 
 class TestFetchRespiration:
-    def test_maps_fields_to_schema(self):
+    @patch("data_fetchers.garmin_service")
+    def test_maps_fields_to_schema(self, mock_gs):
         raw = {
             "avgWakingRespirationValue": 16.5,
             "avgSleepRespirationValue": 14.2,
             "highestRespirationValue": 22.0,
             "lowestRespirationValue": 12.0,
         }
-        result = data_fetchers.fetch_respiration(
-            _mock_client(get_respiration_data=raw), DATE
-        )
+        mock_gs.fetch_respiration_raw.return_value = raw
+        result = data_fetchers.fetch_respiration(MagicMock(), DATE)
 
         assert result["date"] == DATE
         assert result["avg_waking"] == 16.5
@@ -356,26 +383,26 @@ class TestFetchRespiration:
         assert result["highest"] == 22.0
         assert result["lowest"] == 12.0
 
-    def test_returns_none_when_no_data(self):
-        assert data_fetchers.fetch_respiration(
-            _mock_client(get_respiration_data=None), DATE
-        ) is None
+    @patch("data_fetchers.garmin_service")
+    def test_returns_none_when_no_data(self, mock_gs):
+        mock_gs.fetch_respiration_raw.return_value = None
+        assert data_fetchers.fetch_respiration(MagicMock(), DATE) is None
 
 
 # ── fetch_stress_details ───────────────────────────────────────
 
 
 class TestFetchStressDetails:
-    def test_parses_stress_values(self):
+    @patch("data_fetchers.garmin_service")
+    def test_parses_stress_values(self, mock_gs):
         raw = {
             "stressValuesArray": [
                 [1709280000000, 25],
                 [1709280060000, 42],
             ]
         }
-        rows = data_fetchers.fetch_stress_details(
-            _mock_client(get_stress_data=raw), DATE
-        )
+        mock_gs.fetch_stress_raw.return_value = raw
+        rows = data_fetchers.fetch_stress_details(MagicMock(), DATE)
 
         assert len(rows) == 2
         assert rows[0]["date"] == DATE
@@ -383,7 +410,8 @@ class TestFetchStressDetails:
         assert rows[0]["timestamp"] == "2024-03-01T08:00:00+00:00"
         assert rows[1]["stress_level"] == 42
 
-    def test_skips_negative_values(self):
+    @patch("data_fetchers.garmin_service")
+    def test_skips_negative_values(self, mock_gs):
         """Garmin uses -1/-2 for unmeasured or activity periods."""
         raw = {
             "stressValuesArray": [
@@ -393,14 +421,14 @@ class TestFetchStressDetails:
                 [1709280180000, 50],
             ]
         }
-        rows = data_fetchers.fetch_stress_details(
-            _mock_client(get_stress_data=raw), DATE
-        )
+        mock_gs.fetch_stress_raw.return_value = raw
+        rows = data_fetchers.fetch_stress_details(MagicMock(), DATE)
         assert len(rows) == 2
         assert rows[0]["stress_level"] == 25
         assert rows[1]["stress_level"] == 50
 
-    def test_skips_none_entries(self):
+    @patch("data_fetchers.garmin_service")
+    def test_skips_none_entries(self, mock_gs):
         raw = {
             "stressValuesArray": [
                 [1709280000000, 25],
@@ -408,17 +436,16 @@ class TestFetchStressDetails:
                 None,
             ]
         }
-        rows = data_fetchers.fetch_stress_details(
-            _mock_client(get_stress_data=raw), DATE
-        )
+        mock_gs.fetch_stress_raw.return_value = raw
+        rows = data_fetchers.fetch_stress_details(MagicMock(), DATE)
         assert len(rows) == 1
 
-    def test_returns_empty_when_no_data(self):
-        assert data_fetchers.fetch_stress_details(
-            _mock_client(get_stress_data=None), DATE
-        ) == []
+    @patch("data_fetchers.garmin_service")
+    def test_returns_empty_when_no_data(self, mock_gs):
+        mock_gs.fetch_stress_raw.return_value = None
+        assert data_fetchers.fetch_stress_details(MagicMock(), DATE) == []
 
-    def test_returns_empty_when_no_values_key(self):
-        assert data_fetchers.fetch_stress_details(
-            _mock_client(get_stress_data={}), DATE
-        ) == []
+    @patch("data_fetchers.garmin_service")
+    def test_returns_empty_when_no_values_key(self, mock_gs):
+        mock_gs.fetch_stress_raw.return_value = {}
+        assert data_fetchers.fetch_stress_details(MagicMock(), DATE) == []
