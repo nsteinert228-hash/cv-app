@@ -616,6 +616,35 @@ async function loadSeasonZones(force) {
   // Render week summary (Item 5)
   renderWeekSummary(weekWorkouts, logMap, seasonState, activeSeason.plan_json || {});
 
+  // Fetch Garmin activities for the week to match against planned workouts
+  const weekDates = weekWorkouts.map(w => w.date);
+  const minDate = weekDates.length ? weekDates.reduce((a, b) => a < b ? a : b) : today;
+  const maxDate = weekDates.length ? weekDates.reduce((a, b) => a > b ? a : b) : today;
+  let weekGarminActivities = [];
+  try {
+    const { getGarminActivitiesByDateRange } = await import('./seasonData.js');
+    weekGarminActivities = await getGarminActivitiesByDateRange(minDate, maxDate);
+  } catch { /* ignore */ }
+
+  // Auto-log past cardio workouts that have clear Garmin matches but no log
+  const autoMatchTypes = new Set(['cardio', 'running', 'cycling', 'swimming']);
+  for (const w of weekWorkouts) {
+    if (w.date >= today || logMap.has(w.id) || !autoMatchTypes.has(w.workout_type)) continue;
+    const match = weekGarminActivities.find(a => a.date === w.date);
+    if (match) {
+      try {
+        await submitWorkoutLog(w.id, 'completed', {
+          source_activity: match,
+          duration_minutes: Math.round((match.duration_seconds || 0) / 60),
+        }, match.activity_id, null, 'garmin_auto');
+        // Add to logMap so UI renders correctly
+        logMap.set(w.id, { workout_id: w.id, status: 'completed', source: 'garmin_auto' });
+      } catch (err) {
+        console.warn('Auto-log failed for', w.date, err);
+      }
+    }
+  }
+
   // Render Timeline (this week)
   renderSeasonTimeline(weekWorkouts, logMap, today);
 

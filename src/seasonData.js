@@ -525,10 +525,10 @@ export async function getGarminActivitiesByDateRange(startDate, endDate) {
 // ── Garmin Activity Matching ─────────────────────────────────
 
 const GARMIN_TYPE_MAP = {
-  running: ['RUNNING', 'TRAIL_RUNNING', 'TREADMILL_RUNNING'],
-  cycling: ['CYCLING', 'INDOOR_CYCLING', 'MOUNTAIN_BIKING'],
-  swimming: ['LAP_SWIMMING', 'OPEN_WATER_SWIMMING'],
-  cardio: ['RUNNING', 'CYCLING', 'LAP_SWIMMING', 'ELLIPTICAL', 'STAIR_CLIMBING'],
+  running: ['running', 'trail_running', 'treadmill_running'],
+  cycling: ['cycling', 'indoor_cycling', 'mountain_biking'],
+  swimming: ['lap_swimming', 'open_water_swimming'],
+  cardio: ['running', 'cycling', 'lap_swimming', 'elliptical', 'stair_climbing', 'trail_running', 'treadmill_running'],
 };
 
 export async function findMatchingGarminActivity(workoutType, date) {
