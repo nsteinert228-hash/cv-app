@@ -423,6 +423,78 @@ export async function getWeekWorkoutsByWeekNumber(seasonId, weekNumber) {
   return data || [];
 }
 
+// ── Training Goals ───────────────────────────────────────────
+
+export async function getTrainingGoals(seasonId) {
+  const client = getSupabaseClient();
+  if (!client) return [];
+
+  const { data, error } = await client
+    .from('training_goals')
+    .select('*')
+    .eq('season_id', seasonId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveTrainingGoals(seasonId, goals) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase not configured');
+
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const rows = goals
+    .filter(g => g.title)
+    .map(g => ({
+      user_id: user.id,
+      season_id: seasonId,
+      category: g.category || 'custom',
+      title: g.title,
+      metric: g.metric || null,
+      target_value: g.target_value || null,
+      baseline_value: g.baseline_value || null,
+      unit: g.unit || null,
+      status: 'active',
+    }));
+
+  if (!rows.length) return;
+
+  const { error } = await client
+    .from('training_goals')
+    .insert(rows);
+
+  if (error) throw error;
+}
+
+export async function updateGoalProgress(goalId, currentValue) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase not configured');
+
+  const update = { current_value: currentValue };
+  if (currentValue != null) {
+    // Check if goal is achieved
+    const { data: goal } = await client
+      .from('training_goals')
+      .select('target_value')
+      .eq('id', goalId)
+      .single();
+
+    if (goal?.target_value != null && currentValue >= goal.target_value) {
+      Object.assign(update, { status: 'achieved', achieved_at: new Date().toISOString() });
+    }
+  }
+
+  const { error } = await client
+    .from('training_goals')
+    .update(update)
+    .eq('id', goalId);
+
+  if (error) throw error;
+}
+
 // ── Workout Modification ────────────────────────────────────
 
 export async function modifyWorkout(workoutId, userPrompt, seasonId) {

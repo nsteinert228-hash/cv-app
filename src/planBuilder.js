@@ -1,5 +1,5 @@
 // Plan Builder — step-by-step wizard for creating training plans
-import { createSeason } from './seasonData.js';
+import { createSeason, saveTrainingGoals } from './seasonData.js';
 import { saveTrainingPreferences } from './trainingData.js';
 
 const TRAINING_TYPES = [
@@ -43,6 +43,7 @@ let builderData = {
   durationWeeks: 8,
   startDate: getNextMonday(),
   daysPerWeek: 5,
+  goals: [],
 };
 let containerEl = null;
 let onComplete = null;
@@ -69,6 +70,7 @@ export function initPlanBuilder(container, { onPlanCreated }) {
     durationWeeks: 8,
     startDate: getNextMonday(),
     daysPerWeek: 5,
+    goals: [],
   };
   render();
 }
@@ -83,7 +85,8 @@ export function destroyPlanBuilder() {
 function render() {
   if (!containerEl) return;
 
-  const steps = ['Training Type', 'Skill Level', 'Preferences', 'Schedule', 'Review'];
+  const steps = ['Training Type', 'Skill Level', 'Preferences', 'Schedule', 'Goals', 'Review'];
+  const lastStep = steps.length - 1;
 
   containerEl.innerHTML = `
     <div class="plan-builder">
@@ -101,7 +104,7 @@ function render() {
       <div class="pb-body" id="pbBody"></div>
       <div class="pb-nav">
         ${currentStep > 0 ? '<button class="btn-secondary" id="pbBack">Back</button>' : '<div></div>'}
-        ${currentStep < 4 ? '<button class="btn-primary" id="pbNext">Next</button>' : ''}
+        ${currentStep < lastStep ? '<button class="btn-primary" id="pbNext">Next</button>' : ''}
       </div>
     </div>
   `;
@@ -112,7 +115,8 @@ function render() {
     case 1: renderSkillLevel(body); break;
     case 2: renderPreferences(body); break;
     case 3: renderSchedule(body); break;
-    case 4: renderReview(body); break;
+    case 4: renderGoals(body); break;
+    case 5: renderReview(body); break;
   }
 
   const backBtn = document.getElementById('pbBack');
@@ -129,6 +133,7 @@ function validateStep() {
     case 1: return !!builderData.skillLevel;
     case 2: return true; // preferences are optional
     case 3: return builderData.durationWeeks > 0 && builderData.startDate;
+    case 4: return true; // goals are optional
     default: return true;
   }
 }
@@ -270,6 +275,122 @@ function renderSchedule(body) {
 
 // ── Step 5: Review & Create ─────────────────────────────────
 
+// ── Step 5: Goals ────────────────────────────────────────────
+
+const GOAL_SUGGESTIONS = {
+  strength: [
+    { category: 'strength_pr', title: 'Increase Squat', metric: '1RM', unit: 'lbs' },
+    { category: 'strength_pr', title: 'Increase Bench Press', metric: '1RM', unit: 'lbs' },
+    { category: 'strength_pr', title: 'Increase Deadlift', metric: '1RM', unit: 'lbs' },
+  ],
+  endurance: [
+    { category: 'cardio_time', title: '5K Personal Best', metric: 'time', unit: 'min' },
+    { category: 'cardio_distance', title: 'Weekly Running Distance', metric: 'distance', unit: 'km' },
+    { category: 'cardio_time', title: 'Longest Run', metric: 'duration', unit: 'min' },
+  ],
+  cycling: [
+    { category: 'cardio_time', title: '20K Time Trial', metric: 'time', unit: 'min' },
+    { category: 'cardio_distance', title: 'Weekly Cycling Distance', metric: 'distance', unit: 'km' },
+  ],
+  hybrid: [
+    { category: 'strength_pr', title: 'Increase Squat', metric: '1RM', unit: 'lbs' },
+    { category: 'cardio_time', title: '5K Personal Best', metric: 'time', unit: 'min' },
+  ],
+  crossfit: [
+    { category: 'strength_pr', title: 'Increase Clean & Jerk', metric: '1RM', unit: 'lbs' },
+    { category: 'cardio_time', title: 'Benchmark WOD Time', metric: 'time', unit: 'min' },
+  ],
+  triathlon: [
+    { category: 'cardio_time', title: 'Sprint Triathlon Time', metric: 'time', unit: 'min' },
+  ],
+};
+
+function renderGoals(body) {
+  const suggestions = GOAL_SUGGESTIONS[builderData.trainingType] || GOAL_SUGGESTIONS.hybrid;
+  const weightUnit = 'lbs'; // default; could be configurable
+
+  body.innerHTML = `
+    <div class="pb-section-title">Set Training Goals <span class="pb-optional">(optional)</span></div>
+    <p class="pb-section-desc">Add measurable goals so you can track progress. We've suggested some based on your training type.</p>
+
+    <div class="pb-goals-list" id="pbGoalsList">
+      ${builderData.goals.map((g, i) => renderGoalRow(g, i)).join('')}
+    </div>
+
+    <div class="pb-goal-suggestions">
+      <div class="pb-suggestions-label">Quick add:</div>
+      <div class="pb-suggestions-chips">
+        ${suggestions.map(s => `
+          <button class="pb-suggestion-chip" data-title="${esc(s.title)}" data-category="${s.category}" data-metric="${s.metric}" data-unit="${s.unit}">
+            + ${esc(s.title)}
+          </button>
+        `).join('')}
+        <button class="pb-suggestion-chip" data-title="Custom Goal" data-category="custom" data-metric="" data-unit="">
+          + Custom
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Suggestion chip clicks
+  body.querySelectorAll('.pb-suggestion-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      builderData.goals.push({
+        category: chip.dataset.category,
+        title: chip.dataset.title === 'Custom Goal' ? '' : chip.dataset.title,
+        metric: chip.dataset.metric,
+        unit: chip.dataset.unit,
+        baseline_value: '',
+        target_value: '',
+      });
+      renderGoals(body);
+    });
+  });
+
+  // Wire up existing goal inputs
+  wireGoalInputs(body);
+}
+
+function renderGoalRow(goal, index) {
+  return `
+    <div class="pb-goal-row" data-goal-index="${index}">
+      <div class="pb-goal-header">
+        <input type="text" class="pb-goal-title" data-field="title" value="${esc(goal.title)}" placeholder="Goal name">
+        <button class="pb-goal-remove" data-remove="${index}">&times;</button>
+      </div>
+      <div class="pb-goal-fields">
+        <label>Baseline <input type="number" class="logger-input" data-field="baseline_value" value="${goal.baseline_value}" placeholder="Current" min="0" step="any"></label>
+        <label>Target <input type="number" class="logger-input" data-field="target_value" value="${goal.target_value}" placeholder="Goal" min="0" step="any"></label>
+        <label>Unit <input type="text" class="logger-input" data-field="unit" value="${esc(goal.unit)}" placeholder="lbs/min/km" size="5"></label>
+      </div>
+    </div>
+  `;
+}
+
+function wireGoalInputs(body) {
+  body.querySelectorAll('.pb-goal-row').forEach(row => {
+    const idx = parseInt(row.dataset.goalIndex, 10);
+
+    row.querySelectorAll('input').forEach(input => {
+      input.addEventListener('change', () => {
+        const field = input.dataset.field;
+        const val = input.type === 'number' ? parseFloat(input.value) || '' : input.value;
+        builderData.goals[idx][field] = val;
+      });
+    });
+
+    const removeBtn = row.querySelector('.pb-goal-remove');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        builderData.goals.splice(idx, 1);
+        renderGoals(body);
+      });
+    }
+  });
+}
+
+// ── Step 6: Review ──────────────────────────────────────────
+
 function renderReview(body) {
   const type = TRAINING_TYPES.find(t => t.id === builderData.trainingType);
   const level = SKILL_LEVELS.find(l => l.id === builderData.skillLevel);
@@ -305,6 +426,12 @@ function renderReview(body) {
         <span class="pb-review-label">Days / Week</span>
         <span class="pb-review-value">${builderData.daysPerWeek} days</span>
       </div>
+      ${builderData.goals.length ? `
+        <div class="pb-review-row">
+          <span class="pb-review-label">Goals</span>
+          <span class="pb-review-value">${builderData.goals.map(g => esc(g.title || 'Custom')).join(', ')}</span>
+        </div>
+      ` : ''}
     </div>
     <div class="pb-create-cta">
       <button class="btn-primary" id="pbCreateBtn">Create Training Plan</button>
@@ -343,6 +470,15 @@ async function handleCreate() {
       start_date: builderData.startDate,
       plan_config: builderData,
     });
+
+    // Save goals if any were set
+    if (builderData.goals.length && result.season_id) {
+      try {
+        await saveTrainingGoals(result.season_id, builderData.goals);
+      } catch (err) {
+        console.warn('Failed to save goals:', err);
+      }
+    }
 
     status.textContent = 'Plan created successfully!';
     status.className = 'pb-create-status success';

@@ -11,7 +11,8 @@ Rules:
 - Respond ONLY with valid JSON — no markdown fences, no commentary
 - Analyze adherence patterns, highlight achievements and areas that need attention
 - Provide actionable recommendations for the next season
-- Be encouraging but honest about areas for improvement`;
+- Be encouraging but honest about areas for improvement
+- If training goals were set, evaluate achievement and suggest updated targets for the next season`;
 
 const SUMMARY_SCHEMA = `{
   "summary": "3-5 sentence narrative of the season",
@@ -25,7 +26,14 @@ const SUMMARY_SCHEMA = `{
     "suggested_focus": "string",
     "intensity_adjustment": "increase | maintain | decrease",
     "notes": "string"
-  }
+  },
+  "goal_review": [
+    {
+      "title": "goal title",
+      "status": "achieved | in_progress | not_started",
+      "note": "brief assessment"
+    }
+  ]
 }`;
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -97,6 +105,12 @@ Deno.serve(async (req) => {
       .select("workout_id, status, adherence_score, date")
       .in("workout_id", workoutIds);
 
+    // ── Fetch training goals ──
+    const { data: goals } = await serviceClient
+      .from("training_goals")
+      .select("id, title, category, target_value, baseline_value, current_value, unit, status")
+      .eq("season_id", season_id);
+
     // ── Compute stats ──
     const totalWorkouts = (workouts || []).filter(
       (w) => (w as Record<string, unknown>).workout_type !== "rest",
@@ -167,6 +181,11 @@ ${JSON.stringify(
       2,
     )}
 
+### Training Goals
+${(goals || []).length > 0
+      ? JSON.stringify(goals, null, 2)
+      : "No specific training goals were set for this season."}
+
 ---
 
 Summarize this completed season. Respond as JSON matching this schema:
@@ -199,6 +218,15 @@ ${SUMMARY_SCHEMA}`;
       } catch {
         console.error("Failed to parse completion summary");
       }
+    }
+
+    // ── Mark unachieved goals as deferred ──
+    if (goals && goals.length) {
+      await serviceClient
+        .from("training_goals")
+        .update({ status: "deferred" })
+        .eq("season_id", season_id)
+        .eq("status", "active");
     }
 
     // ── Mark season complete ──

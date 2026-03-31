@@ -33,6 +33,7 @@ import { open as openDayDetail, close as closeDayDetail } from './dayDetail.js';
 import { initPlanBuilder, destroyPlanBuilder } from './planBuilder.js';
 import { renderWeeklyView, renderWeekByNumber } from './weeklyView.js';
 import { renderSeasonOverview } from './seasonOverview.js';
+import { renderGoalTracker } from './goalTracker.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -979,6 +980,12 @@ function renderPlanOverview(plan) {
   const overviewContainer = document.getElementById('seasonOverviewContainer');
   if (overviewContainer && activeSeason) {
     renderSeasonOverview(overviewContainer, activeSeason.id, currentWeek);
+  }
+
+  // Goal tracker
+  const goalContainer = document.getElementById('goalTrackerContainer');
+  if (goalContainer && activeSeason) {
+    renderGoalTracker(goalContainer, activeSeason.id);
   }
 
   // Principles
