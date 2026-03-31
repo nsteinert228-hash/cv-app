@@ -1455,6 +1455,21 @@ body {
 .so-type-bar-fill.mixed { background: #f59e0b; }
 .so-type-bar-fill.rest { background: var(--text-tertiary); opacity: 0.3; }
 
+/* Workout quality badge (weekly view) */
+.wv-quality-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  opacity: 0.8;
+  text-transform: capitalize;
+  vertical-align: middle;
+}
+
 /* ── Utility classes ── */
 .hidden { display: none !important; }
 .text-accent { color: var(--accent); }

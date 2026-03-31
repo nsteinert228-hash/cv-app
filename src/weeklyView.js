@@ -51,8 +51,9 @@ export async function renderWeeklyView(container, { season, seasonState, onWeekC
   const logs = await getWorkoutLogsForSeason(season.id);
   const logMap = new Map(logs.map(l => [l.workout_id, l]));
 
-  // Fetch Garmin activities for the week date range
+  // Fetch Garmin activities + metrics for the week date range
   const garminActivities = await fetchGarminActivitiesForWeek(workouts);
+  const metricsMap = await fetchActivityMetricsMap(garminActivities);
 
   // Get plan phases
   const plan = season.plan_json || {};
@@ -62,6 +63,7 @@ export async function renderWeeklyView(container, { season, seasonState, onWeekC
     workouts,
     logMap,
     garminActivities,
+    metricsMap,
     season,
     seasonState,
     displayWeek,
@@ -79,6 +81,7 @@ export async function renderWeekByNumber(container, weekNumber, { season, season
   const logs = await getWorkoutLogsForSeason(season.id);
   const logMap = new Map(logs.map(l => [l.workout_id, l]));
   const garminActivities = await fetchGarminActivitiesForWeek(workouts);
+  const metricsMap = await fetchActivityMetricsMap(garminActivities);
   const plan = season.plan_json || {};
   const phase = getCurrentPhase(plan, weekNumber);
 
@@ -86,6 +89,7 @@ export async function renderWeekByNumber(container, weekNumber, { season, season
     workouts,
     logMap,
     garminActivities,
+    metricsMap,
     season,
     seasonState,
     displayWeek: weekNumber,
@@ -98,7 +102,7 @@ export async function renderWeekByNumber(container, weekNumber, { season, season
 // ── Render ──────────────────────────────────────────────────
 
 function renderWeek(container, ctx) {
-  const { workouts, logMap, garminActivities, season, seasonState, displayWeek, phase, today, onWeekChange } = ctx;
+  const { workouts, logMap, garminActivities, metricsMap, season, seasonState, displayWeek, phase, today, onWeekChange } = ctx;
 
   // Ensure today always has a card, even if no workout exists in the DB
   const workoutsWithToday = ensureTodayIncluded(workouts, today, season, displayWeek);
@@ -229,9 +233,9 @@ function createDayCard(workout, log, garminMatch, dayState, ctx) {
   // Expanded content (varies by day state)
   let expandedHtml = '';
   if (dayState === 'past') {
-    expandedHtml = renderPastDayContent(workout, log, garminMatch, rx, exercises);
+    expandedHtml = renderPastDayContent(workout, log, garminMatch, rx, exercises, ctx.metricsMap);
   } else if (dayState === 'today') {
-    expandedHtml = renderTodayContent(workout, log, garminMatch, rx, exercises);
+    expandedHtml = renderTodayContent(workout, log, garminMatch, rx, exercises, ctx.metricsMap);
   } else {
     // Future days: show prescription preview when expanded
     expandedHtml = renderFutureContent(workout, rx, exercises);
@@ -284,12 +288,12 @@ function renderLogBadge(log, dayState) {
 
 // ── Past Day Content (side-by-side comparison) ──────────────
 
-function renderPastDayContent(workout, log, garminMatch, rx, exercises) {
+function renderPastDayContent(workout, log, garminMatch, rx, exercises, metricsMap) {
   const prescribedHtml = renderPrescription(rx, exercises);
 
   let actualHtml = '';
   if (garminMatch) {
-    actualHtml = renderGarminActivity(garminMatch, workout);
+    actualHtml = renderGarminActivity(garminMatch, workout, metricsMap?.get(garminMatch.activity_id));
   } else if (log) {
     actualHtml = renderLogSummary(log);
   } else {
@@ -329,7 +333,7 @@ function renderPastDayContent(workout, log, garminMatch, rx, exercises) {
 
 // ── Today Content ───────────────────────────────────────────
 
-function renderTodayContent(workout, log, garminMatch, rx, exercises) {
+function renderTodayContent(workout, log, garminMatch, rx, exercises, metricsMap) {
   const prescribedHtml = renderPrescription(rx, exercises);
 
   let actualSection = '';
@@ -337,7 +341,7 @@ function renderTodayContent(workout, log, garminMatch, rx, exercises) {
     actualSection = `
       <div class="wv-today-actual">
         <div class="wv-col-label">Completed Activity</div>
-        ${renderGarminActivity(garminMatch, workout)}
+        ${renderGarminActivity(garminMatch, workout, metricsMap?.get(garminMatch.activity_id))}
       </div>
     `;
   }
@@ -440,14 +444,29 @@ function renderPrescription(rx, exercises) {
   return html || '<div class="wv-no-data">Rest day</div>';
 }
 
-function renderGarminActivity(activity, workout) {
+function renderGarminActivity(activity, workout, metrics) {
   const durMin = activity.duration_seconds ? Math.round(activity.duration_seconds / 60) : '--';
   const distKm = activity.distance_meters ? (activity.distance_meters / 1000).toFixed(1) : null;
   const matched = isTypeMatch(workout.workout_type, activity.activity_type);
 
+  // Workout quality badge from activity_metrics
+  let qualityBadge = '';
+  if (metrics) {
+    const cls = metrics.workout_classification;
+    const details = typeof metrics.classification_details === 'string'
+      ? JSON.parse(metrics.classification_details) : metrics.classification_details;
+    const zones = details?.zones || {};
+    const primaryZone = Object.entries(zones)
+      .sort(([, a], [, b]) => (b as number) - (a as number))[0];
+    if (cls) {
+      const zoneLabel = primaryZone ? ` / Zone ${primaryZone[0].replace('z', '')}` : '';
+      qualityBadge = `<span class="wv-quality-badge">${cls}${zoneLabel}</span>`;
+    }
+  }
+
   return `
     <div class="wv-garmin-activity ${matched ? 'matched' : 'substituted'}">
-      <div class="wv-garmin-name">${esc(activity.name || activity.activity_type)}</div>
+      <div class="wv-garmin-name">${esc(activity.name || activity.activity_type)}${qualityBadge}</div>
       <div class="wv-garmin-stats">
         <span>${durMin} min</span>
         ${distKm ? `<span>${distKm} km</span>` : ''}
@@ -495,6 +514,30 @@ async function fetchGarminActivitiesForWeek(workouts) {
   } catch (err) {
     console.error('Garmin activities fetch error:', err);
     return [];
+  }
+}
+
+async function fetchActivityMetricsMap(garminActivities) {
+  if (!garminActivities.length) return new Map();
+
+  const client = getSupabaseClient();
+  if (!client) return new Map();
+
+  const ids = garminActivities.map(a => a.activity_id).filter(Boolean);
+  if (!ids.length) return new Map();
+
+  try {
+    const { data, error } = await client
+      .from('activity_metrics')
+      .select('activity_id, workout_classification, classification_details')
+      .in('activity_id', ids);
+
+    if (error) throw error;
+    return new Map((data || []).map(m => [m.activity_id, m]));
+  } catch (err) {
+    // Table may not exist if migration not applied
+    console.warn('Activity metrics fetch skipped:', err.message);
+    return new Map();
   }
 }
 

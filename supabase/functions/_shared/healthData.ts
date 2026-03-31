@@ -7,11 +7,22 @@ function daysAgo(n: number): string {
   return d.toISOString().split("T")[0];
 }
 
+export interface ActivityDetail {
+  activity_id: number;
+  activity_type: string | null;
+  workout_classification: string | null;
+  classification_details: Record<string, unknown> | null;
+  splits: unknown[] | null;
+  duration_seconds: number | null;
+  distance_meters: number | null;
+}
+
 export interface HealthData {
   daily_summaries: unknown[];
   sleep: unknown[];
   hrv: unknown[];
   activities: unknown[];
+  activity_details: ActivityDetail[];
   cv_exercise_log: { date: string; exercise: string; total_reps: number }[];
   body_composition: unknown | null;
   today_snapshot: {
@@ -40,6 +51,7 @@ export async function gatherHealthData(
     { data: workoutEntries },
     { data: bodyComp },
     { data: dailyExtended },
+    { data: activityMetrics },
   ] = await Promise.all([
     serviceClient
       .from("daily_summaries")
@@ -84,6 +96,13 @@ export async function gatherHealthData(
       .eq("user_id", userId)
       .order("date", { ascending: false })
       .limit(1),
+    // Activity metrics: workout classification, zones, splits (no raw time-series)
+    serviceClient
+      .from("activity_metrics")
+      .select("activity_id, activity_type, workout_classification, classification_details, splits, duration_seconds, distance_meters")
+      .eq("user_id", userId)
+      .order("activity_id", { ascending: false })
+      .limit(10),
   ]);
 
   // Build today's snapshot
@@ -113,11 +132,29 @@ export async function gatherHealthData(
     Object.entries(exercises).map(([exercise, total_reps]) => ({ date, exercise, total_reps }))
   );
 
+  // Parse activity metrics into compact details (skip raw time-series)
+  const activityDetails: ActivityDetail[] = (activityMetrics || []).map((m: Record<string, unknown>) => ({
+    activity_id: m.activity_id as number,
+    activity_type: m.activity_type as string | null,
+    workout_classification: m.workout_classification as string | null,
+    classification_details: m.classification_details
+      ? (typeof m.classification_details === "string"
+          ? JSON.parse(m.classification_details as string)
+          : m.classification_details as Record<string, unknown>)
+      : null,
+    splits: m.splits
+      ? (typeof m.splits === "string" ? JSON.parse(m.splits as string) : m.splits as unknown[])
+      : null,
+    duration_seconds: m.duration_seconds as number | null,
+    distance_meters: m.distance_meters as number | null,
+  }));
+
   return {
     daily_summaries: dailySummaries || [],
     sleep: sleepData || [],
     hrv: hrvData || [],
     activities: activities || [],
+    activity_details: activityDetails,
     cv_exercise_log: cvLog,
     body_composition: bodyComp?.[0] || null,
     today_snapshot: todaySnapshot,
@@ -139,6 +176,18 @@ ${JSON.stringify(healthData.hrv, null, 2)}
 
 ### Activities (14 days)
 ${JSON.stringify(healthData.activities, null, 2)}
+
+### Activity Quality Details (workout classification, HR zones, splits)
+${healthData.activity_details.length > 0
+    ? JSON.stringify(healthData.activity_details.map(d => ({
+        activity_id: d.activity_id,
+        type: d.activity_type,
+        classification: d.workout_classification,
+        zones: (d.classification_details as Record<string, unknown>)?.zones || null,
+        reason: (d.classification_details as Record<string, unknown>)?.reason || null,
+        splits_count: d.splits?.length || 0,
+      })), null, 2)
+    : "No detailed activity metrics available"}
 
 ### uTrain Exercise Log (7 days)
 ${JSON.stringify(healthData.cv_exercise_log, null, 2)}

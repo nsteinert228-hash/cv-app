@@ -27,7 +27,13 @@ Key Garmin metrics to consider:
 - HRV status "low" or "unbalanced": reduce volume and intensity
 - Stress avg > 50: consider lighter sessions
 - Consecutive poor sleep (3+ days): reduce week's overall volume
-- High readiness indicators: consider progressive overload opportunity`;
+- High readiness indicators: consider progressive overload opportunity
+
+Activity quality analysis (from "Activity Quality Details"):
+- Compare prescribed workout type with actual classification (e.g., prescribed tempo but classified as "recovery" = undertrained session)
+- HR zone distribution shows training stimulus quality (e.g., >50% in z4/z5 for intervals, >60% in z2 for easy runs)
+- If recent activities show consistent underperformance vs. prescription, consider reducing targets
+- If recent activities exceed prescription quality, consider progressive overload`;
 
 const RESPONSE_SCHEMA = `{
   "adaptations": [
