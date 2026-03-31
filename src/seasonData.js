@@ -321,6 +321,93 @@ export async function swapWorkout(workoutId, newType, newTitle, newPrescription)
   return { ...original, workout_type: newType, title: newTitle, prescription_json: newPrescription, is_adapted: true };
 }
 
+// ── Season Overview Stats ─────────────────────────────────────
+
+export async function getSeasonOverviewStats(seasonId) {
+  const [workouts, logs] = await Promise.all([
+    getSeasonWorkouts(seasonId),
+    getWorkoutLogsForSeason(seasonId),
+  ]);
+
+  const logMap = new Map(logs.map(l => [l.workout_id, l]));
+  const today = new Date().toISOString().split('T')[0];
+
+  // Per-week aggregation
+  const weeks = {};
+  const typeCounts = { prescribed: {}, actual: {} };
+  let totalAdherence = 0;
+  let adherenceCount = 0;
+  let totalRpe = 0;
+  let rpeCount = 0;
+
+  for (const w of workouts) {
+    const wk = w.week_number || 1;
+    if (!weeks[wk]) {
+      weeks[wk] = { completed: 0, partial: 0, skipped: 0, unlogged: 0, upcoming: 0, adherenceSum: 0, adherenceCount: 0, rpeSum: 0, rpeCount: 0 };
+    }
+
+    // Type distribution (prescribed)
+    const pType = w.workout_type || 'other';
+    typeCounts.prescribed[pType] = (typeCounts.prescribed[pType] || 0) + 1;
+
+    const log = logMap.get(w.id);
+    if (log) {
+      weeks[wk][log.status] = (weeks[wk][log.status] || 0) + 1;
+
+      if (log.adherence_score != null) {
+        weeks[wk].adherenceSum += log.adherence_score;
+        weeks[wk].adherenceCount++;
+        totalAdherence += log.adherence_score;
+        adherenceCount++;
+      }
+      if (log.rpe != null) {
+        weeks[wk].rpeSum += log.rpe;
+        weeks[wk].rpeCount++;
+        totalRpe += log.rpe;
+        rpeCount++;
+      }
+
+      // Actual type distribution
+      const aType = log.status === 'completed' ? pType : 'missed';
+      typeCounts.actual[aType] = (typeCounts.actual[aType] || 0) + 1;
+    } else if (w.date > today) {
+      weeks[wk].upcoming++;
+    } else {
+      weeks[wk].unlogged++;
+      typeCounts.actual.missed = (typeCounts.actual.missed || 0) + 1;
+    }
+  }
+
+  // Build per-week stats array sorted by week number
+  const weekStats = Object.entries(weeks)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([wk, s]) => ({
+      week: Number(wk),
+      completed: s.completed,
+      partial: s.partial,
+      skipped: s.skipped,
+      unlogged: s.unlogged,
+      upcoming: s.upcoming,
+      avgAdherence: s.adherenceCount > 0 ? Math.round(s.adherenceSum / s.adherenceCount) : null,
+      avgRpe: s.rpeCount > 0 ? Math.round(s.rpeSum / s.rpeCount * 10) / 10 : null,
+    }));
+
+  const totalPlanned = workouts.filter(w => w.date <= today).length;
+  const totalCompleted = logs.filter(l => l.status === 'completed').length;
+
+  return {
+    weekStats,
+    typeCounts,
+    totalPlanned,
+    totalCompleted,
+    completionRate: totalPlanned > 0 ? Math.round(totalCompleted / totalPlanned * 100) : 0,
+    avgAdherence: adherenceCount > 0 ? Math.round(totalAdherence / adherenceCount) : null,
+    avgRpe: rpeCount > 0 ? Math.round(totalRpe / rpeCount * 10) / 10 : null,
+    totalWorkouts: workouts.length,
+    totalLogs: logs.length,
+  };
+}
+
 export async function getWeekWorkoutsByWeekNumber(seasonId, weekNumber) {
   const client = getSupabaseClient();
   if (!client) return [];

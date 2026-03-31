@@ -32,6 +32,7 @@ import { renderSeasonHistory } from './seasonHistory.js';
 import { open as openDayDetail, close as closeDayDetail } from './dayDetail.js';
 import { initPlanBuilder, destroyPlanBuilder } from './planBuilder.js';
 import { renderWeeklyView, renderWeekByNumber } from './weeklyView.js';
+import { renderSeasonOverview } from './seasonOverview.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -973,6 +974,12 @@ function renderPlanOverview(plan) {
       </div>
     `;
   }).join('');
+
+  // Season overview stats
+  const overviewContainer = document.getElementById('seasonOverviewContainer');
+  if (overviewContainer && activeSeason) {
+    renderSeasonOverview(overviewContainer, activeSeason.id, currentWeek);
+  }
 
   // Principles
   const principlesList = document.getElementById('planPrinciples');
