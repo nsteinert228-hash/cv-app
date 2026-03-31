@@ -25,6 +25,7 @@ import {
   getWeekWorkoutsByWeekNumber,
   findMatchingGarminActivity,
   submitWorkoutLog,
+  getGarminActivitiesByDateRange,
 } from './seasonData.js';
 import { renderWorkoutConfirmation } from './workoutLogger.js';
 import { renderAdaptationFeed } from './adaptationFeed.js';
@@ -622,9 +623,10 @@ async function loadSeasonZones(force) {
   const maxDate = weekDates.length ? weekDates.reduce((a, b) => a > b ? a : b) : today;
   let weekGarminActivities = [];
   try {
-    const { getGarminActivitiesByDateRange } = await import('./seasonData.js');
     weekGarminActivities = await getGarminActivitiesByDateRange(minDate, maxDate);
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn('Garmin activities fetch failed:', err);
+  }
 
   // Auto-log past cardio workouts that have clear Garmin matches but no log
   const autoMatchTypes = new Set(['cardio', 'running', 'cycling', 'swimming']);
