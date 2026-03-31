@@ -457,7 +457,7 @@ function renderGarminActivity(activity, workout, metrics) {
       ? JSON.parse(metrics.classification_details) : metrics.classification_details;
     const zones = details?.zones || {};
     const primaryZone = Object.entries(zones)
-      .sort(([, a], [, b]) => (b as number) - (a as number))[0];
+      .sort(([, a], [, b]) => b - a)[0];
     if (cls) {
       const zoneLabel = primaryZone ? ` / Zone ${primaryZone[0].replace('z', '')}` : '';
       qualityBadge = `<span class="wv-quality-badge">${cls}${zoneLabel}</span>`;
