@@ -479,9 +479,15 @@ def reconcile_user(
         else:
             stats["matched"] += 1
 
-        # Ensure a workout_log exists for matched activities
-        # This is what the frontend timeline reads to show completion status
-        if c["match_type"] not in ("unmatched",) and c.get("completion_score", 0) > 0:
+        # Sync workout_logs with completion status
+        # The frontend timeline reads workout_logs to show completion
+        if c["match_type"] == "unmatched":
+            # Remove any stale log for unmatched workouts
+            try:
+                sb.table("workout_logs").delete().eq("workout_id", c["workout_id"]).execute()
+            except Exception:
+                pass
+        elif c.get("completion_score", 0) > 0:
             status = "completed" if c["completion_score"] >= 40 else "partial"
             log_row = {
                 "workout_id": c["workout_id"],
