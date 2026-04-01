@@ -106,11 +106,9 @@ function getMaxDimensions() {
 // Loading overlay
 function hideLoadingOverlay() {
   if (!loadingOverlay) return;
-  loadingOverlay.classList.add('fade-out');
-  // Force hide after transition (or immediately if transition doesn't fire)
-  setTimeout(() => {
-    loadingOverlay.classList.add('hidden');
-  }, 500);
+  // Remove from DOM entirely — no CSS transition dependency
+  loadingOverlay.remove();
+  loadingOverlay = null;
 }
 
 function showFallbackControls(message) {
@@ -311,6 +309,8 @@ async function handleStartCamera() {
     isRunning = true;
     canvas.style.display = 'block';
     hideLoadingOverlay();
+    const pauseOv = document.getElementById('pauseOverlay');
+    if (pauseOv) pauseOv.style.display = 'none';
 
     // Update camera toggle icon to "stop" state
     cameraToggle.title = 'Stop Camera';
@@ -337,23 +337,21 @@ function handleStopCamera() {
 
   canvas.style.display = 'none';
 
-  // Show paused state — tap anywhere to restart
-  if (loadingOverlay) {
-    loadingOverlay.style.display = '';
-    loadingOverlay.classList.remove('fade-out', 'hidden');
-    const spinner = loadingOverlay.querySelector('.loading-spinner');
-    if (spinner) spinner.style.display = 'none';
-    if (statusEl) statusEl.innerHTML = '<div style="cursor:pointer;text-align:center"><div style="font-size:48px;margin-bottom:12px">▶</div>Tap to resume camera</div>';
-    if (fallbackControls) fallbackControls.classList.remove('visible');
-
-    // Make overlay tappable to restart
-    loadingOverlay.style.cursor = 'pointer';
-    loadingOverlay.onclick = () => {
-      loadingOverlay.onclick = null;
-      loadingOverlay.style.cursor = '';
-      handleStartCamera();
-    };
+  // Show paused overlay — tap to restart
+  const cameraArea = canvas.parentElement;
+  let pauseOverlay = document.getElementById('pauseOverlay');
+  if (!pauseOverlay) {
+    pauseOverlay = document.createElement('div');
+    pauseOverlay.id = 'pauseOverlay';
+    pauseOverlay.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,8,8,0.92);z-index:20;cursor:pointer;border-radius:16px';
+    cameraArea.appendChild(pauseOverlay);
   }
+  pauseOverlay.innerHTML = '<div style="font-size:48px;margin-bottom:12px">▶</div><div style="font-family:var(--font-mono);font-size:12px;color:var(--text-tertiary)">Tap to resume camera</div>';
+  pauseOverlay.style.display = '';
+  pauseOverlay.onclick = () => {
+    pauseOverlay.style.display = 'none';
+    handleStartCamera();
+  };
 
   // Update camera toggle icon to "play" state
   cameraToggle.title = 'Start Camera';
