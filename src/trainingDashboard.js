@@ -1063,25 +1063,47 @@ function renderPlanOverview(plan) {
     `;
   }
 
-  // Assessment
+  // Assessment — athlete profile card
   const ca = plan.current_assessment || {};
   const assessGrid = document.getElementById('planAssessment');
+
+  const levelColors = {
+    beginner: '#06b6d4',
+    intermediate: '#f59e0b',
+    advanced: 'var(--accent)',
+  };
+  const lvl = (ca.fitness_level || '').toLowerCase();
+  const lvlColor = levelColors[lvl] || 'var(--text-secondary)';
+
   assessGrid.innerHTML = `
-    <div class="assessment-item">
-      <div class="assessment-label">Fitness Level</div>
-      <div class="assessment-pills"><span class="assessment-pill">${esc(ca.fitness_level || '--')}</span></div>
-    </div>
-    <div class="assessment-item">
-      <div class="assessment-label">Training Age</div>
-      <div class="assessment-pills"><span class="assessment-pill">${esc(ca.training_age_estimate || '--')}</span></div>
-    </div>
-    <div class="assessment-item">
-      <div class="assessment-label">Strengths</div>
-      <div class="assessment-pills">${(ca.strengths || []).map(s => `<span class="assessment-pill">${esc(s)}</span>`).join('')}</div>
-    </div>
-    <div class="assessment-item">
-      <div class="assessment-label">Areas to Improve</div>
-      <div class="assessment-pills">${(ca.areas_to_improve || []).map(s => `<span class="assessment-pill">${esc(s)}</span>`).join('')}</div>
+    <div class="athlete-profile">
+      <div class="ap-header">
+        <div class="ap-level" style="color:${lvlColor};border-color:${lvlColor}">
+          ${esc(ca.fitness_level || '--')}
+        </div>
+        <div class="ap-meta">
+          <span class="ap-meta-label">Training Age</span>
+          <span class="ap-meta-val">${esc(ca.training_age_estimate || '--')}</span>
+        </div>
+      </div>
+      <div class="ap-section">
+        <div class="ap-section-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${'var(--accent)'}" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          Strengths
+        </div>
+        <div class="ap-tags">
+          ${(ca.strengths || []).map(s => `<span class="ap-tag strength">${esc(s)}</span>`).join('')}
+        </div>
+      </div>
+      <div class="ap-section">
+        <div class="ap-section-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+          Focus Areas
+        </div>
+        <div class="ap-tags">
+          ${(ca.areas_to_improve || []).map(s => `<span class="ap-tag improve">${esc(s)}</span>`).join('')}
+        </div>
+      </div>
     </div>
   `;
 
