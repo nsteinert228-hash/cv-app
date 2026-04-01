@@ -1023,6 +1023,55 @@ function renderTimelineZone(weekData) {
 
 // ── Zone 3: Plan Overview ────────────────────────────────────
 
+function renderCurrentMilestone(milestones, currentWeek) {
+  const container = document.getElementById('milestoneBanner');
+  if (!container) return;
+
+  if (!milestones.length) {
+    container.style.display = 'none';
+    return;
+  }
+
+  // Find the current or next upcoming milestone
+  // Milestones have timeframe like "Week 2", "Week 4", "Week 6", "Week 8"
+  let current = null;
+  let next = null;
+
+  for (const m of milestones) {
+    const weekMatch = (m.timeframe || '').match(/week\s*(\d+)/i);
+    if (!weekMatch) continue;
+    const mWeek = parseInt(weekMatch[1], 10);
+
+    if (mWeek === currentWeek) {
+      current = { ...m, week: mWeek };
+    } else if (mWeek > currentWeek && !next) {
+      next = { ...m, week: mWeek };
+    }
+  }
+
+  const milestone = current || next;
+  if (!milestone) {
+    container.style.display = 'none';
+    return;
+  }
+
+  const isCurrent = milestone.week === currentWeek;
+  const label = isCurrent ? 'This Week\'s Goal' : `Week ${milestone.week} Goal`;
+  const icon = isCurrent ? '🎯' : '📍';
+
+  container.innerHTML = `
+    <div class="milestone-card${isCurrent ? ' is-current' : ''}">
+      <div class="milestone-card-icon">${icon}</div>
+      <div class="milestone-card-content">
+        <div class="milestone-card-label">${esc(label)}</div>
+        <div class="milestone-card-goal">${esc(milestone.goal)}</div>
+      </div>
+      ${!isCurrent ? `<div class="milestone-card-when">${esc(milestone.timeframe)}</div>` : ''}
+    </div>
+  `;
+  container.style.display = '';
+}
+
 async function navigateTimelineWeek(weekNum) {
   if (!activeSeason || weekNum < 1 || weekNum > activeSeason.duration_weeks) return;
 
@@ -1037,6 +1086,9 @@ async function navigateTimelineWeek(weekNum) {
 
   // Update week summary for the navigated week
   renderWeekSummary(weekWorkouts, logMap, seasonState, activeSeason.plan_json || {});
+
+  // Update milestone banner for the navigated week
+  renderCurrentMilestone(activeSeason.plan_json?.milestones || [], weekNum);
 }
 
 function renderPlanOverview(plan) {
@@ -1145,17 +1197,12 @@ function renderPlanOverview(plan) {
     principlesList.innerHTML = plan.principles.map(p => `<li>${esc(p)}</li>`).join('');
   }
 
-  // Milestones
+  // Milestones — render current/upcoming milestone in the timeline zone,
+  // not buried in the collapsible plan detail
   const milestonesList = document.getElementById('planMilestones');
-  if (plan.milestones && plan.milestones.length) {
-    milestonesList.style.display = '';
-    milestonesList.innerHTML = plan.milestones.map(m => `
-      <div class="milestone-item">
-        <span class="milestone-time">${esc(m.timeframe)}</span>
-        <span class="milestone-goal">${esc(m.goal)}</span>
-      </div>
-    `).join('');
-  }
+  if (milestonesList) milestonesList.style.display = 'none'; // hide from plan detail
+
+  renderCurrentMilestone(plan.milestones || [], currentWeek);
 
   zonePlan.style.display = '';
 }
