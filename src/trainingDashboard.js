@@ -500,6 +500,32 @@ async function loadReadinessChips() {
     const hrvStatus = (r.hrv_status || '').toLowerCase();
     chipHRVDot.className = `readiness-chip-dot ${hrvStatus === 'balanced' || hrvStatus === 'high' ? 'green' : hrvStatus === 'low' || hrvStatus === 'unbalanced' ? 'yellow' : 'green'}`;
 
+    // Add contextual labels
+    const sleepLabel = sleepScore >= 80 ? 'Great' : sleepScore >= 60 ? 'OK' : 'Low';
+    const bbLabel = bb >= 70 ? 'High' : bb >= 40 ? 'OK' : 'Low';
+    const hrvLabel = hrvStatus === 'balanced' ? 'Balanced' : hrvStatus === 'high' ? 'High' : hrvStatus === 'low' ? 'Low' : hrvStatus || '--';
+
+    // Update chip sub-labels if elements exist
+    const chipSleepLabel = document.getElementById('chipSleepLabel');
+    const chipBBLabel = document.getElementById('chipBBLabel');
+    const chipHRVLabel = document.getElementById('chipHRVLabel');
+    if (chipSleepLabel) chipSleepLabel.textContent = sleepLabel;
+    if (chipBBLabel) chipBBLabel.textContent = bbLabel;
+    if (chipHRVLabel) chipHRVLabel.textContent = hrvLabel;
+
+    // Sparkline trends — inject mini SVG if trend data available
+    try {
+      const { getHrvTrend, getDailyTrend } = await import('./garmin.js');
+      const [hrvTrend, dailyTrend] = await Promise.all([
+        getHrvTrend().catch(() => []),
+        getDailyTrend().catch(() => []),
+      ]);
+
+      injectSparkline('chipSleep', dailyTrend.map(d => d.resting_heart_rate).filter(Boolean));
+      injectSparkline('chipBB', []); // body battery trend not in daily_summaries
+      injectSparkline('chipHRV', hrvTrend.map(d => d.last_night_avg).filter(Boolean));
+    } catch { /* sparklines are optional */ }
+
     // Also populate hidden legacy elements
     const heroSleep = document.getElementById('heroSleep');
     const heroBB = document.getElementById('heroBB');
@@ -512,6 +538,32 @@ async function loadReadinessChips() {
   } catch (err) {
     console.error('Readiness chips error:', err);
   }
+}
+
+function injectSparkline(chipId, values) {
+  if (!values || values.length < 3) return;
+  const chip = document.getElementById(chipId);
+  if (!chip) return;
+
+  // Remove existing sparkline
+  const existing = chip.querySelector('.chip-sparkline');
+  if (existing) existing.remove();
+
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const points = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * 100;
+    const y = 100 - ((v - min) / range) * 80 - 10; // 10-90% range
+    return `${x},${y}`;
+  }).join(' ');
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('chip-sparkline');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.innerHTML = `<polyline points="${points}"/>`;
+  chip.appendChild(svg);
 }
 
 // ── Quick Stats Footer ───────────────────────────────────────
@@ -678,6 +730,17 @@ function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   heroTypeTag.textContent = typeAbbr;
   heroDuration.innerHTML = workout.duration_minutes ? `${workout.duration_minutes}<span>m</span>` : '--<span>m</span>';
   heroTitle.textContent = workout.title || 'Today\'s Workout';
+
+  // Workout-type-specific gradient tint
+  const typeGradients = {
+    strength: 'radial-gradient(ellipse 70% 60% at 15% 20%, rgba(239, 68, 68, 0.08), transparent 60%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(168, 85, 247, 0.06), transparent 60%), var(--bg-surface-1)',
+    cardio: 'radial-gradient(ellipse 70% 60% at 15% 20%, rgba(200, 255, 0, 0.06), transparent 60%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(0, 100, 200, 0.08), transparent 60%), var(--bg-surface-1)',
+    recovery: 'radial-gradient(ellipse 70% 60% at 15% 20%, rgba(6, 182, 212, 0.08), transparent 60%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(74, 222, 128, 0.06), transparent 60%), var(--bg-surface-1)',
+    mixed: 'radial-gradient(ellipse 70% 60% at 15% 20%, rgba(245, 158, 11, 0.08), transparent 60%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(200, 255, 0, 0.06), transparent 60%), var(--bg-surface-1)',
+    rest: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(85, 85, 85, 0.06), transparent 60%), var(--bg-surface-1)',
+  };
+  const inner = heroCard.querySelector('.hero-card-inner');
+  if (inner) inner.style.background = typeGradients[workout.workout_type] || typeGradients.cardio;
 
   // Build context string from readiness data
   let context = rx.description || '';

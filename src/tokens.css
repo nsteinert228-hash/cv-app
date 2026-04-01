@@ -97,7 +97,7 @@
   --shadow-btn-hover: 0 2px 8px rgba(0, 0, 0, 0.4);
 
   /* ── Layout ── */
-  --max-width: 640px;
+  --max-width: 768px;
   --nav-height: 60px;
   --touch-target: 44px;
 
