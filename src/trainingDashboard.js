@@ -742,14 +742,31 @@ function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   const inner = heroCard.querySelector('.hero-card-inner');
   if (inner) inner.style.background = typeGradients[workout.workout_type] || typeGradients.cardio;
 
-  // Build context string from readiness data
+  // Build context string from readiness + workout intensity
   let context = rx.description || '';
   if (readinessData) {
-    const parts = [];
-    if (readinessData.sleep_score) parts.push(`${readinessData.sleep_score} sleep score`);
-    if (readinessData.hrv_status) parts.push(`${readinessData.hrv_status.toLowerCase()} HRV`);
-    if (parts.length) {
-      context = `Your ${parts.join(' and ')} suggest ${(workout.intensity || 'moderate').toLowerCase()} effort today.`;
+    const sleep = readinessData.sleep_score || 0;
+    const bb = readinessData.body_battery || 0;
+    const hrv = (readinessData.hrv_status || '').toLowerCase();
+    const intensity = (workout.intensity || 'moderate').toLowerCase();
+
+    // Readiness assessment
+    const readinessGood = sleep >= 70 && (hrv === 'balanced' || hrv === 'high');
+    const readinessPoor = sleep < 50 || hrv === 'low' || bb < 30;
+
+    if (readinessGood && intensity === 'low') {
+      // Good recovery but easy day planned — explain the periodization
+      context = `Recovery looks great (${sleep} sleep, ${hrv} HRV). Today's easy session is strategic — building aerobic base while staying fresh for harder days ahead.`;
+    } else if (readinessGood && intensity === 'high') {
+      context = `You're well recovered (${sleep} sleep, ${hrv} HRV) — perfect day to push hard.`;
+    } else if (readinessGood) {
+      context = `Good recovery (${sleep} sleep, ${hrv} HRV). Solid day for ${intensity} effort.`;
+    } else if (readinessPoor && intensity === 'high') {
+      context = `Recovery indicators are low (${sleep} sleep${bb ? `, ${bb} battery` : ''}). Consider dialing back intensity today.`;
+    } else if (readinessPoor) {
+      context = `Recovery is below baseline. Listen to your body and don't push beyond what feels right.`;
+    } else {
+      context = `Your ${sleep} sleep score and ${hrv || 'steady'} HRV support ${intensity} effort today.`;
     }
   }
   heroContext.textContent = context;
