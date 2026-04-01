@@ -560,45 +560,13 @@ async function init() {
   }
 
   try {
-    // Start camera first so the user sees the feed while model loads
-    statusEl.textContent = 'Starting camera...';
-    try {
-      stream = await startCamera(video);
-      const { maxW, maxH } = getMaxDimensions();
-      const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
-      canvas.width = Math.round(video.videoWidth * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-      canvas.style.display = 'block';
-
-      // Hide the overlay immediately so camera feed is visible
-      if (loadingOverlay) {
-        loadingOverlay.style.display = 'none';
-      }
-
-      // Draw video frames while model loads (no pose detection yet)
-      isRunning = false;
-      function drawPreview() {
-        if (detector) return;
-        if (video.videoWidth && video.videoHeight) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        }
-        requestAnimationFrame(drawPreview);
-      }
-      drawPreview();
-    } catch (camErr) {
-      console.warn('Camera pre-start failed:', camErr);
-    }
-
     statusEl.textContent = 'Loading model...';
     detector = await createDetector();
     statusEl.textContent = 'Loading classifier...';
     poseClassifier = await createPoseClassifier();
 
-    // Now start the full detect loop
-    isRunning = true;
-    cameraToggle.title = 'Stop Camera';
-    cameraToggle.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-    detectLoop();
+    // Use the same function that stop/restart uses
+    await handleStartCamera();
 
     // Default to auto mode
     selectExercise('auto');
