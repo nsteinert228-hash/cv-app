@@ -88,9 +88,9 @@ function buildWeekBars(weekStats, currentWeek) {
       <div class="so-section-title">Weekly Completion</div>
       <div class="so-week-bars">${rows}</div>
       <div class="so-legend">
-        <span class="so-legend-item"><span class="so-dot completed"></span>Done</span>
-        <span class="so-legend-item"><span class="so-dot partial"></span>Partial</span>
-        <span class="so-legend-item"><span class="so-dot skipped"></span>Skipped</span>
+        <span class="so-legend-item"><span class="so-dot completed"></span>Strong (70%+)</span>
+        <span class="so-legend-item"><span class="so-dot partial"></span>Partial (40-69%)</span>
+        <span class="so-legend-item"><span class="so-dot skipped"></span>Weak/Skipped</span>
         <span class="so-legend-item"><span class="so-dot unlogged"></span>Missed</span>
         <span class="so-legend-item"><span class="so-dot upcoming"></span>Upcoming</span>
       </div>
@@ -160,7 +160,7 @@ function buildTypeDistribution(typeCounts) {
 
   return `
     <div class="so-section">
-      <div class="so-section-title">Workout Distribution</div>
+      <div class="so-section-title">Planned Workout Mix <span style="font-weight:400;opacity:0.6">(${total} sessions across full season)</span></div>
       <div class="so-type-grid">${items}</div>
     </div>
   `;

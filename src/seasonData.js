@@ -352,7 +352,18 @@ export async function getSeasonOverviewStats(seasonId) {
 
     const log = logMap.get(w.id);
     if (log) {
-      weeks[wk][log.status] = (weeks[wk][log.status] || 0) + 1;
+      // Categorize by adherence score, not just status
+      // This gives meaningful Done/Partial/Weak segments
+      const score = log.adherence_score ?? 0;
+      if (log.status === 'skipped') {
+        weeks[wk].skipped++;
+      } else if (score >= 70) {
+        weeks[wk].completed++;
+      } else if (score >= 40) {
+        weeks[wk].partial++;
+      } else {
+        weeks[wk].skipped++;  // very low score = essentially missed
+      }
 
       if (log.adherence_score != null) {
         weeks[wk].adherenceSum += log.adherence_score;
@@ -368,7 +379,7 @@ export async function getSeasonOverviewStats(seasonId) {
       }
 
       // Actual type distribution
-      const aType = log.status === 'completed' ? pType : 'missed';
+      const aType = score >= 40 ? pType : 'missed';
       typeCounts.actual[aType] = (typeCounts.actual[aType] || 0) + 1;
     } else if (w.date > today) {
       weeks[wk].upcoming++;
