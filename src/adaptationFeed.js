@@ -41,16 +41,24 @@ export async function renderAdaptationFeed(containerEl, seasonId) {
     }
 
     containerEl.style.display = '';
-    containerEl.innerHTML = adaptations.map(a => `
-      <div class="adapt-item ${TRIGGER_COLORS[a.trigger] || 'adapt-schedule'}" data-id="${a.id}">
-        <span class="adapt-icon">${TRIGGER_LABELS[a.trigger] || TRIGGER_LABELS.unknown}</span>
-        <div class="adapt-content">
-          <div class="adapt-summary">${esc(a.summary)}</div>
-          <div class="adapt-date">${esc(a.affected_date)}</div>
+    containerEl.innerHTML = adaptations.map(a => {
+      // Extract concise headline from raw summary
+      const raw = a.summary || '';
+      const cleaned = raw.replace(/^User modification:\s*"[^"]*"\s*—?\s*/i, '');
+      const headline = cleaned.split(/\.\s/)[0];
+      const truncated = headline.length > 80 ? headline.slice(0, 77) + '...' : headline;
+
+      return `
+        <div class="adapt-item ${TRIGGER_COLORS[a.trigger] || 'adapt-schedule'}" data-id="${a.id}">
+          <span class="adapt-icon">${TRIGGER_LABELS[a.trigger] || TRIGGER_LABELS.unknown}</span>
+          <div class="adapt-content">
+            <div class="adapt-summary">${esc(truncated)}</div>
+            <div class="adapt-date">${esc(a.affected_date)}</div>
+          </div>
+          <button class="adapt-dismiss" aria-label="Dismiss">Got it</button>
         </div>
-        <button class="adapt-dismiss" aria-label="Dismiss">Got it</button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     // Bind dismiss handlers
     containerEl.querySelectorAll('.adapt-dismiss').forEach(btn => {

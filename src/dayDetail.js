@@ -46,13 +46,30 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
       if (adaptation) {
         const triggerLabel = TRIGGER_LABELS[adaptation.trigger] || TRIGGER_LABELS.unknown;
         const colorClass = TRIGGER_COLORS[adaptation.trigger] || 'adapt-schedule';
+
+        // Parse summary: extract the concise change, strip verbose AI text
+        const rawSummary = adaptation.summary || '';
+        const { headline, detail } = parseAdaptationSummary(rawSummary, adaptation.trigger);
+
+        // Trigger-specific icons and colors
+        const triggerMeta = {
+          hrv_drop: { icon: '💓', color: '#ef4444', desc: 'HRV drop detected' },
+          sleep_decline: { icon: '😴', color: '#f59e0b', desc: 'Poor sleep recovery' },
+          high_stress: { icon: '⚡', color: '#f59e0b', desc: 'Elevated stress' },
+          missed_workout: { icon: '📅', color: '#888', desc: 'Missed session' },
+          overtraining: { icon: '🛑', color: '#ef4444', desc: 'Overtraining risk' },
+          high_readiness: { icon: '🟢', color: 'var(--accent)', desc: 'High readiness' },
+          schedule: { icon: '🔄', color: '#06b6d4', desc: 'Plan adjusted' },
+        };
+        const meta = triggerMeta[adaptation.trigger] || { icon: '🔄', color: '#888', desc: 'Adjusted' };
+
         html += `
-          <div class="adaptation-banner">
-            <span class="adapt-icon">${esc(triggerLabel)}</span>
-            <div class="adaptation-banner-content">
-              <div class="adaptation-banner-summary">${esc(adaptation.summary)}</div>
-              ${adaptation.details ? `<div class="adaptation-banner-diff">${esc(adaptation.details)}</div>` : ''}
+          <div class="adapt-card" style="border-left-color:${meta.color}">
+            <div class="adapt-card-header">
+              <span class="adapt-card-trigger" style="background:${meta.color}15;color:${meta.color}">${meta.icon} ${esc(meta.desc)}</span>
             </div>
+            <div class="adapt-card-headline">${esc(headline)}</div>
+            ${detail ? `<button class="adapt-card-toggle" onclick="this.nextElementSibling.classList.toggle('visible');this.textContent=this.textContent==='Show details'?'Hide details':'Show details'">Show details</button><div class="adapt-card-detail">${esc(detail)}</div>` : ''}
           </div>
         `;
       }
@@ -251,4 +268,38 @@ async function showSwapPreview(previewEl, workout, newType, newTitle, ctx) {
   document.getElementById('cancelSwapBtn').addEventListener('click', () => {
     previewEl.innerHTML = '';
   });
+}
+
+// ── Adaptation summary parser ───────────────────────────────
+
+function parseAdaptationSummary(raw, trigger) {
+  // Common patterns in AI-generated summaries:
+  // "User modification: "prompt" — AI response paragraph"
+  // "Swapped "X" (type) → "Y" (type)"
+  // "Changed rest day to an easy recovery run to meet your request. Long AI explanation..."
+
+  // Strip user modification prefix
+  let text = raw.replace(/^User modification:\s*"[^"]*"\s*—?\s*/i, '');
+
+  // If it starts with "Swapped", that's already concise
+  if (text.startsWith('Swapped ') || text.startsWith('Changed ')) {
+    const firstSentence = text.split(/\.\s/)[0] + '.';
+    const rest = text.slice(firstSentence.length).trim();
+    return { headline: firstSentence, detail: rest || null };
+  }
+
+  // Split into first sentence (headline) and rest (detail)
+  const sentences = text.split(/\.\s+/);
+  if (sentences.length <= 1) {
+    // Short enough as-is, just truncate if needed
+    return { headline: text.length > 120 ? text.slice(0, 117) + '...' : text, detail: null };
+  }
+
+  const headline = sentences[0] + '.';
+  const detail = sentences.slice(1).join('. ').trim();
+
+  return {
+    headline: headline.length > 120 ? headline.slice(0, 117) + '...' : headline,
+    detail: detail || null,
+  };
 }
