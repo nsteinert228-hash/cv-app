@@ -1421,8 +1421,12 @@
     <!-- Zone 2: This Week Timeline -->
     <div class="zone-week zone-animate delay-2" id="zoneWeek">
       <div class="zone-week-header">
-        <div class="zone-week-title" id="weekTitle">This Week</div>
-        <div class="zone-week-subtitle" id="weekSubtitle"></div>
+        <button class="tl-nav-btn" id="tlPrevWeek" style="display:none">&larr;</button>
+        <div class="zone-week-header-center">
+          <div class="zone-week-title" id="weekTitle">This Week</div>
+          <div class="zone-week-subtitle" id="weekSubtitle"></div>
+        </div>
+        <button class="tl-nav-btn" id="tlNextWeek" style="display:none">&rarr;</button>
       </div>
       <div id="weekSummary"></div>
       <div class="timeline-scroll-container">

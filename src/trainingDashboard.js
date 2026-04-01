@@ -826,10 +826,28 @@ function renderRestDayHero() {
 
 // ── Zone 2: Timeline ─────────────────────────────────────────
 
-function renderSeasonTimeline(workouts, logMap, today) {
-  const phase = getCurrentPhase(activeSeason.plan_json || {}, seasonState.currentWeek);
-  weekTitle.textContent = `Week ${seasonState.currentWeek}`;
+let _timelineWeek = null; // tracks which week the timeline is showing
+
+function renderSeasonTimeline(workouts, logMap, today, displayWeek) {
+  const weekNum = displayWeek || seasonState.currentWeek;
+  _timelineWeek = weekNum;
+  const phase = getCurrentPhase(activeSeason.plan_json || {}, weekNum);
+  const isCurrentWeek = weekNum === seasonState.currentWeek;
+
+  weekTitle.textContent = isCurrentWeek ? `Week ${weekNum}` : `Week ${weekNum}`;
   weekSubtitle.textContent = phase ? phase.name : '';
+
+  // Show/hide nav arrows
+  const prevBtn = document.getElementById('tlPrevWeek');
+  const nextBtn = document.getElementById('tlNextWeek');
+  if (prevBtn) {
+    prevBtn.style.display = weekNum > 1 ? '' : 'none';
+    prevBtn.onclick = () => navigateTimelineWeek(weekNum - 1);
+  }
+  if (nextBtn) {
+    nextBtn.style.display = weekNum < activeSeason.duration_weeks ? '' : 'none';
+    nextBtn.onclick = () => navigateTimelineWeek(weekNum + 1);
+  }
 
   const dayAbbrs = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -941,6 +959,22 @@ function renderTimelineZone(weekData) {
 }
 
 // ── Zone 3: Plan Overview ────────────────────────────────────
+
+async function navigateTimelineWeek(weekNum) {
+  if (!activeSeason || weekNum < 1 || weekNum > activeSeason.duration_weeks) return;
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch workouts + logs for the target week
+  const weekWorkouts = await getWeekWorkoutsByWeekNumber(activeSeason.id, weekNum);
+  const allLogs = await getWorkoutLogsForSeason(activeSeason.id);
+  const logMap = new Map(allLogs.map(l => [l.workout_id, l]));
+
+  renderSeasonTimeline(weekWorkouts, logMap, today, weekNum);
+
+  // Update week summary for the navigated week
+  renderWeekSummary(weekWorkouts, logMap, seasonState, activeSeason.plan_json || {});
+}
 
 function renderPlanOverview(plan) {
   if (!activeSeason || !plan) {
