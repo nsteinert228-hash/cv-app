@@ -131,8 +131,14 @@ function buildAdherenceSparkline(weekStats) {
 
 function buildTypeDistribution(typeCounts) {
   const prescribed = typeCounts.prescribed;
-  const total = Object.values(prescribed).reduce((a, b) => a + b, 0);
-  if (total === 0) return '';
+  const actual = typeCounts.actual || {};
+  const plannedTotal = Object.values(prescribed).reduce((a, b) => a + b, 0);
+  if (plannedTotal === 0) return '';
+
+  // Actual totals (excluding 'missed')
+  const actualDone = Object.entries(actual)
+    .filter(([k]) => k !== 'missed')
+    .reduce((sum, [, v]) => sum + v, 0);
 
   const TYPE_LABELS = {
     strength: 'STR',
@@ -142,26 +148,68 @@ function buildTypeDistribution(typeCounts) {
     rest: 'REST',
   };
 
-  const items = Object.entries(prescribed)
-    .sort(([, a], [, b]) => b - a)
-    .map(([type, count]) => {
-      const pct = Math.round(count / total * 100);
-      const label = TYPE_LABELS[type] || type.toUpperCase().slice(0, 3);
-      return `
-        <div class="so-type-item">
-          <div class="so-type-bar-track">
-            <div class="so-type-bar-fill ${type}" style="width:${pct}%"></div>
+  const TYPE_COLORS = {
+    strength: '#8b5cf6',
+    cardio: 'var(--accent)',
+    recovery: '#06b6d4',
+    mixed: '#f59e0b',
+    rest: 'var(--text-tertiary)',
+  };
+
+  // Get all types from both planned and actual
+  const allTypes = [...new Set([...Object.keys(prescribed), ...Object.keys(actual)])]
+    .filter(t => t !== 'missed' && t !== 'other')
+    .sort((a, b) => (prescribed[b] || 0) - (prescribed[a] || 0));
+
+  const rows = allTypes.map(type => {
+    const plannedCount = prescribed[type] || 0;
+    const actualCount = actual[type] || 0;
+    const plannedPct = plannedTotal > 0 ? Math.round(plannedCount / plannedTotal * 100) : 0;
+    const actualPct = actualDone > 0 ? Math.round(actualCount / actualDone * 100) : 0;
+    const label = TYPE_LABELS[type] || type.toUpperCase().slice(0, 3);
+    const color = TYPE_COLORS[type] || 'var(--text-tertiary)';
+
+    // Tracking indicator
+    const diff = actualPct - plannedPct;
+    let trackIcon = '';
+    if (actualDone > 0) {
+      if (Math.abs(diff) <= 5) trackIcon = '<span class="dist-track on">on track</span>';
+      else if (diff > 5) trackIcon = `<span class="dist-track over">+${diff}%</span>`;
+      else trackIcon = `<span class="dist-track under">${diff}%</span>`;
+    }
+
+    return `
+      <div class="so-dist-row">
+        <div class="so-dist-label">${label}</div>
+        <div class="so-dist-bars">
+          <div class="so-dist-bar-pair">
+            <div class="so-dist-bar planned">
+              <div class="so-dist-fill" style="width:${plannedPct}%;background:${color};opacity:0.35"></div>
+            </div>
+            <div class="so-dist-bar actual">
+              <div class="so-dist-fill" style="width:${actualPct}%;background:${color}"></div>
+            </div>
           </div>
-          <div class="so-type-label">${label}</div>
-          <div class="so-type-count">${count}</div>
         </div>
-      `;
-    }).join('');
+        <div class="so-dist-pcts">
+          <span class="so-dist-planned-pct">${plannedPct}%</span>
+          <span class="so-dist-actual-pct">${actualDone > 0 ? actualPct + '%' : '--'}</span>
+        </div>
+        ${trackIcon}
+      </div>
+    `;
+  }).join('');
 
   return `
     <div class="so-section">
-      <div class="so-section-title">Planned Workout Mix <span style="font-weight:400;opacity:0.6">(${total} sessions across full season)</span></div>
-      <div class="so-type-grid">${items}</div>
+      <div class="so-section-title">Workout Distribution</div>
+      <div class="so-dist-header">
+        <span></span>
+        <span class="so-dist-col-label">Planned</span>
+        <span class="so-dist-col-label">Actual</span>
+        <span></span>
+      </div>
+      <div class="so-dist-grid">${rows}</div>
     </div>
   `;
 }

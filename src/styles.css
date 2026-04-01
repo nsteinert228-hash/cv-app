@@ -1455,6 +1455,108 @@ body {
 .so-type-bar-fill.mixed { background: #f59e0b; }
 .so-type-bar-fill.rest { background: var(--text-tertiary); opacity: 0.3; }
 
+/* Workout distribution — planned vs actual */
+.so-dist-header {
+  display: grid;
+  grid-template-columns: 36px 1fr 48px 64px;
+  gap: var(--space-2);
+  margin-bottom: 4px;
+}
+
+.so-dist-col-label {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+
+.so-dist-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.so-dist-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 48px 64px;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.so-dist-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.so-dist-bars {
+  display: flex;
+  flex-direction: column;
+}
+
+.so-dist-bar-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.so-dist-bar {
+  height: 5px;
+  background: var(--surface-raised);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.so-dist-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.so-dist-pcts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+}
+
+.so-dist-planned-pct {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.so-dist-actual-pct {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.dist-track {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  text-align: center;
+}
+
+.dist-track.on {
+  color: var(--accent);
+  background: rgba(200, 255, 0, 0.08);
+}
+
+.dist-track.over {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.dist-track.under {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
 /* Workout quality badge (weekly view) */
 .wv-quality-badge {
   display: inline-block;
