@@ -28,6 +28,16 @@ async function startCamera(videoEl) {
   }
   videoEl.srcObject = stream;
   await videoEl.play();
+
+  // Wait for video to have actual dimensions before returning
+  if (!videoEl.videoWidth) {
+    await new Promise(resolve => {
+      videoEl.addEventListener('loadeddata', resolve, { once: true });
+      // Fallback timeout in case loadeddata already fired
+      setTimeout(resolve, 2000);
+    });
+  }
+
   return stream;
 }
 
