@@ -302,6 +302,12 @@ async function handleStartCamera() {
     if (statusEl) statusEl.textContent = 'Starting camera...';
     stream = await startCamera(video);
 
+    // Set initial canvas size from video dimensions
+    const { maxW, maxH } = getMaxDimensions();
+    const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+
     isRunning = true;
     canvas.style.display = 'block';
     hideLoadingOverlay();
@@ -309,6 +315,9 @@ async function handleStartCamera() {
     // Update camera toggle icon to "stop" state
     cameraToggle.title = 'Stop Camera';
     cameraToggle.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+
+    // Draw first frame immediately so the canvas isn't black
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     detectLoop();
   } catch (err) {
