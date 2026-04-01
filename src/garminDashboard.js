@@ -523,17 +523,40 @@ async function refreshDashboard() {
   const hrvVal = latestHrv?.last_night_avg ?? latestHrv?.weekly_avg;
   const hrvStatusStr = latestHrv?.status || '';
   const hrvNum = hrvVal != null ? Math.round(hrvVal) : 0;
-  // HRV uses baseline for thresholds
   const hrvHigh = latestHrv?.baseline_upper || 70;
   const hrvLow = latestHrv?.baseline_low || 40;
-  setDial('hrvDialFill', 'hrvDialVal', 'hrvDescriptor', hrvNum, Math.round(hrvHigh * 1.5), [Math.round(hrvHigh), Math.round(hrvLow)]);
+
+  // HRV range visualization — position marker on the range bar
+  const hrvValEl = document.getElementById('hrvDialVal');
+  const hrvMarker = document.getElementById('hrvMarker');
+  const hrvRangeLow = document.getElementById('hrvRangeLow');
+  const hrvRangeHigh = document.getElementById('hrvRangeHigh');
+
+  if (hrvValEl) hrvValEl.textContent = hrvNum || '--';
+  if (hrvRangeLow) hrvRangeLow.textContent = Math.round(hrvLow);
+  if (hrvRangeHigh) hrvRangeHigh.textContent = Math.round(hrvHigh);
+
+  if (hrvMarker && hrvNum > 0) {
+    // Map HRV value to 0-100% position on the bar
+    // Range spans from hrvLow * 0.5 to hrvHigh * 1.5
+    const barMin = Math.round(hrvLow * 0.5);
+    const barMax = Math.round(hrvHigh * 1.5);
+    const pct = Math.min(100, Math.max(0, ((hrvNum - barMin) / (barMax - barMin)) * 100));
+    hrvMarker.style.left = `${pct}%`;
+    // Color marker based on status
+    const hrvLower = hrvStatusStr.toLowerCase();
+    if (hrvLower === 'balanced') hrvMarker.style.background = '#4ADE80';
+    else if (hrvLower.includes('above') || hrvLower.includes('high')) hrvMarker.style.background = '#60A5FA';
+    else if (hrvLower.includes('low') || hrvLower.includes('below')) hrvMarker.style.background = '#FACC15';
+    else hrvMarker.style.background = 'var(--text-secondary)';
+  }
 
   // HRV descriptor uses status text
   const hrvDescriptor = document.getElementById('hrvDescriptor');
   const hrvLower = hrvStatusStr.toLowerCase();
   if (hrvLower === 'balanced') { hrvDescriptor.textContent = 'Balanced'; hrvDescriptor.style.color = '#4ADE80'; }
-  else if (hrvLower.includes('above')) { hrvDescriptor.textContent = 'Above'; hrvDescriptor.style.color = '#60A5FA'; }
-  else if (hrvLower.includes('low') || hrvLower.includes('below')) { hrvDescriptor.textContent = 'Low'; hrvDescriptor.style.color = '#FACC15'; }
+  else if (hrvLower.includes('above')) { hrvDescriptor.textContent = 'Above Baseline'; hrvDescriptor.style.color = '#60A5FA'; }
+  else if (hrvLower.includes('low') || hrvLower.includes('below')) { hrvDescriptor.textContent = 'Below Baseline'; hrvDescriptor.style.color = '#FACC15'; }
   else { hrvDescriptor.textContent = hrvStatusStr.replace(/_/g, ' ') || '--'; }
 
   // Readiness summary

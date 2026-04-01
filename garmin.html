@@ -164,6 +164,89 @@
       letter-spacing: 0.08em;
     }
 
+    /* HRV Range Bar Visualization */
+    .hrv-range-viz {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 140px;
+      padding: 8px 0;
+    }
+
+    .hrv-range-value {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .hrv-range-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .hrv-range-bar {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      display: flex;
+      overflow: visible;
+    }
+
+    .hrv-range-zone {
+      height: 100%;
+    }
+
+    .hrv-range-zone.low {
+      flex: 1;
+      background: #FACC15;
+      opacity: 0.3;
+      border-radius: 4px 0 0 4px;
+    }
+
+    .hrv-range-zone.balanced {
+      flex: 2;
+      background: #4ADE80;
+      opacity: 0.3;
+    }
+
+    .hrv-range-zone.high {
+      flex: 1;
+      background: #60A5FA;
+      opacity: 0.3;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .hrv-range-marker {
+      position: absolute;
+      top: -4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #4ADE80;
+      border: 2px solid var(--bg-base);
+      transform: translateX(-50%);
+      transition: left 600ms var(--ease-snappy);
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+    }
+
+    .hrv-range-labels {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-top: 4px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+    }
+
     .dial-descriptor {
       font-family: var(--font-body);
       font-size: var(--text-xs);
@@ -624,16 +707,20 @@
           <div class="dial-descriptor" id="bbDescriptor" style="color:var(--text-tertiary)">--</div>
         </div>
         <div class="dial-item">
-          <svg class="dial-svg" viewBox="0 0 100 100" id="hrvDial">
-            <circle class="dial-track" cx="50" cy="50" r="40" stroke-width="8"
-              stroke-dasharray="226.2" stroke-dashoffset="0"
-              transform="rotate(135 50 50)" />
-            <circle class="dial-fill" id="hrvDialFill" cx="50" cy="50" r="40" stroke-width="8"
-              stroke-dasharray="226.2" stroke-dashoffset="226.2"
-              transform="rotate(135 50 50)" stroke="var(--status-green)" />
-            <text class="dial-value" x="50" y="48" text-anchor="middle" font-size="22" id="hrvDialVal">--</text>
-            <text class="dial-label-text" x="50" y="62" text-anchor="middle">HRV</text>
-          </svg>
+          <div class="hrv-range-viz" id="hrvRangeViz">
+            <div class="hrv-range-value" id="hrvDialVal">--</div>
+            <div class="hrv-range-label">HRV</div>
+            <div class="hrv-range-bar">
+              <div class="hrv-range-zone low"></div>
+              <div class="hrv-range-zone balanced"></div>
+              <div class="hrv-range-zone high"></div>
+              <div class="hrv-range-marker" id="hrvMarker"></div>
+            </div>
+            <div class="hrv-range-labels">
+              <span id="hrvRangeLow">--</span>
+              <span id="hrvRangeHigh">--</span>
+            </div>
+          </div>
           <div class="dial-descriptor" id="hrvDescriptor" style="color:var(--text-tertiary)">--</div>
         </div>
       </div>
