@@ -337,14 +337,22 @@ function handleStopCamera() {
 
   canvas.style.display = 'none';
 
-  // Show a simple paused state — tap the play button to restart
+  // Show paused state — tap anywhere to restart
   if (loadingOverlay) {
     loadingOverlay.style.display = '';
     loadingOverlay.classList.remove('fade-out', 'hidden');
     const spinner = loadingOverlay.querySelector('.loading-spinner');
     if (spinner) spinner.style.display = 'none';
-    if (statusEl) statusEl.textContent = 'Camera paused — tap ▶ to resume';
+    if (statusEl) statusEl.innerHTML = '<div style="cursor:pointer;text-align:center"><div style="font-size:48px;margin-bottom:12px">▶</div>Tap to resume camera</div>';
     if (fallbackControls) fallbackControls.classList.remove('visible');
+
+    // Make overlay tappable to restart
+    loadingOverlay.style.cursor = 'pointer';
+    loadingOverlay.onclick = () => {
+      loadingOverlay.onclick = null;
+      loadingOverlay.style.cursor = '';
+      handleStartCamera();
+    };
   }
 
   // Update camera toggle icon to "play" state
