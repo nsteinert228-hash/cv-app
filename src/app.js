@@ -107,9 +107,10 @@ function getMaxDimensions() {
 function hideLoadingOverlay() {
   if (!loadingOverlay) return;
   loadingOverlay.classList.add('fade-out');
-  loadingOverlay.addEventListener('transitionend', () => {
+  // Force hide after transition (or immediately if transition doesn't fire)
+  setTimeout(() => {
     loadingOverlay.classList.add('hidden');
-  }, { once: true });
+  }, 500);
 }
 
 function showFallbackControls(message) {
