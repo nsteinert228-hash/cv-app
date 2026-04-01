@@ -337,13 +337,14 @@ function handleStopCamera() {
 
   canvas.style.display = 'none';
 
-  // Show loading overlay as a restart prompt
+  // Show a simple paused state — tap the play button to restart
   if (loadingOverlay) {
+    loadingOverlay.style.display = '';
     loadingOverlay.classList.remove('fade-out', 'hidden');
     const spinner = loadingOverlay.querySelector('.loading-spinner');
     if (spinner) spinner.style.display = 'none';
-    if (statusEl) statusEl.textContent = 'Camera stopped';
-    if (fallbackControls) fallbackControls.classList.add('visible');
+    if (statusEl) statusEl.textContent = 'Camera paused — tap ▶ to resume';
+    if (fallbackControls) fallbackControls.classList.remove('visible');
   }
 
   // Update camera toggle icon to "play" state
@@ -561,10 +562,15 @@ async function init() {
       canvas.height = Math.round(video.videoHeight * scale);
       canvas.style.display = 'block';
 
+      // Hide the overlay immediately so camera feed is visible
+      if (loadingOverlay) {
+        loadingOverlay.style.display = 'none';
+      }
+
       // Draw video frames while model loads (no pose detection yet)
-      isRunning = false; // not fully running yet
+      isRunning = false;
       function drawPreview() {
-        if (detector) return; // model loaded, detectLoop takes over
+        if (detector) return;
         if (video.videoWidth && video.videoHeight) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
@@ -582,7 +588,6 @@ async function init() {
 
     // Now start the full detect loop
     isRunning = true;
-    hideLoadingOverlay();
     cameraToggle.title = 'Stop Camera';
     cameraToggle.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
     detectLoop();
