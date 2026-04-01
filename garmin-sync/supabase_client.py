@@ -218,3 +218,124 @@ def log_sync(
                  data_type, sync_date, status, records_synced)
     except Exception as exc:
         log.error("Failed to write sync log: %s", exc)
+
+
+# ── Plan matching queries ──────────────────────────────────────
+
+
+def fetch_active_season(client: Client, user_id: str) -> dict | None:
+    """Return the active training season for a user, or None."""
+    def _do():
+        return (
+            client.table("training_seasons")
+            .select("id, name, plan_json, duration_weeks, start_date, end_date, status")
+            .eq("user_id", user_id)
+            .eq("status", "active")
+            .limit(1)
+            .execute()
+        )
+    result = _with_retry(_do)
+    return result.data[0] if result.data else None
+
+
+def fetch_season_workouts(client: Client, user_id: str, season_id: str,
+                          start_date: str, end_date: str) -> list[dict]:
+    """Fetch planned workouts for a season within a date range."""
+    def _do():
+        return (
+            client.table("season_workouts")
+            .select("id, date, week_number, workout_type, title, intensity, duration_minutes")
+            .eq("user_id", user_id)
+            .eq("season_id", season_id)
+            .gte("date", start_date)
+            .lte("date", end_date)
+            .order("date")
+            .execute()
+        )
+    result = _with_retry(_do)
+    return result.data or []
+
+
+def fetch_activities_in_range(client: Client, user_id: str,
+                              start_date: str, end_date: str) -> list[dict]:
+    """Fetch Garmin activities in a date range."""
+    def _do():
+        return (
+            client.table("activities")
+            .select("activity_id, date, activity_type, name, duration_seconds, distance_meters, avg_heart_rate, max_heart_rate, calories")
+            .eq("user_id", user_id)
+            .gte("date", start_date)
+            .lte("date", end_date)
+            .order("date")
+            .execute()
+        )
+    result = _with_retry(_do)
+    return result.data or []
+
+
+def fetch_activity_metrics_map(client: Client, user_id: str,
+                               activity_ids: list[int]) -> dict[int, dict]:
+    """Fetch activity_metrics for a list of activity IDs, keyed by activity_id."""
+    if not activity_ids:
+        return {}
+
+    def _do():
+        return (
+            client.table("activity_metrics")
+            .select("activity_id, workout_classification, classification_details, duration_seconds, distance_meters")
+            .eq("user_id", user_id)
+            .in_("activity_id", activity_ids)
+            .execute()
+        )
+    try:
+        result = _with_retry(_do)
+        return {r["activity_id"]: r for r in (result.data or [])}
+    except Exception:
+        return {}
+
+
+def fetch_plan_completions(client: Client, user_id: str,
+                           season_id: str) -> list[dict]:
+    """Fetch all existing plan_completions for a season."""
+    def _do():
+        return (
+            client.table("plan_completions")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("season_id", season_id)
+            .execute()
+        )
+    try:
+        result = _with_retry(_do)
+        return result.data or []
+    except Exception:
+        return []
+
+
+def upsert_plan_completion(client: Client, row: dict, user_id: str) -> int:
+    """Upsert a plan_completion row (keyed on workout_id)."""
+    row["user_id"] = user_id
+    row["updated_at"] = _now_iso()
+
+    def _do():
+        client.table("plan_completions").upsert(
+            row, on_conflict="workout_id"
+        ).execute()
+
+    _with_retry(_do)
+    return 1
+
+
+def update_workout_log_adherence(client: Client, workout_id: str,
+                                 adherence_score: float) -> int:
+    """Update adherence_score on an existing workout_log."""
+    def _do():
+        client.table("workout_logs").update(
+            {"adherence_score": adherence_score}
+        ).eq("workout_id", workout_id).execute()
+
+    try:
+        _with_retry(_do)
+        return 1
+    except Exception:
+        return 0

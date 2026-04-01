@@ -248,6 +248,39 @@ def cmd_sync_all_watch(args: argparse.Namespace) -> None:
         print("\nStopped.")
 
 
+def cmd_match(args: argparse.Namespace) -> None:
+    """Run the activity-to-plan matching engine."""
+    from matcher import reconcile_user, recalculate_adherence
+
+    sb = _get_supabase_or_exit()
+    user_id = args.user_id
+    force = getattr(args, "force", False)
+
+    if args.date:
+        date_range = (args.date, args.date)
+    elif args.range:
+        date_range = (args.range[0], args.range[1])
+    else:
+        date_range = None  # full active season
+
+    print(f"Matching activities to plan for user {user_id}...")
+    stats = reconcile_user(sb, user_id, date_range=date_range, force=force)
+
+    print(f"\nResults:")
+    print(f"  Matched:  {stats['matched']}")
+    print(f"  Unmatched: {stats['unmatched']}")
+    print(f"  Rest days: {stats['rest']}")
+    print(f"  Overrides skipped: {stats['skipped_override']}")
+    print(f"  Logs updated: {stats['updated']}")
+
+    # Also show adherence summary
+    adherence = recalculate_adherence(sb, user_id)
+    print(f"\nAdherence: {adherence['adherence_pct']}% ({adherence['completed']}/{adherence['total']} workouts)")
+    if adherence["by_week"]:
+        for wk, pct in adherence["by_week"].items():
+            print(f"  Week {wk}: {pct}%")
+
+
 def cmd_health(args: argparse.Namespace) -> None:
     """Check connectivity to Garmin and Supabase."""
     checks: dict[str, dict] = {}
@@ -389,6 +422,18 @@ def main() -> None:
     sa.add_argument("--interval", type=int, default=10,
                     help="Seconds between polls in watch mode (default: 10)")
 
+    # match
+    mp = subparsers.add_parser("match",
+                               help="Run activity-to-plan matching engine")
+    mp.add_argument("--user-id", type=str, required=True,
+                    help="UUID of the user to match")
+    mp.add_argument("--date", type=str, metavar="YYYY-MM-DD",
+                    help="Match a specific date")
+    mp.add_argument("--range", nargs=2, metavar=("START", "END"),
+                    help="Match a date range")
+    mp.add_argument("--force", action="store_true",
+                    help="Re-match even overridden completions")
+
     # health
     subparsers.add_parser("health", help="Check Garmin and Supabase connectivity")
 
@@ -399,7 +444,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command in ("sync", "backfill", "status"):
+    if args.command in ("sync", "backfill", "status", "match"):
         config.validate()
     elif args.command == "sync-all":
         config.validate(multi_user=True)
@@ -415,6 +460,8 @@ def main() -> None:
             cmd_sync_all_watch(args)
         else:
             cmd_sync_all(args)
+    elif args.command == "match":
+        cmd_match(args)
     elif args.command == "health":
         cmd_health(args)
     elif args.command == "status":

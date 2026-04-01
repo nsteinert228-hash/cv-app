@@ -16,6 +16,7 @@ import config
 import data_fetchers
 import supabase_client
 from garmin_service import with_retry
+from matcher import reconcile_user
 
 log = logging.getLogger(__name__)
 
@@ -289,6 +290,14 @@ def sync_date(
         # Rate-limit delay between API calls — skip for cache hits
         if results[dtype]["status"] != "cached":
             time.sleep(config.FETCH_DELAY)
+
+    # Post-sync: match activities to plan
+    try:
+        match_stats = reconcile_user(sb, user_id, date_range=(date_str, date_str))
+        if match_stats.get("matched") or match_stats.get("unmatched"):
+            log.info("  matching: %d matched, %d unmatched", match_stats["matched"], match_stats["unmatched"])
+    except Exception as exc:
+        log.warning("Post-sync matching failed: %s", exc)
 
     return results
 
