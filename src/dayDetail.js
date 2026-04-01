@@ -6,6 +6,7 @@ import {
   modifyWorkout,
   getThisWeekWorkouts,
   getAdaptationForDate,
+  getPlanCompletion,
 } from './seasonData.js';
 import { TRIGGER_LABELS, TRIGGER_COLORS } from './adaptationFeed.js';
 
@@ -100,6 +101,36 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   if (rx.cooldown && rx.cooldown.activities && rx.cooldown.activities.length) {
     html += `<div class="phase-section" style="margin-top:12px"><div class="phase-label">Cooldown</div><div class="phase-items">${rx.cooldown.duration_minutes || 5} min \u2014 ${rx.cooldown.activities.map(esc).join(', ')}</div></div>`;
   }
+
+  // Match insight card
+  try {
+    const completion = await getPlanCompletion(workout.id);
+    if (completion && completion.match_type !== 'unmatched') {
+      const breakdown = typeof completion.scoring_breakdown === 'string'
+        ? JSON.parse(completion.scoring_breakdown) : (completion.scoring_breakdown || {});
+      const scoreColor = completion.completion_score >= 80 ? 'green'
+        : completion.completion_score >= 50 ? 'yellow' : 'red';
+
+      html += `
+        <div class="match-insight">
+          <div class="match-insight-header">
+            <span class="match-insight-label">Match Insight</span>
+            <span class="match-insight-score ${scoreColor}">${Math.round(completion.completion_score)}%</span>
+          </div>
+          <div class="match-insight-reason">${esc(completion.match_reason || '')}</div>
+          ${Object.keys(breakdown).length ? `
+            <div class="match-insight-breakdown">
+              ${breakdown.type_score != null ? `<div class="mib-item"><span class="mib-label">Type</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.type_score}%"></div></div><span class="mib-val">${breakdown.type_score}%</span></div>` : ''}
+              ${breakdown.duration_score != null ? `<div class="mib-item"><span class="mib-label">Duration</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.duration_score}%"></div></div><span class="mib-val">${breakdown.duration_score}%</span></div>` : ''}
+              ${breakdown.intensity_score != null ? `<div class="mib-item"><span class="mib-label">Intensity</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.intensity_score}%"></div></div><span class="mib-val">${breakdown.intensity_score}%</span></div>` : ''}
+              ${breakdown.date_score != null ? `<div class="mib-item"><span class="mib-label">Timing</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.date_score}%"></div></div><span class="mib-val">${breakdown.date_score}%</span></div>` : ''}
+            </div>
+          ` : ''}
+          <div class="match-insight-meta">${completion.match_type} match · ${completion.activity_date || completion.match_date}</div>
+        </div>
+      `;
+    }
+  } catch { /* plan_completions may not exist yet */ }
 
   // Workout logger
   html += '<div id="dayDetailLogger"></div>';

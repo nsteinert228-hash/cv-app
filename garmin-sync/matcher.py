@@ -268,15 +268,30 @@ def find_candidates(
 ) -> list[tuple[dict, dict | None, dict]]:
     """Find activity candidates for a workout within ±1 day.
 
+    For today/future workouts, only same-day activities are candidates
+    (no fuzzy matching with yesterday's activity for today's plan).
+
     Returns [(activity, metrics_or_none, classified), ...] sorted
     by date proximity (same day first).
     """
     w_date = date.fromisoformat(workout["date"])
+    today = date.today()
     candidates = []
 
     for act in activities:
         a_date = date.fromisoformat(act["date"])
-        if abs((a_date - w_date).days) > 1:
+        day_diff = abs((a_date - w_date).days)
+
+        if day_diff > 1:
+            continue
+
+        # For today/future workouts: only allow same-day matches
+        # (don't match yesterday's activity to today's plan)
+        if w_date >= today and day_diff > 0:
+            continue
+
+        # Don't match future activities to past workouts either
+        if a_date > today:
             continue
 
         metrics = metrics_map.get(act.get("activity_id"))

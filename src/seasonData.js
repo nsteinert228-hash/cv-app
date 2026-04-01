@@ -423,6 +423,22 @@ export async function getWeekWorkoutsByWeekNumber(seasonId, weekNumber) {
   return data || [];
 }
 
+// ── Plan Completions ─────────────────────────────────────────
+
+export async function getPlanCompletion(workoutId) {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from('plan_completions')
+    .select('*')
+    .eq('workout_id', workoutId)
+    .maybeSingle();
+
+  if (error) return null;
+  return data;
+}
+
 // ── Training Goals ───────────────────────────────────────────
 
 export async function getTrainingGoals(seasonId) {
