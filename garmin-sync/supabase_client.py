@@ -339,3 +339,14 @@ def update_workout_log_adherence(client: Client, workout_id: str,
         return 1
     except Exception:
         return 0
+
+
+def upsert_workout_log(client: Client, row: dict) -> int:
+    """Upsert a workout_log row (keyed on workout_id)."""
+    def _do():
+        client.table("workout_logs").upsert(
+            row, on_conflict="workout_id"
+        ).execute()
+
+    _with_retry(_do)
+    return 1

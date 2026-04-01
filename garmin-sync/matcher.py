@@ -464,12 +464,26 @@ def reconcile_user(
         else:
             stats["matched"] += 1
 
-        # Also update workout_logs adherence if a log exists
-        if c.get("completion_score") is not None:
-            updated = supabase_client.update_workout_log_adherence(
-                sb, c["workout_id"], c["completion_score"]
-            )
-            stats["updated"] += updated
+        # Ensure a workout_log exists for matched activities
+        # This is what the frontend timeline reads to show completion status
+        if c["match_type"] not in ("unmatched",) and c.get("completion_score", 0) > 0:
+            status = "completed" if c["completion_score"] >= 40 else "partial"
+            log_row = {
+                "workout_id": c["workout_id"],
+                "user_id": user_id,
+                "date": c["match_date"],
+                "status": status,
+                "source": "garmin_auto",
+                "adherence_score": c["completion_score"],
+                "actual_json": {},
+            }
+            if c.get("activity_id"):
+                log_row["garmin_activity_id"] = str(c["activity_id"])
+            try:
+                supabase_client.upsert_workout_log(sb, log_row)
+                stats["updated"] += 1
+            except Exception as exc:
+                log.warning("Failed to upsert workout_log for %s: %s", c["workout_id"], exc)
 
     log.info(
         "Matching complete for user %s: %d matched, %d unmatched, %d rest, %d overrides skipped",
