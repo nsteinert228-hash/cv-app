@@ -891,11 +891,69 @@ function renderRestDayHero() {
 
 let _timelineWeek = null; // tracks which week the timeline is showing
 
+function findGoalWorkoutId(workouts, milestones, weekNum) {
+  // Find the milestone for this week
+  const milestone = (milestones || []).find(m => {
+    const match = (m.timeframe || '').match(/week\s*(\d+)/i);
+    return match && parseInt(match[1], 10) === weekNum;
+  });
+  if (!milestone) return null;
+
+  const goalText = (milestone.goal || '').toLowerCase();
+
+  // Match goal keywords to workout attributes
+  // "threshold effort" → high intensity cardio
+  // "continuous run" → longer cardio
+  // "VO2max intervals" → high intensity cardio
+  // "strength" → strength workout
+  const candidates = workouts.filter(w => w.workout_type !== 'rest');
+  if (!candidates.length) return null;
+
+  // Score each workout by relevance to the goal
+  let best = null;
+  let bestScore = -1;
+
+  for (const w of candidates) {
+    let score = 0;
+    const title = (w.title || '').toLowerCase();
+    const type = w.workout_type || '';
+    const intensity = (w.intensity || '').toLowerCase();
+
+    // Type matching
+    if (goalText.includes('run') && type === 'cardio') score += 3;
+    if (goalText.includes('threshold') && intensity === 'high') score += 4;
+    if (goalText.includes('tempo') && intensity === 'moderate') score += 4;
+    if (goalText.includes('interval') && intensity === 'high') score += 4;
+    if (goalText.includes('vo2') && intensity === 'high') score += 4;
+    if (goalText.includes('strength') && type === 'strength') score += 4;
+    if (goalText.includes('aerobic') && type === 'cardio') score += 3;
+    if (goalText.includes('endurance') && type === 'cardio') score += 3;
+    if (goalText.includes('recovery') && type === 'recovery') score += 3;
+
+    // Duration matching — longer workouts more likely to be the goal workout
+    if (w.duration_minutes && w.duration_minutes >= 40) score += 1;
+
+    // Title keyword overlap
+    const goalWords = goalText.split(/\s+/).filter(w => w.length > 3);
+    for (const gw of goalWords) {
+      if (title.includes(gw)) score += 2;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = w;
+    }
+  }
+
+  return bestScore > 0 && best ? best.id : null;
+}
+
 function renderSeasonTimeline(workouts, logMap, today, displayWeek) {
   const weekNum = displayWeek || seasonState.currentWeek;
   _timelineWeek = weekNum;
   const phase = getCurrentPhase(activeSeason.plan_json || {}, weekNum);
   const isCurrentWeek = weekNum === seasonState.currentWeek;
+  const goalWorkoutId = findGoalWorkoutId(workouts, activeSeason.plan_json?.milestones, weekNum);
 
   weekTitle.textContent = isCurrentWeek ? `Week ${weekNum}` : `Week ${weekNum}`;
   weekSubtitle.textContent = phase ? phase.name : '';
@@ -962,8 +1020,11 @@ function renderSeasonTimeline(workouts, logMap, today, displayWeek) {
       adherenceHtml = `<span class="tl-day-adherence">${Math.round(log.adherence_score)}%</span>`;
     }
 
+    const isGoalDay = w.id === goalWorkoutId;
+
     return `
-      <div class="tl-day${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}${stateClass}" data-workout-id="${w.id}" data-day-idx="${idx}">
+      <div class="tl-day${isToday ? ' is-today' : ''}${isPast && !isToday ? ' is-past' : ''}${stateClass}${isGoalDay ? ' is-goal' : ''}" data-workout-id="${w.id}" data-day-idx="${idx}">
+        ${isGoalDay ? '<span class="tl-goal-badge">🎯</span>' : ''}
         <span class="tl-day-abbr">${abbr}</span>
         <span class="tl-day-type">${typeAbbr}</span>
         ${statusHtml}
