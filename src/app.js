@@ -215,6 +215,12 @@ function renderSessionLog() {
 async function detectLoop() {
   if (!isRunning || !detector) return;
 
+  // Wait for video to have actual dimensions before processing
+  if (!video.videoWidth || !video.videoHeight) {
+    animFrameId = requestAnimationFrame(detectLoop);
+    return;
+  }
+
   const { maxW, maxH } = getMaxDimensions();
   const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
   const w = Math.round(video.videoWidth * scale);
