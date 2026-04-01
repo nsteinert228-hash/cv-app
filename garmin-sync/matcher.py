@@ -315,15 +315,81 @@ def select_best_matches(
 
     Returns a list of completion dicts ready for upsert.
     """
-    # Score all (workout, activity) pairs
+    # ── Phase 1: Handle mixed workouts with multi-activity matching ──
+    # Mixed workouts can be fulfilled by multiple activities on the same day
+    # (e.g., a RUN + LIFT both count toward a MIX day)
+    used_workouts: set[str] = set()
+    used_activities: set[int] = set()
+    completions: list[dict] = []
+
+    for w in workouts:
+        if w.get("workout_type") != "mixed" or w.get("workout_type") == "rest":
+            continue
+
+        same_day_acts = [a for a in activities if a["date"] == w["date"]]
+        if not same_day_acts:
+            continue
+
+        # Combine all same-day activities into a composite match
+        total_duration = sum(a.get("duration_seconds") or 0 for a in same_day_acts) / 60
+        types_found = set()
+        names = []
+        activity_ids = []
+        for a in same_day_acts:
+            atype = (a.get("activity_type") or "").lower()
+            metrics = metrics_map.get(a.get("activity_id"))
+            cls = classify_activity(a, metrics)
+            types_found.add(cls["plan_type"])
+            names.append(a.get("name") or atype)
+            activity_ids.append(a.get("activity_id"))
+
+        # Score: mixed workouts get a bonus for having multiple activity types
+        w_duration = w.get("duration_minutes") or 0
+        dur_score = 100 if w_duration == 0 else min(100, max(0, (total_duration / w_duration) * 100)) if w_duration > 0 else 80
+        type_diversity = len(types_found)
+        type_score = min(100, 60 + type_diversity * 20)  # 80 for 1 type, 100 for 2+
+        score = round(type_score * 0.35 + dur_score * 0.35 + 100 * 0.15 + 100 * 0.15, 1)  # date=100 (same day), intensity bonus
+        confidence = min(95, round(type_score * 0.5 + 100 * 0.3 + dur_score * 0.2))
+
+        names_str = " + ".join(names[:3])
+        dur_str = f"{total_duration:.0f} min total"
+        types_str = " + ".join(sorted(t.upper()[:3] for t in types_found))
+        reason = f"Great match — {names_str} ({dur_str}, {types_str}) covered your mixed training day \"{w.get('title', '')}\"."
+
+        used_workouts.add(w["id"])
+        for aid in activity_ids:
+            used_activities.add(aid)
+
+        completions.append({
+            "workout_id": w["id"],
+            "season_id": w.get("season_id") or w.get("_season_id"),
+            "activity_id": activity_ids[0] if activity_ids else None,  # primary activity
+            "match_date": w["date"],
+            "activity_date": w["date"],
+            "match_type": "exact",
+            "match_confidence": confidence,
+            "completion_score": score,
+            "match_reason": reason,
+            "scoring_breakdown": json.dumps({
+                "type_score": round(type_score),
+                "duration_score": round(dur_score),
+                "intensity_score": 100,
+                "date_score": 100,
+                "activities_matched": len(same_day_acts),
+            }),
+        })
+
+    # ── Phase 2: Standard 1:1 matching for non-mixed workouts ──
     pairs: list[tuple[float, float, dict, dict, dict, str]] = []
 
     for w in workouts:
-        if w.get("workout_type") == "rest":
-            continue  # handled separately below
+        if w.get("workout_type") == "rest" or w["id"] in used_workouts:
+            continue
 
         candidates = find_candidates(activities, metrics_map, w)
         for act, metrics, classified in candidates:
+            if act.get("activity_id") in used_activities:
+                continue
             score, confidence, breakdown, reason = score_match(w, act, metrics, classified)
             pairs.append((confidence, score, w, act, breakdown, reason))
 
@@ -331,10 +397,6 @@ def select_best_matches(
     pairs.sort(key=lambda p: p[0], reverse=True)
 
     # Greedy assignment: highest confidence first
-    used_workouts: set[str] = set()
-    used_activities: set[int] = set()
-    completions: list[dict] = []
-
     for confidence, score, w, act, breakdown, reason in pairs:
         w_id = w["id"]
         a_id = act.get("activity_id")

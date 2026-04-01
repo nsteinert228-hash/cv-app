@@ -1,5 +1,6 @@
 """Tests for the activity-to-plan matching engine."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -294,6 +295,24 @@ class TestSelectBestMatches:
         # Running should match cardio, not strength
         cardio_completion = next(c for c in completions if c["workout_id"] == "w1")
         assert cardio_completion["activity_id"] == 1
+
+    def test_mixed_workout_combines_activities(self):
+        """Mixed workout day with RUN + LIFT should match both into one completion."""
+        workouts = [_workout(id="w1", workout_type="mixed", title="Cross-Training", duration_minutes=60)]
+        activities = [
+            _activity(activity_id=1, activity_type="running", name="Morning Run", duration_seconds=1800),
+            _activity(activity_id=2, activity_type="strength_training", name="Gym Session", duration_seconds=1800, avg_heart_rate=100),
+        ]
+
+        completions = select_best_matches(workouts, activities, {})
+
+        matched = [c for c in completions if c["match_type"] != "unmatched"]
+        assert len(matched) == 1  # one completion for the mixed workout
+        assert matched[0]["completion_score"] > 80  # should score well
+        assert "Morning Run + Gym Session" in matched[0]["match_reason"]
+
+        breakdown = json.loads(matched[0]["scoring_breakdown"])
+        assert breakdown.get("activities_matched") == 2
 
     def test_fuzzy_date_match(self):
         """Activity on adjacent day matches when same day has nothing."""
