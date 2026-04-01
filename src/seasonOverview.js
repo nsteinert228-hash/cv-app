@@ -25,7 +25,6 @@ function buildOverviewHTML(stats, currentWeek) {
 
       ${buildTotalsRow(stats)}
       ${buildWeekBars(stats.weekStats, currentWeek)}
-      ${buildAdherenceSparkline(stats.weekStats)}
       ${buildTypeDistribution(stats.typeCounts)}
     </div>
   `;
