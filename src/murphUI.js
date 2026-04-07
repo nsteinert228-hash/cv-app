@@ -59,7 +59,7 @@ async function renderMurphState(state) {
 
 function renderSetup(container) {
   // Only hide camera if Murph panel is actually visible
-  hideCameraForMurph();
+  hideCamera();
 
   container.innerHTML = `
     <div class="murph-setup">
@@ -185,7 +185,7 @@ function renderSetup(container) {
 // ═══ MILE 1 ══════════════════════════════════════════
 
 function renderMile1(container, state) {
-  hideCameraForMurph();
+  hideCamera();
 
   container.innerHTML = `
     <div class="murph-phase-screen">
@@ -245,7 +245,7 @@ function renderMile1(container, state) {
 // ═══ EXERCISES ═══════════════════════════════════════
 
 function renderExercises(container, state) {
-  showCameraForMurph();
+  showCamera();
   if (_onStartExercises) _onStartExercises();
 
   container.innerHTML = `
@@ -280,8 +280,7 @@ function renderExercises(container, state) {
 // ═══ MILE 2 ══════════════════════════════════════════
 
 function renderMile2(container, state) {
-  restoreTrackerFromMurph();
-  hideCameraForMurph();
+  hideCamera();
   if (_onStopExercises) _onStopExercises();
 
   container.innerHTML = `
@@ -345,7 +344,7 @@ function renderMile2(container, state) {
 // ═══ SUMMARY ═════════════════════════════════════════
 
 async function renderSummary(container, state) {
-  hideCameraForMurph();
+  hideCamera();
 
   let attempt = null;
   try { attempt = await murphData.getAttempt(getMurphAttempt().attemptId); } catch {}
@@ -510,51 +509,16 @@ async function checkProfile() {
   try { return !!(await murphData.getProfile()); } catch { return false; }
 }
 
-function isMurphVisible() {
-  const panel = document.getElementById('murphPanel');
-  return panel && panel.classList.contains('active');
-}
-
-function hideCameraForMurph() {
-  // When a non-exercises Murph phase is active, show only the murph panel.
-  // Don't touch #cameraStage .active — leave the camera stream alone.
-  const trackerPanel = document.getElementById('trackerPanel');
-  if (trackerPanel && isMurphVisible()) {
-    trackerPanel.classList.add('hidden');
-  }
-}
-
-function showCameraForMurph() {
-  // During Murph exercises phase, show the camera stage by un-hiding
-  // the tracker panel but suppressing non-camera UI.
-  const trackerPanel = document.getElementById('trackerPanel');
-  if (trackerPanel) {
-    trackerPanel.classList.remove('hidden');
-    // Hide non-camera tracker elements
-    for (const sel of ['.onboarding-overlay', '.movements-panel', '#sessionLog', '.training-callout', '#movementsPanel']) {
-      const el = trackerPanel.querySelector(sel);
-      if (el) {
-        el.dataset.murphHidden = '1';
-        el.style.display = 'none';
-      }
-    }
-  }
-  // Ensure camera stage is visible
+// Camera stage is now a direct child of <main>, not nested inside trackerPanel.
+// Simple show/hide — no parent visibility issues.
+function showCamera() {
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.add('active');
-  const onboarding = document.getElementById('onboardingOverlay');
-  if (onboarding) onboarding.classList.add('hidden');
 }
 
-function restoreTrackerFromMurph() {
-  // Restore the tracker panel to its normal state after Murph exercises.
-  const trackerPanel = document.getElementById('trackerPanel');
-  if (trackerPanel) {
-    trackerPanel.querySelectorAll('[data-murph-hidden]').forEach(el => {
-      el.style.display = '';
-      delete el.dataset.murphHidden;
-    });
-  }
+function hideCamera() {
+  const stage = document.getElementById('cameraStage');
+  if (stage) stage.classList.remove('active');
 }
 
 // ═══ LEADERBOARD MODAL ═══════════════════════════════

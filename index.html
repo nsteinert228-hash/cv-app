@@ -2277,57 +2277,7 @@
       <button class="tracker-tab" data-tab="murph">Murph <span class="tab-badge-murph">WOD</span></button>
     </div>
 
-    <!-- Murph Panel (hidden by default) -->
-    <div class="murph-panel" id="murphPanel"></div>
-
-    <!-- Tracker Panel (existing content) -->
-    <div class="tracker-panel" id="trackerPanel">
-
-    <!-- Onboarding (pre-camera state) -->
-    <div class="onboarding-overlay" id="onboardingOverlay">
-      <div class="onboarding-silhouette">
-        <svg viewBox="0 0 100 140" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <!-- Head -->
-          <circle cx="50" cy="18" r="8" />
-          <!-- Neck -->
-          <line x1="50" y1="26" x2="50" y2="34" />
-          <!-- Torso (bent forward for squat) -->
-          <line x1="50" y1="34" x2="48" y2="60" />
-          <!-- Arms -->
-          <line x1="50" y1="38" x2="35" y2="52" />
-          <line x1="50" y1="38" x2="65" y2="52" />
-          <!-- Upper legs (squat position) -->
-          <line x1="48" y1="60" x2="35" y2="80" />
-          <line x1="48" y1="60" x2="62" y2="80" />
-          <!-- Lower legs -->
-          <line x1="35" y1="80" x2="30" y2="110" />
-          <line x1="62" y1="80" x2="65" y2="110" />
-          <!-- Feet -->
-          <line x1="30" y1="110" x2="22" y2="112" />
-          <line x1="65" y1="110" x2="72" y2="112" />
-          <!-- Knee dots -->
-          <circle cx="35" cy="80" r="2" fill="var(--accent)" stroke="none" opacity="0.6" />
-          <circle cx="62" cy="80" r="2" fill="var(--accent)" stroke="none" opacity="0.6" />
-        </svg>
-      </div>
-      <span class="onboarding-beta" aria-label="Beta feature">BETA</span>
-      <h2 class="onboarding-title">AI Rep Tracking</h2>
-      <p class="onboarding-sub">Point your camera side-on for pushups, squats, and lunges. Works best in good lighting.</p>
-      <button class="onboarding-enable-btn" id="enableCameraBtn">Enable Camera</button>
-      <p class="onboarding-disclaimer">This feature is in beta and may not be accurate.</p>
-      <div class="onboarding-fallback" id="onboardingFallback">
-        <label class="onboarding-fallback-btn">
-          Upload Photo
-          <input type="file" id="uploadInput" accept="image/*">
-        </label>
-        <label class="onboarding-fallback-btn">
-          Take Photo
-          <input type="file" id="cameraInput" accept="image/*" capture="environment">
-        </label>
-      </div>
-    </div>
-
-    <!-- Camera Stage (HUD) -->
+    <!-- Camera Stage — lives outside panels so it's never hidden by tab switching -->
     <div class="camera-stage" id="cameraStage">
       <!-- Model loading overlay -->
       <div id="loadingOverlay" class="loading-overlay">
@@ -2393,6 +2343,56 @@
             Stop
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Murph Panel (hidden by default) -->
+    <div class="murph-panel" id="murphPanel"></div>
+
+    <!-- Tracker Panel (existing content) -->
+    <div class="tracker-panel" id="trackerPanel">
+
+    <!-- Onboarding (pre-camera state) -->
+    <div class="onboarding-overlay" id="onboardingOverlay">
+      <div class="onboarding-silhouette">
+        <svg viewBox="0 0 100 140" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Head -->
+          <circle cx="50" cy="18" r="8" />
+          <!-- Neck -->
+          <line x1="50" y1="26" x2="50" y2="34" />
+          <!-- Torso (bent forward for squat) -->
+          <line x1="50" y1="34" x2="48" y2="60" />
+          <!-- Arms -->
+          <line x1="50" y1="38" x2="35" y2="52" />
+          <line x1="50" y1="38" x2="65" y2="52" />
+          <!-- Upper legs (squat position) -->
+          <line x1="48" y1="60" x2="35" y2="80" />
+          <line x1="48" y1="60" x2="62" y2="80" />
+          <!-- Lower legs -->
+          <line x1="35" y1="80" x2="30" y2="110" />
+          <line x1="62" y1="80" x2="65" y2="110" />
+          <!-- Feet -->
+          <line x1="30" y1="110" x2="22" y2="112" />
+          <line x1="65" y1="110" x2="72" y2="112" />
+          <!-- Knee dots -->
+          <circle cx="35" cy="80" r="2" fill="var(--accent)" stroke="none" opacity="0.6" />
+          <circle cx="62" cy="80" r="2" fill="var(--accent)" stroke="none" opacity="0.6" />
+        </svg>
+      </div>
+      <span class="onboarding-beta" aria-label="Beta feature">BETA</span>
+      <h2 class="onboarding-title">AI Rep Tracking</h2>
+      <p class="onboarding-sub">Point your camera side-on for pushups, squats, and lunges. Works best in good lighting.</p>
+      <button class="onboarding-enable-btn" id="enableCameraBtn">Enable Camera</button>
+      <p class="onboarding-disclaimer">This feature is in beta and may not be accurate.</p>
+      <div class="onboarding-fallback" id="onboardingFallback">
+        <label class="onboarding-fallback-btn">
+          Upload Photo
+          <input type="file" id="uploadInput" accept="image/*">
+        </label>
+        <label class="onboarding-fallback-btn">
+          Take Photo
+          <input type="file" id="cameraInput" accept="image/*" capture="environment">
+        </label>
       </div>
     </div>
 
@@ -2685,7 +2685,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>
-  <script type="module" src="src/app.js?v=7"></script>
+  <script type="module" src="src/app.js?v=8"></script>
   <script>
     (function() {
       // Loading screen
@@ -2755,6 +2755,7 @@
       const trackerTabs = document.getElementById('trackerTabs');
       const trackerPanel = document.getElementById('trackerPanel');
       const murphPanel = document.getElementById('murphPanel');
+      const cameraStageEl = document.getElementById('cameraStage');
       trackerTabs.addEventListener('click', (e) => {
         const tab = e.target.closest('.tracker-tab');
         if (!tab) return;
@@ -2763,6 +2764,13 @@
         const which = tab.dataset.tab;
         trackerPanel.classList.toggle('hidden', which !== 'tracker');
         murphPanel.classList.toggle('active', which === 'murph');
+        // Show camera on tracker tab, hide on murph tab
+        // (murphUI.js will re-show it during exercises phase)
+        if (which === 'tracker') {
+          cameraStageEl.classList.add('active');
+        } else {
+          cameraStageEl.classList.remove('active');
+        }
       });
 
       // Movements panel toggle
