@@ -517,11 +517,34 @@ function isMurphVisible() {
 function hideCameraStage() {
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.remove('active');
+  // Restore hidden tracker elements
+  const trackerPanel = document.getElementById('trackerPanel');
+  if (trackerPanel) {
+    trackerPanel.querySelectorAll('[data-murph-hidden]').forEach(el => {
+      el.style.display = el.dataset.murphHidden || '';
+      delete el.dataset.murphHidden;
+    });
+    // Re-hide tracker panel if Murph is active
+    if (isMurphVisible()) trackerPanel.classList.add('hidden');
+  }
 }
 
 function showCameraStage() {
+  // Un-hide the tracker panel so the camera stage inside it is visible
+  const trackerPanel = document.getElementById('trackerPanel');
+  if (trackerPanel) {
+    trackerPanel.classList.remove('hidden');
+    // Hide non-camera tracker elements during Murph exercises
+    trackerPanel.querySelectorAll('.onboarding-overlay, .movements-panel, .session-log, .training-callout').forEach(el => {
+      el.dataset.murphHidden = el.style.display || '';
+      el.style.display = 'none';
+    });
+  }
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.add('active');
+  // Hide onboarding if visible
+  const onboarding = document.getElementById('onboardingOverlay');
+  if (onboarding) onboarding.classList.add('hidden');
 }
 
 // ═══ LEADERBOARD MODAL ═══════════════════════════════
