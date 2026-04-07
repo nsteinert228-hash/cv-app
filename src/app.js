@@ -599,10 +599,21 @@ function enterMurphMode() {
   // Force auto mode for exercise detection
   selectExercise('auto');
   hideRepOverlay();
-  // Ensure canvas is visible (may have been hidden by handleStopCamera)
+  // Ensure canvas is visible
   canvas.style.display = 'block';
-  // Start camera if not running
-  if (!isRunning) handleStartCamera();
+
+  if (!isRunning) {
+    // Camera not running at all — start fresh
+    handleStartCamera();
+  } else {
+    // Camera is running but detectLoop may have stalled while hidden.
+    // Cancel and restart the animation frame loop.
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = null;
+    }
+    detectLoop();
+  }
 }
 
 function exitMurphMode() {
