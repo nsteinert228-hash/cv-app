@@ -531,6 +531,233 @@
 
     .training-callout-link:hover { text-decoration: underline; }
 
+    /* ── Supported Movements Panel ── */
+    .movements-panel {
+      width: 100%;
+      margin: var(--space-4) 0;
+    }
+
+    .movements-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-5);
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background var(--duration-short) var(--ease-snappy),
+                  border-color var(--duration-short) var(--ease-snappy);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+    }
+
+    .movements-toggle:hover {
+      background: var(--bg-surface-2);
+      border-color: var(--border-active);
+    }
+
+    .movements-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .movements-toggle-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--accent);
+    }
+
+    .movements-toggle-label {
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    .movements-toggle-count {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-inverse);
+      background: var(--accent);
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      font-weight: 600;
+    }
+
+    .movements-chevron {
+      width: 18px;
+      height: 18px;
+      color: var(--text-secondary);
+      transition: transform var(--duration-medium) var(--ease-snappy);
+    }
+
+    .movements-toggle[aria-expanded="true"] .movements-chevron {
+      transform: rotate(180deg);
+    }
+
+    .movements-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows var(--duration-long) var(--ease-snappy);
+      overflow: hidden;
+    }
+
+    .movements-content.open {
+      grid-template-rows: 1fr;
+    }
+
+    .movements-content > * {
+      overflow: hidden;
+    }
+
+    .movements-grid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      padding-top: var(--space-4);
+    }
+
+    .movement-card {
+      display: flex;
+      align-items: center;
+      gap: var(--space-5);
+      padding: var(--space-5);
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-card);
+      transition: border-color var(--duration-short) var(--ease-snappy),
+                  transform var(--duration-short) var(--ease-snappy);
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    .movements-content.open .movement-card {
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity var(--duration-long) var(--ease-snappy),
+                  transform var(--duration-long) var(--ease-snappy),
+                  border-color var(--duration-short) var(--ease-snappy);
+    }
+
+    .movements-content.open .movement-card:nth-child(1) { transition-delay: 80ms; }
+    .movements-content.open .movement-card:nth-child(2) { transition-delay: 160ms; }
+    .movements-content.open .movement-card:nth-child(3) { transition-delay: 240ms; }
+
+    .movement-card:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .movement-figure {
+      flex-shrink: 0;
+      width: 72px;
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-inner);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+
+    .movement-figure svg {
+      width: 64px;
+      height: 90px;
+    }
+
+    /* Pose animation — alternate between up and down */
+    @keyframes poseUp {
+      0%, 45% { opacity: 1; }
+      50%, 95% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes poseDown {
+      0%, 45% { opacity: 0; }
+      50%, 95% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .movements-content.open .pose-up {
+      animation: poseUp 2.4s ease-in-out infinite;
+    }
+
+    .movements-content.open .pose-down {
+      animation: poseDown 2.4s ease-in-out infinite;
+    }
+
+    /* Stagger animation start per card */
+    .movements-content.open .movement-card:nth-child(1) .pose-up,
+    .movements-content.open .movement-card:nth-child(1) .pose-down { animation-delay: 0s; }
+    .movements-content.open .movement-card:nth-child(2) .pose-up,
+    .movements-content.open .movement-card:nth-child(2) .pose-down { animation-delay: 0.8s; }
+    .movements-content.open .movement-card:nth-child(3) .pose-up,
+    .movements-content.open .movement-card:nth-child(3) .pose-down { animation-delay: 1.6s; }
+
+    .movement-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .movement-name {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-primary);
+      margin-bottom: var(--space-1);
+    }
+
+    .movement-desc {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin-bottom: var(--space-3);
+    }
+
+    .movement-tags {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .movement-tag {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--accent);
+      background: var(--accent-tint);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.02em;
+    }
+
+    .movements-tip {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-4);
+      margin-top: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      background: var(--bg-surface-2);
+      border-radius: var(--radius-inner);
+      border: 1px solid var(--border-subtle);
+      opacity: 0;
+      transition: opacity var(--duration-long) var(--ease-snappy) 300ms;
+    }
+
+    .movements-content.open .movements-tip {
+      opacity: 1;
+    }
+
+    .movements-tip svg {
+      flex-shrink: 0;
+      color: var(--accent);
+    }
+
     /* ── Session Log ── */
     .session-log {
       display: none;
@@ -809,6 +1036,159 @@
       </div>
     </div>
 
+    <!-- Supported Movements Panel -->
+    <div class="movements-panel" id="movementsPanel">
+      <button class="movements-toggle" id="movementsToggle" aria-expanded="false">
+        <div class="movements-toggle-left">
+          <svg class="movements-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="2.5"/>
+            <line x1="12" y1="7.5" x2="12" y2="15"/>
+            <line x1="12" y1="10" x2="7" y2="13"/>
+            <line x1="12" y1="10" x2="17" y2="13"/>
+            <line x1="12" y1="15" x2="8" y2="21"/>
+            <line x1="12" y1="15" x2="16" y2="21"/>
+          </svg>
+          <span class="movements-toggle-label">Supported Movements</span>
+          <span class="movements-toggle-count">3</span>
+        </div>
+        <svg class="movements-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div class="movements-content" id="movementsContent">
+        <div class="movements-grid">
+
+          <!-- Squat Card -->
+          <div class="movement-card" data-movement="squat">
+            <div class="movement-figure">
+              <svg viewBox="0 0 80 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Standing pose (up phase) -->
+                <g class="pose-up" stroke="var(--accent)" stroke-width="2">
+                  <circle cx="40" cy="14" r="6"/>
+                  <line x1="40" y1="20" x2="40" y2="52"/>
+                  <line x1="40" y1="30" x2="28" y2="42"/>
+                  <line x1="40" y1="30" x2="52" y2="42"/>
+                  <line x1="40" y1="52" x2="34" y2="80"/>
+                  <line x1="40" y1="52" x2="46" y2="80"/>
+                  <line x1="34" y1="80" x2="32" y2="108"/>
+                  <line x1="46" y1="80" x2="48" y2="108"/>
+                </g>
+                <!-- Squat pose (down phase) -->
+                <g class="pose-down" stroke="var(--accent)" stroke-width="2" opacity="0">
+                  <circle cx="40" cy="30" r="6"/>
+                  <line x1="40" y1="36" x2="38" y2="60"/>
+                  <line x1="40" y1="42" x2="26" y2="48"/>
+                  <line x1="40" y1="42" x2="54" y2="48"/>
+                  <line x1="38" y1="60" x2="26" y2="76"/>
+                  <line x1="38" y1="60" x2="52" y2="76"/>
+                  <line x1="26" y1="76" x2="24" y2="108"/>
+                  <line x1="52" y1="76" x2="54" y2="108"/>
+                  <!-- Knee angle indicators -->
+                  <circle cx="26" cy="76" r="3" fill="var(--accent)" stroke="none" opacity="0.4"/>
+                  <circle cx="52" cy="76" r="3" fill="var(--accent)" stroke="none" opacity="0.4"/>
+                </g>
+              </svg>
+            </div>
+            <div class="movement-info">
+              <h4 class="movement-name">Squats</h4>
+              <p class="movement-desc">Stand facing side-on. Full range from standing to parallel thighs.</p>
+              <div class="movement-tags">
+                <span class="movement-tag">Auto-detect</span>
+                <span class="movement-tag">Side view</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pushup Card -->
+          <div class="movement-card" data-movement="pushup">
+            <div class="movement-figure">
+              <svg viewBox="0 0 80 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Pushup up pose -->
+                <g class="pose-up" stroke="var(--accent)" stroke-width="2">
+                  <circle cx="14" cy="44" r="5"/>
+                  <line x1="19" y1="44" x2="50" y2="46"/>
+                  <line x1="50" y1="46" x2="68" y2="46"/>
+                  <line x1="14" y1="50" x2="14" y2="70"/>
+                  <line x1="14" y1="70" x2="14" y2="108"/>
+                  <line x1="68" y1="46" x2="68" y2="70"/>
+                  <line x1="68" y1="70" x2="68" y2="108"/>
+                </g>
+                <!-- Pushup down pose -->
+                <g class="pose-down" stroke="var(--accent)" stroke-width="2" opacity="0">
+                  <circle cx="14" cy="62" r="5"/>
+                  <line x1="19" y1="62" x2="50" y2="64"/>
+                  <line x1="50" y1="64" x2="68" y2="62"/>
+                  <line x1="14" y1="68" x2="8" y2="82"/>
+                  <line x1="8" y1="82" x2="14" y2="108"/>
+                  <line x1="68" y1="62" x2="74" y2="82"/>
+                  <line x1="74" y1="82" x2="68" y2="108"/>
+                  <!-- Elbow angle indicators -->
+                  <circle cx="8" cy="82" r="3" fill="var(--accent)" stroke="none" opacity="0.4"/>
+                  <circle cx="74" cy="82" r="3" fill="var(--accent)" stroke="none" opacity="0.4"/>
+                </g>
+              </svg>
+            </div>
+            <div class="movement-info">
+              <h4 class="movement-name">Pushups</h4>
+              <p class="movement-desc">Position camera to the side. Tracks arm extension and chest dip.</p>
+              <div class="movement-tags">
+                <span class="movement-tag">Auto-detect</span>
+                <span class="movement-tag">Side view</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lunge Card -->
+          <div class="movement-card" data-movement="lunge">
+            <div class="movement-figure">
+              <svg viewBox="0 0 80 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Standing pose (up phase) -->
+                <g class="pose-up" stroke="var(--accent)" stroke-width="2">
+                  <circle cx="40" cy="14" r="6"/>
+                  <line x1="40" y1="20" x2="40" y2="52"/>
+                  <line x1="40" y1="30" x2="28" y2="42"/>
+                  <line x1="40" y1="30" x2="52" y2="42"/>
+                  <line x1="40" y1="52" x2="34" y2="80"/>
+                  <line x1="40" y1="52" x2="46" y2="80"/>
+                  <line x1="34" y1="80" x2="32" y2="108"/>
+                  <line x1="46" y1="80" x2="48" y2="108"/>
+                </g>
+                <!-- Lunge pose (down phase) -->
+                <g class="pose-down" stroke="var(--accent)" stroke-width="2" opacity="0">
+                  <circle cx="40" cy="24" r="6"/>
+                  <line x1="40" y1="30" x2="40" y2="58"/>
+                  <line x1="40" y1="38" x2="28" y2="46"/>
+                  <line x1="40" y1="38" x2="52" y2="46"/>
+                  <line x1="40" y1="58" x2="28" y2="72"/>
+                  <line x1="40" y1="58" x2="56" y2="80"/>
+                  <line x1="28" y1="72" x2="26" y2="108"/>
+                  <line x1="56" y1="80" x2="64" y2="108"/>
+                  <!-- Knee angle indicators -->
+                  <circle cx="28" cy="72" r="3" fill="var(--accent)" stroke="none" opacity="0.4"/>
+                  <circle cx="56" cy="80" r="3" fill="var(--accent)" stroke="none" opacity="0.4"/>
+                </g>
+              </svg>
+            </div>
+            <div class="movement-info">
+              <h4 class="movement-name">Lunges</h4>
+              <p class="movement-desc">Step forward into a lunge, side-on to the camera. Both legs tracked.</p>
+              <div class="movement-tags">
+                <span class="movement-tag">Auto-detect</span>
+                <span class="movement-tag">Side view</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <p class="movements-tip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          Use <strong>AUTO</strong> mode to let AI detect the exercise, or select one manually for best accuracy.
+        </p>
+      </div>
+    </div>
+
     <!-- Training Plan Callout -->
     <div class="training-callout" id="trainingCallout">
       <div class="training-callout-text">
@@ -853,7 +1233,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>
-  <script type="module" src="src/app.js?v=4"></script>
+  <script type="module" src="src/app.js?v=5"></script>
   <script>
     (function() {
       // Loading screen
@@ -917,6 +1297,15 @@
         legacyBtns.forEach(lb => {
           if (lb.dataset.exercise === exercise) lb.click();
         });
+      });
+
+      // Movements panel toggle
+      const movementsToggle = document.getElementById('movementsToggle');
+      const movementsContent = document.getElementById('movementsContent');
+      movementsToggle.addEventListener('click', () => {
+        const expanded = movementsToggle.getAttribute('aria-expanded') === 'true';
+        movementsToggle.setAttribute('aria-expanded', !expanded);
+        movementsContent.classList.toggle('open', !expanded);
       });
 
       // Training callout — check if today's workout is strength
