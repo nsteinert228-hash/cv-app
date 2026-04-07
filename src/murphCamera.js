@@ -23,7 +23,7 @@ export async function startMurphCamera(containerEl, detector, classifier, onRep)
   containerEl.appendChild(video);
 
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'display:block; width:100%; height:100%; object-fit:contain;';
+  canvas.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain;';
   containerEl.appendChild(canvas);
   const ctx = canvas.getContext('2d');
 
@@ -67,15 +67,7 @@ export async function startMurphCamera(containerEl, detector, classifier, onRep)
       return;
     }
 
-    // Use video native dimensions for canvas render resolution.
-    // CSS object-fit:contain handles display sizing — don't read container
-    // dimensions here or the canvas-inside-container feedback loop shrinks it.
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
-    ctx.drawImage(video, 0, 0, w, h);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const poses = await detector.estimatePoses(canvas);
 
@@ -109,10 +101,12 @@ export async function startMurphCamera(containerEl, detector, classifier, onRep)
     animFrameId = requestAnimationFrame(detectLoop);
   }
 
+  // Set canvas render resolution once (never changes)
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+
   // Draw first frame immediately
   if (video.videoWidth) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   }
 
