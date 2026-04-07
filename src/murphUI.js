@@ -22,7 +22,8 @@ export function initMurphUI() {
   if (!murphPanel) return;
 
   const attempt = getMurphAttempt();
-  attempt.restore();
+
+  // Register listener before restore so restore's _emit() is handled here
   attempt.onChange(state => {
     if (state.phase === _lastPhase) {
       _updateTimerDisplay(state);
@@ -30,7 +31,14 @@ export function initMurphUI() {
     }
     renderMurphState(state);
   });
-  renderMurphState(attempt.getState());
+
+  // restore() calls _emit() which triggers onChange above
+  const restored = attempt.restore();
+
+  // Only render explicitly if nothing was restored (restore didn't emit)
+  if (!restored) {
+    renderMurphState(attempt.getState());
+  }
 }
 
 async function renderMurphState(state) {
@@ -38,6 +46,7 @@ async function renderMurphState(state) {
   if (!murphPanel) return;
 
   const phaseChanged = state.phase !== _lastPhase;
+  if (!phaseChanged) return;
   _lastPhase = state.phase;
 
   // Clean up murph camera if leaving exercises phase
