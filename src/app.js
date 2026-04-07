@@ -309,6 +309,8 @@ async function handleStartCamera() {
     isRunning = true;
     const stage = document.getElementById('cameraStage');
     if (stage) stage.classList.add('active');
+    const onboarding = document.getElementById('onboardingOverlay');
+    if (onboarding) onboarding.classList.add('hidden');
     canvas.style.display = 'block';
     hideLoadingOverlay();
     const pauseOv = document.getElementById('pauseOverlay');
