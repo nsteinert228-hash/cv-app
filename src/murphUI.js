@@ -23,9 +23,9 @@ export function initMurphUI() {
   const attempt = getMurphAttempt();
   attempt.restore();
   attempt.onChange(state => {
-    // During exercises phase, update HUD timer directly (don't re-render)
-    if (state.phase === PHASES.EXERCISES) {
-      updateMurphHUD(state);
+    if (state.phase === _lastPhase) {
+      // Phase unchanged — just update the timer display, don't re-render
+      _updateTimerDisplay(state);
       return;
     }
     renderMurphState(state);
@@ -36,9 +36,6 @@ export function initMurphUI() {
 async function renderMurphState(state) {
   const murphPanel = document.getElementById('murphPanel');
   if (!murphPanel) return;
-
-  // Skip re-render if phase hasn't changed (except exercises which update HUD)
-  if (state.phase === _lastPhase && state.phase === PHASES.EXERCISES) return;
 
   const phaseChanged = state.phase !== _lastPhase;
   _lastPhase = state.phase;
@@ -467,6 +464,17 @@ function summaryCard(label, value, status, sub) {
 }
 
 // ═══ HELPERS ═════════════════════════════════════════
+
+// Lightweight timer-only update — no DOM re-render, no event listener destruction
+function _updateTimerDisplay(state) {
+  if (state.phase === PHASES.EXERCISES) {
+    updateMurphHUD(state);
+    return;
+  }
+  // Mile 1 / Mile 2 timer
+  const timerEl = document.getElementById('murphTimerDisplay');
+  if (timerEl) timerEl.textContent = formatTimer(state.elapsed);
+}
 
 function formatTimer(totalSeconds) {
   const mins = Math.floor(totalSeconds / 60);
