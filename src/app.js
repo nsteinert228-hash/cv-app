@@ -50,7 +50,7 @@ function stopCamera(stream, videoEl) {
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
-const loadingOverlay = document.getElementById('loadingOverlay');
+let loadingOverlay = document.getElementById('loadingOverlay');
 const fallbackControls = document.getElementById('fallbackControls');
 const uploadInput = document.getElementById('uploadInput');
 const uploadInput2 = document.getElementById('uploadInput2');
@@ -307,6 +307,8 @@ async function handleStartCamera() {
     canvas.height = Math.round(video.videoHeight * scale);
 
     isRunning = true;
+    const stage = document.getElementById('cameraStage');
+    if (stage) stage.classList.add('active');
     canvas.style.display = 'block';
     hideLoadingOverlay();
     const pauseOv = document.getElementById('pauseOverlay');
@@ -562,6 +564,9 @@ async function init() {
     detector = await createDetector();
     statusEl.textContent = 'Loading classifier...';
     poseClassifier = await createPoseClassifier();
+
+    // Expose for onboarding overlay button
+    window._startCamera = handleStartCamera;
 
     // Use the same function that stop/restart uses
     await handleStartCamera();
