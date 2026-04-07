@@ -58,7 +58,8 @@ async function renderMurphState(state) {
 // ═══ SETUP ═══════════════════════════════════════════
 
 function renderSetup(container) {
-  hideCameraStage();
+  // Only hide camera if Murph panel is actually visible
+  if (isMurphVisible()) hideCameraStage();
 
   container.innerHTML = `
     <div class="murph-setup">
@@ -184,7 +185,7 @@ function renderSetup(container) {
 // ═══ MILE 1 ══════════════════════════════════════════
 
 function renderMile1(container, state) {
-  hideCameraStage();
+  if (isMurphVisible()) hideCameraStage();
 
   container.innerHTML = `
     <div class="murph-phase-screen">
@@ -279,7 +280,7 @@ function renderExercises(container, state) {
 // ═══ MILE 2 ══════════════════════════════════════════
 
 function renderMile2(container, state) {
-  hideCameraStage();
+  if (isMurphVisible()) hideCameraStage();
   if (_onStopExercises) _onStopExercises();
 
   container.innerHTML = `
@@ -343,7 +344,7 @@ function renderMile2(container, state) {
 // ═══ SUMMARY ═════════════════════════════════════════
 
 async function renderSummary(container, state) {
-  hideCameraStage();
+  if (isMurphVisible()) hideCameraStage();
 
   let attempt = null;
   try { attempt = await murphData.getAttempt(getMurphAttempt().attemptId); } catch {}
@@ -506,6 +507,11 @@ function buildShortfallText(reps) {
 
 async function checkProfile() {
   try { return !!(await murphData.getProfile()); } catch { return false; }
+}
+
+function isMurphVisible() {
+  const panel = document.getElementById('murphPanel');
+  return panel && panel.classList.contains('active');
 }
 
 function hideCameraStage() {
