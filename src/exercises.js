@@ -23,6 +23,11 @@ export const EXERCISES = {
     upClass: 'standing_up',
     downClass: 'lunge_down',
   },
+  pullup: {
+    name: 'Pull-ups',
+    upClass: 'pullup_up',
+    downClass: 'pullup_down',
+  },
 };
 
 // States

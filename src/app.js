@@ -377,7 +377,7 @@ function handleCameraToggle() {
 }
 
 // Exercise selection
-const MODE_LABELS = { auto: 'Auto', squat: 'Squats', pushup: 'Pushups', lunge: 'Lunges', off: 'Off' };
+const MODE_LABELS = { auto: 'Auto', squat: 'Squats', pushup: 'Pushups', lunge: 'Lunges', pullup: 'Pull-ups', off: 'Off' };
 
 function selectExercise(key) {
   exerciseBtns.forEach(btn => {

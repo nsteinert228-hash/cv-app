@@ -68,6 +68,26 @@ const TEMPLATES = {
     0.02, -0.03,   -0.02, 0.03, -0.65, 0.11, -0.70, 0.16, -1.21, 0.07, -1.32, 0.11,
   ],
 
+  // Top of pull-up: chin above bar, elbows bent, front-on view
+  pullup_up: [
+    // nose        left_eye     right_eye    left_ear     right_ear
+    0.0, -1.35,    -0.08, -1.4, 0.08, -1.4,  -0.2, -1.3,  0.2, -1.3,
+    // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
+    -0.45, -0.95,  0.45, -0.95, -0.7, -1.25, 0.7, -1.25,  -0.5, -1.55, 0.5, -1.55,
+    // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
+    -0.15, 0.0,    0.15, 0.0,   -0.15, 0.75, 0.15, 0.75,  -0.15, 1.45, 0.15, 1.45,
+  ],
+
+  // Bottom of pull-up / dead hang: arms extended overhead, front-on view
+  pullup_down: [
+    // nose        left_eye     right_eye    left_ear     right_ear
+    0.0, -1.25,    -0.08, -1.3, 0.08, -1.3,  -0.2, -1.2,  0.2, -1.2,
+    // left_shldr  right_shldr  left_elbow   right_elbow  left_wrist   right_wrist
+    -0.4, -0.9,    0.4, -0.9,   -0.55, -1.35, 0.55, -1.35, -0.45, -1.75, 0.45, -1.75,
+    // left_hip    right_hip    left_knee    right_knee   left_ankle   right_ankle
+    -0.12, 0.0,    0.12, 0.0,   -0.12, 0.8,  0.12, 0.8,   -0.12, 1.55, 0.12, 1.55,
+  ],
+
   // Bottom of lunge: front knee bent ~90°, rear knee near ground, torso upright
   lunge_down: [
     // nose        left_eye     right_eye    left_ear     right_ear
@@ -121,6 +141,8 @@ export const POSE_DATA = {
   squat_down: generateVariations(TEMPLATES.squat_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 137),
   pushup_up: generateVariations(TEMPLATES.pushup_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 256),
   pushup_down: generateVariations(TEMPLATES.pushup_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 389),
+  pullup_up: generateVariations(TEMPLATES.pullup_up, EXAMPLES_PER_CLASS, NOISE_SIGMA, 501),
+  pullup_down: generateVariations(TEMPLATES.pullup_down, EXAMPLES_PER_CLASS, NOISE_SIGMA, 518),
   lunge_down: [
     ...generateVariations(TEMPLATES.lunge_down, HALF_EXAMPLES, NOISE_SIGMA, 631),
     ...generateVariations(mirrorTemplate(TEMPLATES.lunge_down), HALF_EXAMPLES, NOISE_SIGMA, 732),
