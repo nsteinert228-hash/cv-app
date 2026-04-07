@@ -9,6 +9,8 @@ import { isSupabaseConfigured } from './supabase.js';
 import { onAuthStateChange } from './auth.js';
 import { createAuthUI } from './authUI.js';
 import * as db from './db.js';
+import { getMurphAttempt, PHASES, MURPH_TARGETS } from './murph.js';
+import { initMurphUI, setMurphCallbacks, updateMurphHUD } from './murphUI.js';
 
 // Camera helpers
 async function startCamera(videoEl) {
@@ -87,6 +89,11 @@ let lastRepCount = 0;
 let autoMode = false;
 let exerciseDetector = null;
 const sessionLog = new SessionLog(localStorage);
+
+// Murph mode state
+let murphMode = false;
+let murphRepCounts = { pullups: 0, pushups: 0, squats: 0 };
+let lastMurphMilestone = null;
 
 // Idle timeout — auto-log a set after configured idle period
 let lastState = null;
@@ -258,7 +265,7 @@ async function detectLoop() {
         currentExercise = exercise;
         repCounter = new RepCounter(exercise, poseClassifier);
         lastRepCount = 0;
-        showRepOverlay(exercise.name);
+        if (!murphMode) showRepOverlay(exercise.name);
       }
 
       if (repCounter) {
@@ -266,9 +273,15 @@ async function detectLoop() {
         trackStateChange(result.state);
         if (result.count > lastRepCount) {
           lastRepCount = result.count;
-          updateRepOverlay(result.count, currentExercise.name, true);
+          if (!murphMode) updateRepOverlay(result.count, currentExercise.name, true);
+          // Murph mode: feed reps to the attempt
+          if (murphMode && currentExercise) {
+            const murph = getMurphAttempt();
+            const newTotal = murph.addRep(currentExercise.name);
+            checkMurphMilestone(currentExercise.name, newTotal);
+          }
         } else {
-          updateRepOverlay(result.count, currentExercise.name, false);
+          if (!murphMode) updateRepOverlay(result.count, currentExercise.name, false);
         }
       }
     } else if (repCounter) {
@@ -277,17 +290,57 @@ async function detectLoop() {
 
       if (result.count > lastRepCount) {
         lastRepCount = result.count;
-        updateRepOverlay(result.count, currentExercise.name, true);
+        if (!murphMode) updateRepOverlay(result.count, currentExercise.name, true);
+        if (murphMode && currentExercise) {
+          const murph = getMurphAttempt();
+          const newTotal = murph.addRep(currentExercise.name);
+          checkMurphMilestone(currentExercise.name, newTotal);
+        }
       } else {
-        updateRepOverlay(result.count, currentExercise.name, false);
+        if (!murphMode) updateRepOverlay(result.count, currentExercise.name, false);
       }
     }
+  }
+
+  // Murph HUD update each frame
+  if (murphMode) {
+    const murph = getMurphAttempt();
+    updateMurphHUD(murph.getState());
   }
 
   // Check idle timeout every frame
   checkSetIdleTimeout();
 
   animFrameId = requestAnimationFrame(detectLoop);
+}
+
+// ── Murph milestone flash ──
+function checkMurphMilestone(exerciseName, count) {
+  const key = exerciseName === 'Pull-ups' ? 'pullups'
+    : exerciseName === 'Pushups' ? 'pushups'
+    : exerciseName === 'Squats' ? 'squats'
+    : null;
+  if (!key) return;
+  const target = MURPH_TARGETS[key];
+  if (count === target && lastMurphMilestone !== key) {
+    lastMurphMilestone = key;
+    showMilestoneFlash(exerciseName);
+  }
+}
+
+function showMilestoneFlash(exerciseName) {
+  let flash = document.getElementById('murphMilestoneFlash');
+  if (!flash) {
+    flash = document.createElement('div');
+    flash.id = 'murphMilestoneFlash';
+    flash.className = 'murph-milestone-flash';
+    document.body.appendChild(flash);
+  }
+  flash.textContent = `${exerciseName} COMPLETE`;
+  flash.classList.remove('show');
+  void flash.offsetWidth; // reflow
+  flash.classList.add('show');
+  setTimeout(() => flash.classList.remove('show'), 1500);
 }
 
 async function handleStartCamera() {
@@ -538,6 +591,23 @@ authUI.init({
   },
 });
 
+// ── Murph mode start/stop (called from murphUI) ──
+function enterMurphMode() {
+  murphMode = true;
+  murphRepCounts = { pullups: 0, pushups: 0, squats: 0 };
+  lastMurphMilestone = null;
+  // Force auto mode for exercise detection
+  selectExercise('auto');
+  hideRepOverlay();
+  // Start camera if not running
+  if (!isRunning) handleStartCamera();
+}
+
+function exitMurphMode() {
+  murphMode = false;
+  hideRepOverlay();
+}
+
 // Initialize — auto-start camera and auto mode
 async function init() {
   // Render any previously persisted session entries
@@ -561,6 +631,12 @@ async function init() {
     });
   }
 
+  // Set up Murph mode callbacks
+  setMurphCallbacks({
+    onStartExercises: enterMurphMode,
+    onStopExercises: exitMurphMode,
+  });
+
   try {
     statusEl.textContent = 'Loading model...';
     detector = await createDetector();
@@ -570,11 +646,18 @@ async function init() {
     // Expose for onboarding overlay button
     window._startCamera = handleStartCamera;
 
-    // Use the same function that stop/restart uses
-    await handleStartCamera();
+    // Check if we're in Murph mode (restored from localStorage)
+    const murphAttempt = getMurphAttempt();
+    const isMurphActive = murphAttempt.phase !== PHASES.SETUP && murphAttempt.phase !== PHASES.SUMMARY;
 
-    // Default to auto mode
-    selectExercise('auto');
+    if (!isMurphActive) {
+      // Normal tracker flow — auto-start camera and auto mode
+      await handleStartCamera();
+      selectExercise('auto');
+    }
+
+    // Initialize Murph UI (after models are loaded so camera can start if needed)
+    initMurphUI();
   } catch (err) {
     showFallbackControls(`Error: ${err.message}`);
     console.error('Init error:', err);

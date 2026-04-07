@@ -7,7 +7,7 @@
   <title>uTrain — Tracker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="src/styles.css?v=3">
+  <link rel="stylesheet" href="src/styles.css?v=4">
   <style>
     /* ════════════════════════════════════════════════════
        uTrain Tracker — Precision HUD Design
@@ -860,6 +860,1347 @@
 
     #clearSessionBtn:hover { opacity: 0.7; }
 
+    /* ═══════════════════════════════════════════════
+       INTERACTIONS — Custom Cursor, Tilt, Ripple
+       ═══════════════════════════════════════════════ */
+
+    /* Custom cursor */
+    .u-cursor {
+      position: fixed;
+      top: -4px; left: -4px;
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      transition: width 0.2s, height 0.2s, top 0.2s, left 0.2s;
+    }
+    .u-cursor.hover { width: 12px; height: 12px; top: -6px; left: -6px; }
+    .u-cursor.click { transform: translate(var(--x, 0), var(--y, 0)) scale(0.7); }
+
+    .u-cursor-ring {
+      position: fixed;
+      top: -20px; left: -20px;
+      width: 40px; height: 40px;
+      border: 1px solid rgba(200, 255, 0, 0.25);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transition: width 0.3s var(--ease-snappy), height 0.3s var(--ease-snappy),
+                  top 0.3s var(--ease-snappy), left 0.3s var(--ease-snappy),
+                  border-color 0.2s;
+    }
+    .u-cursor-ring.hover {
+      width: 56px; height: 56px; top: -28px; left: -28px;
+      border-color: rgba(200, 255, 0, 0.5);
+    }
+    .u-cursor-ring.click { transform: translate(var(--x, 0), var(--y, 0)) scale(0.85); }
+
+    @media (pointer: coarse) {
+      .u-cursor, .u-cursor-ring { display: none !important; }
+    }
+
+    /* Hide default cursor when custom is active */
+    @media (pointer: fine) {
+      body { cursor: none !important; }
+      a, button, [role="button"], input, .tilt-card { cursor: none !important; }
+    }
+
+    /* Tilt card glow */
+    .tilt-card {
+      transition: transform 0.15s var(--ease-snappy), box-shadow 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .tilt-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        300px circle at var(--glow-x, 50%) var(--glow-y, 50%),
+        rgba(200, 255, 0, 0.06),
+        transparent 60%
+      );
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .tilt-card:hover::after { opacity: 1; }
+
+    /* Ripple */
+    .ripple { position: relative; overflow: hidden; }
+    .ripple-wave {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(200, 255, 0, 0.15);
+      transform: scale(0);
+      animation: rippleOut 0.6s ease-out forwards;
+      pointer-events: none;
+    }
+    @keyframes rippleOut { to { transform: scale(1); opacity: 0; } }
+
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s var(--ease-snappy), transform 0.6s var(--ease-snappy);
+    }
+    .reveal.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Glow burst (milestones) */
+    .glow-burst {
+      position: fixed;
+      top: 50%; left: 50%;
+      width: 200px; height: 200px;
+      margin: -100px 0 0 -100px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200, 255, 0, 0.3), transparent 70%);
+      pointer-events: none;
+      z-index: 9000;
+    }
+
+    /* Button spinner */
+    .btn-spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(8,8,8,0.3);
+      border-top-color: var(--text-inverse);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════════
+       MURPH COMPETITION
+       ═══════════════════════════════════════════════ */
+
+    /* ── Tracker/Murph Tab Toggle ── */
+    .tracker-tabs {
+      display: flex;
+      gap: 0;
+      width: 100%;
+      margin-bottom: var(--space-4);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface-1);
+      position: relative;
+    }
+
+    .tracker-tab {
+      flex: 1;
+      padding: var(--space-3) var(--space-4);
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-display);
+      font-size: var(--text-base);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all var(--duration-medium) var(--ease-snappy);
+      position: relative;
+      z-index: 1;
+    }
+
+    .tracker-tab.active {
+      background: var(--accent);
+      color: var(--text-inverse);
+    }
+
+    .tracker-tab:not(.active):hover {
+      color: var(--text-primary);
+      background: var(--bg-surface-2);
+    }
+
+    .tab-badge-murph {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 600;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .tracker-tab.active .tab-badge-murph {
+      color: var(--text-inverse);
+      border-color: rgba(8,8,8,0.3);
+    }
+
+    /* Panel visibility */
+    .tracker-panel { display: block; }
+    .tracker-panel.hidden { display: none; }
+    .murph-panel { display: none; }
+    .murph-panel.active { display: block; }
+
+    /* ── Atmospheric Background ── */
+    .murph-atmo {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .murph-atmo-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.4;
+    }
+
+    .murph-atmo-orb-1 {
+      width: 300px; height: 300px;
+      background: rgba(200, 255, 0, 0.08);
+      top: -100px; right: -80px;
+    }
+    .murph-atmo-orb-1.pulse {
+      animation: orbPulse 4s ease-in-out infinite;
+    }
+    .murph-atmo-orb-2 {
+      width: 200px; height: 200px;
+      background: rgba(96, 165, 250, 0.05);
+      bottom: 10%; left: -60px;
+    }
+    .murph-atmo-orb-3 {
+      width: 250px; height: 250px;
+      background: rgba(200, 255, 0, 0.04);
+      bottom: -80px; left: 30%;
+    }
+    .murph-atmo-orb-4 {
+      width: 200px; height: 200px;
+      background: rgba(74, 222, 128, 0.06);
+      top: 20%; right: -60px;
+    }
+    .murph-atmo-orb-5 {
+      width: 350px; height: 350px;
+      background: rgba(74, 222, 128, 0.05);
+      top: -100px; left: 50%;
+      transform: translateX(-50%);
+    }
+
+    @keyframes orbPulse {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.1); }
+    }
+
+    .murph-grid-lines {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(200, 255, 0, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200, 255, 0, 0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 70%);
+    }
+
+    /* ── Murph Setup Screen ── */
+    .murph-setup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-8) var(--space-5) var(--space-10);
+      text-align: center;
+      position: relative;
+      min-height: 70vh;
+    }
+
+    .murph-hero {
+      margin-bottom: var(--space-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-emblem {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto var(--space-4);
+      animation: emblemSpin 20s linear infinite;
+    }
+
+    @keyframes emblemSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .murph-emblem svg { width: 100%; height: 100%; }
+
+    .murph-hero-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-tint);
+      padding: 3px 12px;
+      border-radius: var(--radius-pill);
+      display: inline-block;
+      margin-bottom: var(--space-3);
+    }
+
+    .murph-title {
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: 0.08em;
+      margin-bottom: var(--space-2);
+      text-shadow: 0 0 40px rgba(200, 255, 0, 0.08);
+    }
+
+    .murph-subtitle {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Breakdown steps — enhanced */
+    .murph-breakdown {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: var(--space-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-step {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      background: rgba(17, 17, 17, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-inner);
+      transition: all var(--duration-medium) var(--ease-snappy);
+      margin-bottom: -1px;
+      position: relative;
+    }
+
+    .murph-step:first-child { border-radius: var(--radius-inner) var(--radius-inner) 0 0; }
+    .murph-step:last-child { border-radius: 0 0 var(--radius-inner) var(--radius-inner); margin-bottom: 0; }
+
+    .murph-step-icon {
+      width: 28px; height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      opacity: 0.6;
+      flex-shrink: 0;
+    }
+    .murph-step-icon svg { width: 16px; height: 16px; }
+
+    .murph-step-content {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-3);
+    }
+
+    .murph-step-num {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--accent-dim);
+      font-weight: 500;
+    }
+
+    .murph-step-text {
+      font-family: var(--font-display);
+      font-size: var(--text-base);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-primary);
+    }
+
+    .murph-step-line {
+      position: absolute;
+      left: 27px;
+      bottom: -8px;
+      width: 1px;
+      height: 8px;
+      background: var(--accent-dim);
+      z-index: 2;
+    }
+
+    /* Reminders — glass cards */
+    .murph-reminders {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      width: 100%;
+      max-width: 340px;
+      margin-bottom: var(--space-8);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-reminder {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      padding: var(--space-3) var(--space-4);
+      background: rgba(26, 26, 26, 0.5);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: var(--radius-inner);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .murph-reminder-icon {
+      flex-shrink: 0;
+      color: var(--accent);
+      display: flex;
+    }
+
+    /* Start button — enhanced glow */
+    .murph-start-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 18px 56px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+      margin-bottom: var(--space-4);
+      transition: transform var(--duration-short) var(--ease-snappy);
+    }
+
+    .murph-start-btn-glow {
+      position: absolute;
+      inset: -4px;
+      border-radius: inherit;
+      background: var(--accent);
+      filter: blur(20px);
+      opacity: 0.3;
+      z-index: -1;
+      transition: opacity var(--duration-medium), filter var(--duration-medium);
+    }
+
+    .murph-start-btn:hover .murph-start-btn-glow {
+      opacity: 0.5;
+      filter: blur(30px);
+    }
+
+    .murph-start-btn:active { transform: scale(0.97); }
+
+    .murph-leaderboard-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--duration-medium) var(--ease-snappy);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-leaderboard-btn:hover {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+      background: var(--accent-tint);
+    }
+
+    /* ── Phase Screen (Mile 1 / Mile 2) ── */
+    .murph-phase-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-8) var(--space-5);
+      text-align: center;
+      min-height: 75vh;
+      position: relative;
+      justify-content: center;
+    }
+
+    /* Progress strip — pip style */
+    .murph-progress-strip {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: var(--space-8);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-progress-pip {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .murph-pip-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--bg-surface-3);
+      border: 2px solid var(--text-tertiary);
+      transition: all var(--duration-medium);
+    }
+
+    .murph-progress-pip.active .murph-pip-dot {
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(200, 255, 0, 0.4);
+    }
+
+    .murph-progress-pip.done .murph-pip-dot {
+      background: var(--status-green);
+      border-color: var(--status-green);
+    }
+
+    .murph-pip-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .murph-progress-pip.active .murph-pip-label { color: var(--accent); }
+    .murph-progress-pip.done .murph-pip-label { color: var(--status-green); }
+
+    .murph-progress-connector {
+      width: 24px; height: 1px;
+      background: var(--text-tertiary);
+      margin: 0 var(--space-2);
+    }
+
+    .murph-progress-connector.done { background: var(--status-green); }
+
+    /* Timer block */
+    .murph-timer-block {
+      margin-bottom: var(--space-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-phase-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-tint);
+      padding: 4px 16px;
+      border-radius: var(--radius-pill);
+      display: inline-block;
+      margin-bottom: var(--space-3);
+    }
+
+    .murph-phase-tag-finish {
+      color: var(--status-green);
+      background: var(--status-green-tint);
+    }
+
+    .murph-timer {
+      font-family: var(--font-mono);
+      font-size: clamp(3rem, 12vw, 5rem);
+      font-weight: 500;
+      color: var(--text-primary);
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 60px rgba(200, 255, 0, 0.08);
+      line-height: 1;
+    }
+
+    .murph-timer-sub {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: var(--space-2);
+    }
+
+    /* Pulse visual */
+    .murph-pulse-visual {
+      position: relative;
+      width: 140px; height: 140px;
+      margin-bottom: var(--space-6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .murph-pulse-circle {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid var(--accent-dim);
+    }
+
+    .murph-pulse-circle.c2 {
+      inset: 15px;
+      border-color: rgba(200, 255, 0, 0.15);
+      animation: murphPulse2 3s ease-in-out infinite 0.5s;
+    }
+
+    .murph-pulse-circle.c3 {
+      inset: 30px;
+      border-color: rgba(200, 255, 0, 0.1);
+      animation: murphPulse2 3s ease-in-out infinite 1s;
+    }
+
+    @keyframes murphPulse2 {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 0.2; transform: scale(1.08); }
+    }
+
+    .murph-run-icon {
+      width: 32px; height: 32px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .murph-phase-hint {
+      font-size: var(--text-sm);
+      color: var(--text-tertiary);
+      margin-bottom: var(--space-6);
+      max-width: 280px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Reps summary chips (mile 2 phase) */
+    .murph-reps-summary-strip {
+      display: flex;
+      gap: var(--space-2);
+      margin-bottom: var(--space-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-reps-chip {
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-2) var(--space-4);
+      background: rgba(17, 17, 17, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-inner);
+    }
+
+    .murph-reps-chip .chip-val {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .murph-reps-chip .chip-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Action buttons */
+    .murph-action-btn {
+      padding: 16px 48px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+      transition: transform var(--duration-short) var(--ease-snappy);
+      margin-bottom: var(--space-4);
+    }
+
+    .murph-action-btn:active { transform: scale(0.97); }
+
+    .murph-action-btn.murph-finish {
+      background: var(--status-green);
+    }
+
+    .murph-abandon-btn {
+      padding: 8px 20px;
+      border: 1px solid rgba(248, 113, 113, 0.15);
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--status-red);
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: all var(--duration-short);
+      position: relative;
+      z-index: 1;
+      opacity: 0.7;
+    }
+
+    .murph-abandon-btn:hover {
+      opacity: 1;
+      background: var(--status-red-tint);
+    }
+
+    /* ── Exercises Phase HUD (overlay) ── */
+    .murph-exercises-hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: var(--space-3) var(--space-4) var(--space-2);
+      background: rgba(8, 8, 8, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(200, 255, 0, 0.08);
+    }
+
+    .murph-hud-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-2);
+    }
+
+    .murph-hud-phase-tag {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      background: var(--accent-tint);
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    .murph-hud-timer {
+      font-family: var(--font-mono);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .murph-hud-progress-pct {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--accent);
+    }
+
+    .murph-hud-reps {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      margin-bottom: var(--space-2);
+    }
+
+    .murph-rep-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .murph-rep-row.done .murph-rep-label { color: var(--status-green); }
+    .murph-rep-row.done .murph-rep-fill { background: var(--status-green); }
+    .murph-rep-row.done .murph-rep-count { color: var(--status-green); }
+
+    .murph-rep-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      color: var(--text-secondary);
+      width: 64px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .murph-rep-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-surface-3);
+      border-radius: 3px;
+      overflow: visible;
+      position: relative;
+    }
+
+    .murph-rep-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width var(--duration-short) var(--ease-snappy);
+      position: relative;
+    }
+
+    .murph-rep-glow {
+      position: absolute;
+      top: -2px;
+      left: 0;
+      height: calc(100% + 4px);
+      background: var(--accent);
+      border-radius: 3px;
+      filter: blur(4px);
+      opacity: 0.3;
+      transition: width var(--duration-short) var(--ease-snappy);
+    }
+
+    .murph-rep-count {
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 56px;
+      text-align: right;
+    }
+
+    .murph-rep-target {
+      font-weight: 400;
+      color: var(--text-tertiary);
+      font-size: var(--text-xs);
+    }
+
+    .murph-exercises-done-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: var(--radius-inner);
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-family: var(--font-display);
+      font-size: var(--text-sm);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all var(--duration-short);
+    }
+
+    .murph-exercises-done-btn:hover { opacity: 0.9; }
+
+    /* ── Summary ── */
+    .murph-summary {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--space-8) var(--space-5);
+      text-align: center;
+      position: relative;
+    }
+
+    .murph-summary-header {
+      margin-bottom: var(--space-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-complete-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--status-green);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      padding: 4px 16px;
+      background: var(--status-green-tint);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+      border-radius: var(--radius-pill);
+      margin-bottom: var(--space-3);
+    }
+
+    .murph-total-time {
+      font-family: var(--font-mono);
+      font-size: clamp(3rem, 12vw, 5rem);
+      font-weight: 500;
+      color: var(--text-primary);
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(74, 222, 128, 0.1);
+    }
+
+    .murph-total-label {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: var(--space-2);
+    }
+
+    .murph-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: var(--space-2);
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: var(--space-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .murph-summary-card {
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-3) var(--space-3);
+      background: rgba(17, 17, 17, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-inner);
+      transition: border-color var(--duration-medium);
+    }
+
+    .murph-summary-card.verified { border-color: rgba(74, 222, 128, 0.2); }
+    .murph-summary-card.complete { border-color: rgba(74, 222, 128, 0.15); }
+    .murph-summary-card.short { border-color: rgba(250, 204, 21, 0.2); }
+
+    .murph-summary-card-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: var(--space-1);
+    }
+
+    .murph-summary-card-value {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .murph-summary-card-sub {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+    }
+
+    .murph-summary-card-status {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: var(--space-2);
+    }
+
+    .status-verified { color: var(--status-green); }
+    .status-complete { color: var(--status-green); }
+    .status-pending { color: var(--status-yellow); }
+    .status-short { color: var(--status-yellow); }
+
+    .murph-summary-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-3);
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .murph-profile-prompt {
+      width: 100%;
+      text-align: left;
+      margin-bottom: var(--space-2);
+    }
+
+    .murph-profile-label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-1);
+    }
+
+    .murph-profile-input {
+      width: 100%;
+      padding: var(--space-3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-inner);
+      background: var(--bg-surface-1);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+    }
+
+    .murph-profile-input:focus {
+      outline: none;
+      border-color: var(--accent-dim);
+    }
+
+    .murph-submit-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      color: var(--text-inverse);
+      font-family: var(--font-display);
+      font-size: var(--text-base);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all var(--duration-short) var(--ease-snappy);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .murph-submit-btn:active { transform: scale(0.97); }
+    .murph-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .murph-submit-btn.submitted { background: var(--status-green); }
+
+    .murph-secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: all var(--duration-short);
+    }
+
+    .murph-secondary-btn:hover {
+      border-color: var(--border-active);
+      color: var(--text-primary);
+    }
+
+    .murph-secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Milestone Flash ── */
+    .murph-milestone-flash {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 40px rgba(200, 255, 0, 0.4);
+      pointer-events: none;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s var(--ease-snappy);
+      background: rgba(8, 8, 8, 0.7);
+      padding: var(--space-3) var(--space-6);
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--accent-dim);
+      backdrop-filter: blur(12px);
+    }
+
+    .murph-milestone-flash.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* ── Leaderboard Modal ── */
+    .murph-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 500;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .murph-modal-backdrop.open {
+      display: flex;
+    }
+
+    .murph-modal {
+      width: 100%;
+      max-width: var(--max-width);
+      max-height: 85vh;
+      background: var(--bg-surface-1);
+      border-radius: var(--radius-card) var(--radius-card) 0 0;
+      padding: var(--space-5);
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .murph-modal-close {
+      position: absolute;
+      top: var(--space-3);
+      right: var(--space-3);
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Leaderboard Styles ── */
+    .lb-header {
+      margin-bottom: var(--space-4);
+    }
+
+    .lb-title {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      font-weight: 800;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: var(--space-3);
+    }
+
+    .lb-tabs {
+      display: flex;
+      gap: var(--space-1);
+      margin-bottom: var(--space-3);
+    }
+
+    .lb-tab {
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--duration-short);
+    }
+
+    .lb-tab.active {
+      background: var(--accent);
+      color: var(--text-inverse);
+      border-color: var(--accent);
+    }
+
+    .lb-filters {
+      display: flex;
+      gap: var(--space-1);
+      margin-bottom: var(--space-4);
+      flex-wrap: wrap;
+    }
+
+    .lb-filter {
+      padding: var(--space-1) var(--space-3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      cursor: pointer;
+      transition: all var(--duration-short);
+    }
+
+    .lb-filter.active {
+      background: var(--bg-surface-3);
+      color: var(--text-primary);
+      border-color: var(--border-active);
+    }
+
+    .lb-entries {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+
+    .lb-row {
+      background: var(--bg-surface-2);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-inner);
+      overflow: hidden;
+      transition: border-color var(--duration-short);
+    }
+
+    .lb-row:hover { border-color: var(--border-active); }
+
+    .lb-row-me {
+      border-color: var(--accent-dim);
+      background: rgba(200, 255, 0, 0.03);
+    }
+
+    .lb-row-main {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      cursor: pointer;
+    }
+
+    .lb-rank {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 800;
+      color: var(--text-secondary);
+      width: 28px;
+      text-align: center;
+    }
+
+    .lb-rank.gold { color: #FFD700; }
+    .lb-rank.silver { color: #C0C0C0; }
+    .lb-rank.bronze { color: #CD7F32; }
+
+    .lb-name {
+      flex: 1;
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .lb-you {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      color: var(--accent);
+      background: var(--accent-tint);
+      padding: 1px 4px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+
+    .lb-time {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--accent);
+    }
+
+    .lb-verified { flex-shrink: 0; }
+
+    .lb-badge-verified {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 600;
+      color: var(--status-green);
+      background: var(--status-green-tint);
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .lb-badge-pending {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 600;
+      color: var(--status-yellow);
+      background: var(--status-yellow-tint);
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .lb-date {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      min-width: 48px;
+      text-align: right;
+    }
+
+    .lb-expand-icon {
+      font-family: var(--font-mono);
+      font-size: var(--text-base);
+      color: var(--text-tertiary);
+      width: 20px;
+      text-align: center;
+    }
+
+    .lb-detail {
+      padding: var(--space-3) var(--space-4);
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-surface-1);
+    }
+
+    .lb-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-3);
+    }
+
+    .lb-detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lb-detail-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .lb-detail-value {
+      font-family: var(--font-display);
+      font-size: var(--text-base);
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .lb-detail-sub {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      color: var(--text-tertiary);
+    }
+
+    .lb-empty {
+      padding: var(--space-8);
+      text-align: center;
+      color: var(--text-tertiary);
+      font-size: var(--text-sm);
+    }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       main { max-width: 100%; padding: 0; }
@@ -868,6 +2209,9 @@
       .corner-bracket.bl, .corner-bracket.br { display: none; }
       .session-log { border-radius: 0; margin-top: 0; }
       .training-callout { margin: 0; border-radius: 0; }
+      .tracker-tabs { border-radius: 0; }
+      .murph-modal { border-radius: var(--radius-card) var(--radius-card) 0 0; }
+      .lb-detail-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -927,6 +2271,18 @@
   </nav>
 
   <main>
+    <!-- Tracker / Murph Tab Toggle -->
+    <div class="tracker-tabs" id="trackerTabs">
+      <button class="tracker-tab active" data-tab="tracker">Tracker</button>
+      <button class="tracker-tab" data-tab="murph">Murph <span class="tab-badge-murph">WOD</span></button>
+    </div>
+
+    <!-- Murph Panel (hidden by default) -->
+    <div class="murph-panel" id="murphPanel"></div>
+
+    <!-- Tracker Panel (existing content) -->
+    <div class="tracker-panel" id="trackerPanel">
+
     <!-- Onboarding (pre-camera state) -->
     <div class="onboarding-overlay" id="onboardingOverlay">
       <div class="onboarding-silhouette">
@@ -1063,7 +2419,7 @@
         <div class="movements-grid">
 
           <!-- Squat Card -->
-          <div class="movement-card" data-movement="squat">
+          <div class="movement-card tilt-card" data-movement="squat">
             <div class="movement-figure">
               <svg viewBox="0 0 80 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <!-- standing_up template -->
@@ -1115,7 +2471,7 @@
           </div>
 
           <!-- Pushup Card -->
-          <div class="movement-card" data-movement="pushup">
+          <div class="movement-card tilt-card" data-movement="pushup">
             <div class="movement-figure">
               <svg viewBox="0 0 80 80" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <!-- pushup_up template -->
@@ -1167,7 +2523,7 @@
           </div>
 
           <!-- Lunge Card -->
-          <div class="movement-card" data-movement="lunge">
+          <div class="movement-card tilt-card" data-movement="lunge">
             <div class="movement-figure">
               <svg viewBox="0 0 80 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <!-- standing_up template -->
@@ -1220,7 +2576,7 @@
           </div>
 
           <!-- Pull-up Card -->
-          <div class="movement-card" data-movement="pullup">
+          <div class="movement-card tilt-card" data-movement="pullup">
             <div class="movement-figure">
               <svg viewBox="0 0 80 120" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <!-- pullup_up template -->
@@ -1301,6 +2657,8 @@
       <div id="sessionEntries" class="session-entries"></div>
     </div>
 
+    </div><!-- end .tracker-panel -->
+
     <!-- Hidden legacy elements for app.js compat -->
     <div style="display:none">
       <div id="modeSelector">
@@ -1322,11 +2680,12 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>
-  <script type="module" src="src/app.js?v=6"></script>
+  <script type="module" src="src/app.js?v=7"></script>
   <script>
     (function() {
       // Loading screen
@@ -1392,6 +2751,20 @@
         });
       });
 
+      // Tracker/Murph tab toggle
+      const trackerTabs = document.getElementById('trackerTabs');
+      const trackerPanel = document.getElementById('trackerPanel');
+      const murphPanel = document.getElementById('murphPanel');
+      trackerTabs.addEventListener('click', (e) => {
+        const tab = e.target.closest('.tracker-tab');
+        if (!tab) return;
+        trackerTabs.querySelectorAll('.tracker-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const which = tab.dataset.tab;
+        trackerPanel.classList.toggle('hidden', which !== 'tracker');
+        murphPanel.classList.toggle('active', which === 'murph');
+      });
+
       // Movements panel toggle
       const movementsToggle = document.getElementById('movementsToggle');
       const movementsContent = document.getElementById('movementsContent');
@@ -1400,6 +2773,9 @@
         movementsToggle.setAttribute('aria-expanded', !expanded);
         movementsContent.classList.toggle('open', !expanded);
       });
+
+      // Initialize interaction layer
+      import('./src/interactions.js').then(m => m.initInteractions()).catch(() => {});
 
       // Training callout — check if today's workout is strength
       async function checkTrainingCallout() {
