@@ -510,13 +510,19 @@ async function checkProfile() {
 }
 
 // Camera stage is now a direct child of <main>, not nested inside trackerPanel.
-// Simple show/hide — no parent visibility issues.
+// Only hide/show when Murph tab is actually visible — never interfere with tracker tab.
+function isMurphTabActive() {
+  const panel = document.getElementById('murphPanel');
+  return panel && panel.classList.contains('active');
+}
+
 function showCamera() {
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.add('active');
 }
 
 function hideCamera() {
+  if (!isMurphTabActive()) return; // Don't hide if we're not on the Murph tab
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.remove('active');
 }
