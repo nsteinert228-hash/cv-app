@@ -596,24 +596,14 @@ function enterMurphMode() {
   murphMode = true;
   murphRepCounts = { pullups: 0, pushups: 0, squats: 0 };
   lastMurphMilestone = null;
-  // Force auto mode for exercise detection
   selectExercise('auto');
   hideRepOverlay();
-  // Ensure canvas is visible
-  canvas.style.display = 'block';
 
-  if (!isRunning) {
-    // Camera not running at all — start fresh
-    handleStartCamera();
-  } else {
-    // Camera is running but detectLoop may have stalled while hidden.
-    // Cancel and restart the animation frame loop.
-    if (animFrameId) {
-      cancelAnimationFrame(animFrameId);
-      animFrameId = null;
-    }
-    detectLoop();
-  }
+  // Always restart camera fresh — the stream/canvas from the tracker tab
+  // may have stale dimensions or a stalled detectLoop from being hidden.
+  // Small delay ensures the DOM has reflowed after showCameraStage().
+  if (isRunning) handleStopCamera();
+  setTimeout(() => handleStartCamera(), 50);
 }
 
 function exitMurphMode() {
