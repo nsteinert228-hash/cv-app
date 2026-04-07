@@ -67,14 +67,14 @@ export async function startMurphCamera(containerEl, detector, classifier, onRep)
       return;
     }
 
-    const maxW = containerEl.clientWidth || 640;
-    const maxH = containerEl.clientHeight || 480;
-    const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
-    const w = Math.round(video.videoWidth * scale);
-    const h = Math.round(video.videoHeight * scale);
+    // Use video native dimensions for canvas render resolution.
+    // CSS object-fit:contain handles display sizing — don't read container
+    // dimensions here or the canvas-inside-container feedback loop shrinks it.
+    const w = video.videoWidth;
+    const h = video.videoHeight;
 
-    canvas.width = w;
-    canvas.height = h;
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
     ctx.drawImage(video, 0, 0, w, h);
 
     const poses = await detector.estimatePoses(canvas);
@@ -111,11 +111,8 @@ export async function startMurphCamera(containerEl, detector, classifier, onRep)
 
   // Draw first frame immediately
   if (video.videoWidth) {
-    const maxW = containerEl.clientWidth || 640;
-    const maxH = containerEl.clientHeight || 480;
-    const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   }
 

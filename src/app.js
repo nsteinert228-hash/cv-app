@@ -223,6 +223,25 @@ function renderSessionLog() {
   sessionSummaryEl.textContent = `${total} reps — ${parts.join(', ')}`;
 }
 
+// Pause/resume tracker detect loop (used when switching tabs to avoid
+// running two detector.estimatePoses() simultaneously)
+function pauseTrackerLoop() {
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = null;
+  }
+}
+
+function resumeTrackerLoop() {
+  if (isRunning && !animFrameId) {
+    detectLoop();
+  }
+}
+
+// Expose for tab switching
+window._pauseTracker = pauseTrackerLoop;
+window._resumeTracker = resumeTrackerLoop;
+
 // Live detection loop
 async function detectLoop() {
   if (!isRunning || !detector) return;

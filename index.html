@@ -2785,6 +2785,10 @@
         const which = tab.dataset.tab;
         trackerPanel.classList.toggle('hidden', which !== 'tracker');
         murphPanel.classList.toggle('active', which === 'murph');
+        // Pause tracker detect loop when on Murph tab to avoid running
+        // two pose detectors simultaneously (causes lag)
+        if (which === 'murph' && window._pauseTracker) window._pauseTracker();
+        if (which === 'tracker' && window._resumeTracker) window._resumeTracker();
       });
 
       // Movements panel toggle
