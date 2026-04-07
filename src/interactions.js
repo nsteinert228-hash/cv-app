@@ -78,8 +78,8 @@ function initMagneticButtons() {
       const dist = Math.sqrt(distX * distX + distY * distY);
       const threshold = 100;
 
-      if (dist < threshold) {
-        const pull = (1 - dist / threshold) * 12;
+      if (dist < threshold && dist > 1) {
+        const pull = (1 - dist / threshold) * 8;
         const tx = (distX / dist) * pull;
         const ty = (distY / dist) * pull;
         btn.style.transform = `translate(${tx}px, ${ty}px)`;

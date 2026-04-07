@@ -22,7 +22,14 @@ export function initMurphUI() {
 
   const attempt = getMurphAttempt();
   attempt.restore();
-  attempt.onChange(state => renderMurphState(state));
+  attempt.onChange(state => {
+    // During exercises phase, update HUD timer directly (don't re-render)
+    if (state.phase === PHASES.EXERCISES) {
+      updateMurphHUD(state);
+      return;
+    }
+    renderMurphState(state);
+  });
   renderMurphState(attempt.getState());
 }
 
@@ -91,7 +98,7 @@ function renderSetup(container) {
       </div>
 
       <div class="murph-breakdown reveal">
-        <div class="murph-step tilt-card" data-step="1">
+        <div class="murph-step" data-step="1">
           <div class="murph-step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           </div>
@@ -101,7 +108,7 @@ function renderSetup(container) {
           </div>
           <div class="murph-step-line"></div>
         </div>
-        <div class="murph-step tilt-card" data-step="2">
+        <div class="murph-step" data-step="2">
           <div class="murph-step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10m0 0l-4-3m4 3l4-3M4 14h16v2a4 4 0 01-4 4H8a4 4 0 01-4-4v-2z"/></svg>
           </div>
@@ -111,7 +118,7 @@ function renderSetup(container) {
           </div>
           <div class="murph-step-line"></div>
         </div>
-        <div class="murph-step tilt-card" data-step="3">
+        <div class="murph-step" data-step="3">
           <div class="murph-step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
           </div>
@@ -121,7 +128,7 @@ function renderSetup(container) {
           </div>
           <div class="murph-step-line"></div>
         </div>
-        <div class="murph-step tilt-card" data-step="4">
+        <div class="murph-step" data-step="4">
           <div class="murph-step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8m-4 6l4 4 4-4M4 4h16"/></svg>
           </div>
@@ -131,7 +138,7 @@ function renderSetup(container) {
           </div>
           <div class="murph-step-line"></div>
         </div>
-        <div class="murph-step tilt-card" data-step="5">
+        <div class="murph-step" data-step="5">
           <div class="murph-step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           </div>
@@ -157,12 +164,12 @@ function renderSetup(container) {
         </div>
       </div>
 
-      <button class="murph-start-btn magnetic ripple" id="murphStartBtn">
+      <button class="murph-start-btn" id="murphStartBtn">
         <span class="murph-start-btn-text">START MURPH</span>
         <span class="murph-start-btn-glow"></span>
       </button>
 
-      <button class="murph-leaderboard-btn magnetic" id="murphShowLeaderboard">
+      <button class="murph-leaderboard-btn" id="murphShowLeaderboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
         Leaderboard
       </button>
@@ -225,7 +232,7 @@ function renderMile1(container, state) {
 
       <p class="murph-phase-hint">Start your Garmin watch and come back when done.</p>
 
-      <button class="murph-action-btn magnetic ripple" id="murphMile1Done">MILE 1 COMPLETE</button>
+      <button class="murph-action-btn" id="murphMile1Done">MILE 1 COMPLETE</button>
       <button class="murph-abandon-btn" id="murphAbandon">Abandon Attempt</button>
     </div>
   `;
@@ -259,7 +266,7 @@ function renderExercises(container, state) {
         ${renderRepBar('Push-ups', state.reps.pushups, MURPH_TARGETS.pushups, 'pushups')}
         ${renderRepBar('Squats', state.reps.squats, MURPH_TARGETS.squats, 'squats')}
       </div>
-      <button class="murph-exercises-done-btn magnetic ripple" id="murphExercisesDone">
+      <button class="murph-exercises-done-btn" id="murphExercisesDone">
         ${allTargetsMet(state.reps) ? 'EXERCISES COMPLETE' : `FINISH EXERCISES`}
       </button>
     </div>
@@ -280,7 +287,6 @@ function renderExercises(container, state) {
 
 function renderMile2(container, state) {
   hideCameraStage();
-  hideTrackerForMurph();
   if (_onStopExercises) _onStopExercises();
 
   container.innerHTML = `
@@ -325,7 +331,7 @@ function renderMile2(container, state) {
         </svg>
       </div>
 
-      <button class="murph-action-btn murph-finish magnetic ripple" id="murphFinish">FINISH MURPH</button>
+      <button class="murph-action-btn murph-finish" id="murphFinish">FINISH MURPH</button>
       <button class="murph-abandon-btn" id="murphAbandon">Abandon Attempt</button>
     </div>
   `;
@@ -380,11 +386,11 @@ async function renderSummary(container, state) {
             <input type="text" class="murph-profile-input" id="murphDisplayName" placeholder="e.g. Nick S." maxlength="30">
           </div>
         ` : ''}
-        <button class="murph-submit-btn magnetic ripple" id="murphSubmitLeaderboard">
+        <button class="murph-submit-btn" id="murphSubmitLeaderboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
           SUBMIT TO LEADERBOARD
         </button>
-        <button class="murph-secondary-btn magnetic" id="murphSyncGarmin">
+        <button class="murph-secondary-btn" id="murphSyncGarmin">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           Sync Garmin & Retry
         </button>
@@ -451,7 +457,7 @@ function summaryCard(label, value, status, sub) {
     : 'AWAITING SYNC';
 
   return `
-    <div class="murph-summary-card tilt-card ${statusClass}">
+    <div class="murph-summary-card ${statusClass}">
       <div class="murph-summary-card-label">${label}</div>
       <div class="murph-summary-card-value">${value}</div>
       ${sub ? `<div class="murph-summary-card-sub">${sub}</div>` : ''}
@@ -509,31 +515,56 @@ async function checkProfile() {
   try { return !!(await murphData.getProfile()); } catch { return false; }
 }
 
+function _isMurphTab() {
+  const p = document.getElementById('murphPanel');
+  return p && p.classList.contains('active');
+}
+
 function hideCameraStage() {
-  // Only hide camera when Murph tab is the active tab — never during tracker tab init
-  const murphPanel = document.getElementById('murphPanel');
-  if (!murphPanel || !murphPanel.classList.contains('active')) return;
+  // ONLY hide when Murph tab is active — never on init/tracker tab
+  if (!_isMurphTab()) return;
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.remove('active');
+  // Re-hide tracker panel (was un-hidden during exercises)
+  const trackerPanel = document.getElementById('trackerPanel');
+  if (trackerPanel) trackerPanel.classList.add('hidden');
+  // Restore any elements we hid inside tracker panel
+  _restoreTrackerContent();
 }
 
 function showCameraStage() {
-  // Un-hide the tracker panel so camera stage inside it is visible
+  // Show tracker panel so camera stage inside it is visible
   const trackerPanel = document.getElementById('trackerPanel');
-  if (trackerPanel) trackerPanel.classList.remove('hidden');
+  if (trackerPanel) {
+    trackerPanel.classList.remove('hidden');
+    // Hide non-camera content so only camera stage shows
+    _hideTrackerContent();
+  }
   const stage = document.getElementById('cameraStage');
   if (stage) stage.classList.add('active');
   const onboarding = document.getElementById('onboardingOverlay');
   if (onboarding) onboarding.classList.add('hidden');
 }
 
-// Re-hide tracker panel when leaving exercises phase back to a Murph phase
-function hideTrackerForMurph() {
-  const trackerPanel = document.getElementById('trackerPanel');
-  const murphPanel = document.getElementById('murphPanel');
-  if (trackerPanel && murphPanel && murphPanel.classList.contains('active')) {
-    trackerPanel.classList.add('hidden');
+// Hide non-camera elements inside tracker panel during exercises
+function _hideTrackerContent() {
+  const tp = document.getElementById('trackerPanel');
+  if (!tp) return;
+  for (const sel of ['#onboardingOverlay', '#movementsPanel', '#sessionLog', '#trainingCallout']) {
+    const el = tp.querySelector(sel) || document.getElementById(sel.replace('#', ''));
+    if (el && !el.dataset.murphHid) {
+      el.dataset.murphHid = el.style.display || '';
+      el.style.display = 'none';
+    }
   }
+}
+
+// Restore hidden tracker elements
+function _restoreTrackerContent() {
+  document.querySelectorAll('[data-murph-hid]').forEach(el => {
+    el.style.display = el.dataset.murphHid || '';
+    delete el.dataset.murphHid;
+  });
 }
 
 // ═══ LEADERBOARD MODAL ═══════════════════════════════
