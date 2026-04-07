@@ -1713,6 +1713,28 @@
 
     .murph-exercises-done-btn:hover { opacity: 0.9; }
 
+    /* ── Murph Camera Container (independent instance) ── */
+    .murph-camera-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      border: 2px solid var(--accent);
+    }
+
+    .murph-camera-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .murph-camera-container video {
+      display: none;
+    }
+
     /* ── Summary ── */
     .murph-summary {
       display: flex;
@@ -2685,7 +2707,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.6/dist/knn-classifier.min.js"></script>
-  <script type="module" src="src/app.js?v=9"></script>
+  <script type="module" src="src/app.js?v=10"></script>
   <script>
     (function() {
       // Loading screen
@@ -2763,16 +2785,6 @@
         const which = tab.dataset.tab;
         trackerPanel.classList.toggle('hidden', which !== 'tracker');
         murphPanel.classList.toggle('active', which === 'murph');
-        // Restore camera when switching back to tracker
-        if (which === 'tracker') {
-          const stage = document.getElementById('cameraStage');
-          if (stage) stage.classList.add('active');
-          // Restore any tracker content hidden by Murph exercises
-          document.querySelectorAll('[data-murph-hid]').forEach(el => {
-            el.style.display = el.dataset.murphHid || '';
-            delete el.dataset.murphHid;
-          });
-        }
       });
 
       // Movements panel toggle
