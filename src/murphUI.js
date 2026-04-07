@@ -554,15 +554,15 @@ function showCameraStage() {
   if (onboarding) onboarding.classList.add('hidden');
 }
 
-// Hide non-camera elements inside tracker panel during exercises
+// Hide ALL tracker panel children except the camera stage
 function _hideTrackerContent() {
   const tp = document.getElementById('trackerPanel');
   if (!tp) return;
-  for (const sel of ['#onboardingOverlay', '#movementsPanel', '#sessionLog', '#trainingCallout']) {
-    const el = tp.querySelector(sel) || document.getElementById(sel.replace('#', ''));
-    if (el && !el.dataset.murphHid) {
-      el.dataset.murphHid = el.style.display || '';
-      el.style.display = 'none';
+  for (const child of tp.children) {
+    if (child.id === 'cameraStage') continue;
+    if (!child.dataset.murphHid) {
+      child.dataset.murphHid = child.style.display || '';
+      child.style.display = 'none';
     }
   }
 }
