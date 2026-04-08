@@ -702,7 +702,7 @@ async function loadSeasonZones(force) {
 
   // Render Hero (today's workout)
   if (todayWorkout) {
-    renderSeasonHero(todayWorkout, logMap.get(todayWorkout.id), pendingGarminMatch);
+    await renderSeasonHero(todayWorkout, logMap.get(todayWorkout.id), pendingGarminMatch);
   } else {
     renderRestDayHero();
   }
@@ -764,7 +764,7 @@ function hideLoading() {
 
 // ── Zone 1: Hero Card ────────────────────────────────────────
 
-function renderSeasonHero(workout, log, pendingGarminMatch = null) {
+async function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   const rx = workout.prescription_json || {};
   const typeAbbr = TYPE_ICONS[workout.workout_type] || workout.workout_type?.toUpperCase()?.slice(0, 3) || '---';
 
@@ -855,7 +855,7 @@ function renderSeasonHero(workout, log, pendingGarminMatch = null) {
           pendingGarminMatch.activity_id, null, 'garmin_confirmed'
         );
         banner.remove();
-        renderSeasonHero(workout, {
+        await renderSeasonHero(workout, {
           status: 'completed', source: 'garmin_confirmed',
           adherence_score: result?.adherence_score,
           garmin_activity_id: pendingGarminMatch.activity_id,
