@@ -109,9 +109,11 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   }
 
   // Garmin auto-detect for cardio (Approach A: detect then confirm)
+  let _garminAutoMatch = null;
   if (isCardio) {
     try {
       const garminMatch = await findMatchingGarminActivity(workout.workout_type, workout.date);
+      _garminAutoMatch = garminMatch;
       if (garminMatch) {
         const durMin = garminMatch.duration_seconds ? Math.round(garminMatch.duration_seconds / 60) : '--';
         html += `
@@ -202,7 +204,7 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   // Render Garmin activity card if activity is linked
   try {
     const log = await getWorkoutLog(workout.id).catch(() => null);
-    const garminActivityId = _cachedCompletion?.activity_id || log?.garmin_activity_id;
+    const garminActivityId = _cachedCompletion?.activity_id || log?.garmin_activity_id || _garminAutoMatch?.activity_id;
     if (garminActivityId) {
       const embedEl = document.getElementById('garminActivityEmbed');
       if (embedEl) {
