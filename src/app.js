@@ -238,9 +238,37 @@ function resumeTrackerLoop() {
   }
 }
 
+// Full stop/restart tracker camera (iOS only allows one active camera stream)
+function stopTrackerCamera() {
+  pauseTrackerLoop();
+  isRunning = false;
+  stopCamera(stream, video);
+  stream = null;
+  canvas.style.display = 'none';
+}
+
+async function restartTrackerCamera() {
+  if (stream) return; // already running
+  try {
+    stream = await startCamera(video);
+    const { maxW, maxH } = getMaxDimensions();
+    const scale = computeScale(video.videoWidth, video.videoHeight, maxW, maxH);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    isRunning = true;
+    canvas.style.display = 'block';
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    detectLoop();
+  } catch (err) {
+    console.error('Failed to restart tracker camera:', err);
+  }
+}
+
 // Expose for tab switching
 window._pauseTracker = pauseTrackerLoop;
 window._resumeTracker = resumeTrackerLoop;
+window._stopTrackerCamera = stopTrackerCamera;
+window._restartTrackerCamera = restartTrackerCamera;
 
 // Live detection loop
 async function detectLoop() {
