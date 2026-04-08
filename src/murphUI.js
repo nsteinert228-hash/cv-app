@@ -40,8 +40,9 @@ async function renderMurphState(state) {
   if (!phaseChanged) return;
   _lastPhase = state.phase;
 
-  // Hide tracker camera for non-exercises phases, show it for exercises
-  if (state.phase !== PHASES.EXERCISES) {
+  // Only manage tracker visibility when Murph tab is actually active
+  const isMurphTabActive = murphPanel.classList.contains('active');
+  if (isMurphTabActive && state.phase !== PHASES.EXERCISES) {
     _hideTrackerForMurph();
   }
 
