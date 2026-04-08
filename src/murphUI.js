@@ -1,21 +1,12 @@
 // ═══════════════════════════════════════════════════
-// Murph UI — Phase renders + independent camera
+// Murph UI — Phase renders, uses shared tracker camera
 // ═══════════════════════════════════════════════════
 import { getMurphAttempt, PHASES, MURPH_TARGETS } from './murph.js';
 import { MurphLeaderboard } from './murphLeaderboard.js';
 import * as murphData from './murphData.js';
-import { startMurphCamera } from './murphCamera.js';
 
 let _leaderboard = null;
 let _lastPhase = null;
-let _detector = null;
-let _classifier = null;
-let _murphCameraCleanup = null;
-
-export function setMurphCallbacks({ detector, classifier }) {
-  _detector = detector;
-  _classifier = classifier;
-}
 
 export function initMurphUI() {
   const murphPanel = document.getElementById('murphPanel');
@@ -49,10 +40,9 @@ async function renderMurphState(state) {
   if (!phaseChanged) return;
   _lastPhase = state.phase;
 
-  // Clean up murph camera if leaving exercises phase
-  if (phaseChanged && _murphCameraCleanup) {
-    _murphCameraCleanup();
-    _murphCameraCleanup = null;
+  // Hide tracker camera for non-exercises phases, show it for exercises
+  if (state.phase !== PHASES.EXERCISES) {
+    _hideTrackerForMurph();
   }
 
   switch (state.phase) {
@@ -175,7 +165,16 @@ function renderMile1(container, state) {
 
 // ═══ EXERCISES ═══════════════════════════════════════
 
-async function renderExercises(container, state) {
+function renderExercises(container, state) {
+  // The Murph exercises phase reuses the shared tracker camera.
+  // Show the tracker panel (camera feed) and overlay the Murph HUD on top.
+  const trackerPanel = document.getElementById('trackerPanel');
+  if (trackerPanel) trackerPanel.classList.remove('hidden');
+
+  // Hide the tracker's own rep overlay — Murph HUD handles display
+  const repOverlay = document.getElementById('repOverlay');
+  if (repOverlay) repOverlay.style.display = 'none';
+
   container.innerHTML = `
     <div class="murph-exercises-hud" id="murphHUD">
       <div class="murph-hud-top">
@@ -192,29 +191,10 @@ async function renderExercises(container, state) {
         ${allTargetsMet(state.reps) ? 'EXERCISES COMPLETE' : 'FINISH EXERCISES'}
       </button>
     </div>
-    <div class="murph-camera-container" id="murphCameraContainer"></div>
   `;
 
-  // Start independent murph camera
-  const camContainer = document.getElementById('murphCameraContainer');
-  if (camContainer && _detector && _classifier) {
-    _murphCameraCleanup = await startMurphCamera(
-      camContainer,
-      _detector,
-      _classifier,
-      (exerciseName) => {
-        const murph = getMurphAttempt();
-        const newTotal = murph.addRep(exerciseName);
-        // Milestone check
-        const key = exerciseName === 'Pull-ups' ? 'pullups'
-          : exerciseName === 'Pushups' ? 'pushups'
-          : exerciseName === 'Squats' ? 'squats' : null;
-        if (key && newTotal === MURPH_TARGETS[key]) {
-          _showMilestoneFlash(exerciseName);
-        }
-      }
-    );
-  }
+  // Ensure tracker camera/detect loop is running
+  if (window._resumeTracker) window._resumeTracker();
 
   document.getElementById('murphExercisesDone').addEventListener('click', () => {
     const reps = getMurphAttempt().getState().reps;
@@ -224,6 +204,13 @@ async function renderExercises(container, state) {
     }
     getMurphAttempt().completeExercises();
   });
+}
+
+// Helper: hide tracker panel when leaving exercises phase
+function _hideTrackerForMurph() {
+  const trackerPanel = document.getElementById('trackerPanel');
+  if (trackerPanel) trackerPanel.classList.add('hidden');
+  if (window._pauseTracker) window._pauseTracker();
 }
 
 // ═══ MILE 2 ══════════════════════════════════════════

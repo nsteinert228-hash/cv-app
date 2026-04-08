@@ -9,8 +9,8 @@ import { isSupabaseConfigured } from './supabase.js';
 import { onAuthStateChange } from './auth.js';
 import { createAuthUI } from './authUI.js';
 import * as db from './db.js';
-import { getMurphAttempt, PHASES } from './murph.js';
-import { initMurphUI, setMurphCallbacks } from './murphUI.js';
+import { getMurphAttempt, PHASES, MURPH_TARGETS } from './murph.js';
+import { initMurphUI } from './murphUI.js';
 
 // Camera helpers
 async function startCamera(videoEl) {
@@ -141,6 +141,21 @@ function showRepOverlay(exerciseName) {
   repOverlay.style.display = 'block';
 }
 
+function _showMurphMilestone(exerciseName) {
+  let flash = document.getElementById('murphMilestoneFlash');
+  if (!flash) {
+    flash = document.createElement('div');
+    flash.id = 'murphMilestoneFlash';
+    flash.className = 'murph-milestone-flash';
+    document.body.appendChild(flash);
+  }
+  flash.textContent = `${exerciseName} COMPLETE`;
+  flash.classList.remove('show');
+  void flash.offsetWidth;
+  flash.classList.add('show');
+  setTimeout(() => flash.classList.remove('show'), 1500);
+}
+
 function hideRepOverlay() {
   repOverlay.style.display = 'none';
   repCountEl.classList.remove('flash');
@@ -269,6 +284,7 @@ window._pauseTracker = pauseTrackerLoop;
 window._resumeTracker = resumeTrackerLoop;
 window._stopTrackerCamera = stopTrackerCamera;
 window._restartTrackerCamera = restartTrackerCamera;
+window._getMurphAttempt = getMurphAttempt;
 
 // Live detection loop
 async function detectLoop() {
@@ -317,6 +333,18 @@ async function detectLoop() {
         if (result.count > lastRepCount) {
           lastRepCount = result.count;
           updateRepOverlay(result.count, currentExercise.name, true);
+
+          // Route reps to Murph attempt when in exercises phase
+          const murph = getMurphAttempt();
+          if (murph.phase === PHASES.EXERCISES && currentExercise) {
+            const newTotal = murph.addRep(currentExercise.name);
+            const key = currentExercise.name === 'Pull-ups' ? 'pullups'
+              : currentExercise.name === 'Pushups' ? 'pushups'
+              : currentExercise.name === 'Squats' ? 'squats' : null;
+            if (key && newTotal === MURPH_TARGETS[key]) {
+              _showMurphMilestone(currentExercise.name);
+            }
+          }
         } else {
           updateRepOverlay(result.count, currentExercise.name, false);
         }
@@ -621,14 +649,11 @@ async function init() {
     // Expose for onboarding overlay button
     window._startCamera = handleStartCamera;
 
-    // Pass shared singletons to Murph UI (murph has its own camera)
-    setMurphCallbacks({ detector, classifier: poseClassifier });
-
     // Normal tracker flow — always start camera on tracker tab
     await handleStartCamera();
     selectExercise('auto');
 
-    // Initialize Murph UI (has its own camera, won't touch tracker camera)
+    // Initialize Murph UI (shares tracker camera during exercises phase)
     initMurphUI();
   } catch (err) {
     showFallbackControls(`Error: ${err.message}`);

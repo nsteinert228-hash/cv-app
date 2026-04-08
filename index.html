@@ -2783,12 +2783,17 @@
         trackerTabs.querySelectorAll('.tracker-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         const which = tab.dataset.tab;
-        trackerPanel.classList.toggle('hidden', which !== 'tracker');
         murphPanel.classList.toggle('active', which === 'murph');
-        // Fully stop tracker camera when on Murph tab — iOS only allows
-        // one active camera stream at a time
-        if (which === 'murph' && window._stopTrackerCamera) window._stopTrackerCamera();
-        if (which === 'tracker' && window._restartTrackerCamera) window._restartTrackerCamera();
+        // In Murph exercises phase, show the tracker camera feed behind the HUD
+        const murphAttempt = window._getMurphAttempt && window._getMurphAttempt();
+        const inMurphExercises = which === 'murph' && murphAttempt && murphAttempt.phase === 'exercises';
+        trackerPanel.classList.toggle('hidden', which !== 'tracker' && !inMurphExercises);
+        // Pause tracker detect loop on non-exercises Murph phases, resume on tracker/exercises
+        if (which === 'tracker' || inMurphExercises) {
+          if (window._resumeTracker) window._resumeTracker();
+        } else {
+          if (window._pauseTracker) window._pauseTracker();
+        }
       });
 
       // Movements panel toggle
