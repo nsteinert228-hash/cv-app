@@ -152,8 +152,10 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   }
 
   // Match insight card
+  let _cachedCompletion = null;
   try {
     const completion = await getPlanCompletion(workout.id);
+    _cachedCompletion = completion;
     if (completion && completion.match_type !== 'unmatched') {
       const breakdown = typeof completion.scoring_breakdown === 'string'
         ? JSON.parse(completion.scoring_breakdown) : (completion.scoring_breakdown || {});
@@ -199,9 +201,8 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
 
   // Render Garmin activity card if activity is linked
   try {
-    const completion = await getPlanCompletion(workout.id);
     const log = await getWorkoutLog(workout.id).catch(() => null);
-    const garminActivityId = completion?.activity_id || log?.garmin_activity_id;
+    const garminActivityId = _cachedCompletion?.activity_id || log?.garmin_activity_id;
     if (garminActivityId) {
       const embedEl = document.getElementById('garminActivityEmbed');
       if (embedEl) {

@@ -4,8 +4,8 @@
  * Compute planned weekly load curve from plan_json phases
  */
 export function computePlannedCurve(planJson, durationWeeks) {
-  if (!planJson?.plan?.phases) return [];
-  const phases = planJson.plan.phases;
+  const phases = planJson?.plan?.phases || planJson?.phases || [];
+  if (!phases.length) return [];
   const curve = [];
 
   const intensityMap = {

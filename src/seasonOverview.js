@@ -24,10 +24,13 @@ export async function renderSeasonOverview(containerEl, seasonId, currentWeek) {
           getWorkoutLogsForSeason(seasonId),
         ]);
         if (season?.plan_json) {
-          const plannedCurve = computePlannedCurve(season.plan_json, season.duration_weeks);
-          const actualCurve = computeActualCurve(workouts, logs, currentWeek);
-          const phases = season.plan_json?.plan?.phases || [];
-          renderSparkline(sparklineEl, plannedCurve, actualCurve, currentWeek, phases, { compact: true });
+          const durationWeeks = season.duration_weeks || 8;
+          const plannedCurve = computePlannedCurve(season.plan_json, durationWeeks);
+          const actualCurve = computeActualCurve(workouts || [], logs || [], currentWeek);
+          const phases = season.plan_json?.plan?.phases || season.plan_json?.phases || [];
+          if (plannedCurve.length > 0) {
+            renderSparkline(sparklineEl, plannedCurve, actualCurve, currentWeek, phases, { compact: true });
+          }
         }
       } catch (e) { console.warn('Sparkline render failed:', e); }
     }

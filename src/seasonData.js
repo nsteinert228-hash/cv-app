@@ -9,7 +9,12 @@ async function _callEdgeFunction(name, body = {}) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
 
-  const { data: { session } } = await client.auth.getSession();
+  let { data: { session } } = await client.auth.getSession();
+  if (!session) {
+    // Session may have expired — try to refresh
+    const { data: refreshed } = await client.auth.refreshSession();
+    session = refreshed?.session || null;
+  }
   if (!session) throw new Error('Not authenticated');
 
   let res;
