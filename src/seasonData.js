@@ -277,6 +277,46 @@ export async function triggerAdaptation(force = false) {
   return _callEdgeFunction('season-adapt', { force });
 }
 
+// ── Adaptation Approval Flow ────────────────────────────────
+
+export async function getProposedAdaptations(force = false) {
+  return _callEdgeFunction('season-adapt', { force, dry_run: true });
+}
+
+export async function applyAdaptation(payload) {
+  return _callEdgeFunction('season-adapt', { apply: true, payload });
+}
+
+export async function rejectAdaptation(payload) {
+  return _callEdgeFunction('season-adapt', { reject: true, payload });
+}
+
+export async function revertWorkout(workoutId) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase not configured');
+
+  const { data: workout, error: fetchErr } = await client
+    .from('season_workouts')
+    .select('original_prescription_json, original_workout_type, original_intensity')
+    .eq('id', workoutId)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+  if (!workout?.original_prescription_json) throw new Error('No original plan to revert to');
+
+  const { error } = await client
+    .from('season_workouts')
+    .update({
+      prescription_json: workout.original_prescription_json,
+      workout_type: workout.original_workout_type,
+      intensity: workout.original_intensity,
+      is_adapted: false,
+    })
+    .eq('id', workoutId);
+
+  if (error) throw error;
+}
+
 // ── Workout Swap ─────────────────────────────────────────────
 
 export async function swapWorkout(workoutId, newType, newTitle, newPrescription) {

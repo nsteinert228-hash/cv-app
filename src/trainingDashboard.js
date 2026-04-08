@@ -26,6 +26,8 @@ import {
   findMatchingGarminActivity,
   submitWorkoutLog,
   getGarminActivitiesByDateRange,
+  getAdaptationForDate,
+  getProposedAdaptations,
 } from './seasonData.js';
 import { renderWorkoutConfirmation } from './workoutLogger.js';
 import { renderAdaptationFeed } from './adaptationFeed.js';
@@ -36,6 +38,7 @@ import { renderWeeklyView, renderWeekByNumber } from './weeklyView.js';
 import { renderSeasonOverview } from './seasonOverview.js';
 import { renderGoalTracker } from './goalTracker.js';
 import { initProfilePanel } from './userProfileUI.js';
+import { getCoherentContext, isAdaptationStale, formatAdaptationAge } from './readinessCoherence.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -97,6 +100,7 @@ const heroDuration = document.getElementById('heroDuration');
 const heroTitle = document.getElementById('heroTitle');
 const heroContext = document.getElementById('heroContext');
 const heroStartBtn = document.getElementById('heroStartBtn');
+const heroRefreshBtn = document.getElementById('heroRefreshBtn');
 const zoneWeek = document.getElementById('zoneWeek');
 const zonePlan = document.getElementById('zonePlan');
 const timelineScroll = document.getElementById('timelineScroll');
@@ -141,6 +145,38 @@ authUI.init({
     Object.keys(viewCache).forEach(k => delete viewCache[k]);
     refreshDashboard();
   },
+});
+
+// ── Refresh Insights Button ─────────────────────────────────
+
+if (heroRefreshBtn) {
+  heroRefreshBtn.addEventListener('click', async () => {
+    heroRefreshBtn.classList.add('refreshing');
+    try {
+      readinessData = await getTodayReadiness();
+      // Update chips if function exists
+      if (typeof loadReadinessChips === 'function') loadReadinessChips();
+
+      const proposals = await getProposedAdaptations(true);
+      if (proposals.has_changes) {
+        const { showAdaptationApproval } = await import('./adaptationApproval.js');
+        showAdaptationApproval(proposals, { onComplete: () => loadAllZones(true) });
+      } else {
+        heroContext.textContent = 'Insights refreshed — no plan changes needed.';
+        setTimeout(() => loadAllZones(true), 1500);
+      }
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      heroContext.textContent = 'Refresh failed: ' + err.message;
+    } finally {
+      heroRefreshBtn.classList.remove('refreshing');
+    }
+  });
+}
+
+// Listen for adaptation resolutions to refresh dashboard
+window.addEventListener('utrain:adaptationResolved', () => {
+  loadAllZones(true);
 });
 
 // ── Overflow Menu ────────────────────────────────────────────
@@ -733,6 +769,9 @@ function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   heroDuration.innerHTML = workout.duration_minutes ? `${workout.duration_minutes}<span>m</span>` : '--<span>m</span>';
   heroTitle.textContent = workout.title || 'Today\'s Workout';
 
+  // Show refresh button when we have readiness data and an active season
+  if (heroRefreshBtn && readinessData) heroRefreshBtn.style.display = '';
+
   // Workout-type-specific gradient tint
   const typeGradients = {
     strength: 'radial-gradient(ellipse 70% 60% at 15% 20%, rgba(239, 68, 68, 0.08), transparent 60%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(168, 85, 247, 0.06), transparent 60%), var(--bg-surface-1)',
@@ -744,30 +783,30 @@ function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   const inner = heroCard.querySelector('.hero-card-inner');
   if (inner) inner.style.background = typeGradients[workout.workout_type] || typeGradients.cardio;
 
-  // Build context string from readiness + workout intensity
+  // Build coherent context that accounts for active adaptations
   let context = rx.description || '';
-  if (readinessData) {
-    const sleep = readinessData.sleep_score || 0;
-    const bb = readinessData.body_battery || 0;
-    const hrv = (readinessData.hrv_status || '').toLowerCase();
-    const intensity = (workout.intensity || 'moderate').toLowerCase();
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const adaptation = workout.is_adapted ? await getAdaptationForDate(activeSeason.id, todayStr) : null;
+    const ctx = getCoherentContext(readinessData, workout, adaptation);
+    context = ctx.text;
 
-    // Readiness assessment
-    const readinessGood = sleep >= 70 && (hrv === 'balanced' || hrv === 'high');
-    const readinessPoor = sleep < 50 || hrv === 'low' || bb < 30;
-
-    if (readinessGood && intensity === 'low') {
-      // Good recovery but easy day planned — explain the periodization
-      context = `Recovery looks great (${sleep} sleep, ${hrv} HRV). Today's easy session is strategic — building aerobic base while staying fresh for harder days ahead.`;
-    } else if (readinessGood && intensity === 'high') {
-      context = `You're well recovered (${sleep} sleep, ${hrv} HRV) — perfect day to push hard.`;
-    } else if (readinessGood) {
-      context = `Good recovery (${sleep} sleep, ${hrv} HRV). Solid day for ${intensity} effort.`;
-    } else if (readinessPoor && intensity === 'high') {
-      context = `Recovery indicators are low (${sleep} sleep${bb ? `, ${bb} battery` : ''}). Consider dialing back intensity today.`;
-    } else if (readinessPoor) {
-      context = `Recovery is below baseline. Listen to your body and don't push beyond what feels right.`;
-    } else {
+    // Show stale indicator if readiness has recovered since adaptation
+    if (ctx.isStale) {
+      const staleEl = document.createElement('div');
+      staleEl.className = 'hero-stale-indicator';
+      staleEl.innerHTML = `<span class="stale-dot"></span><span>Readiness recovered since last adjustment</span><button class="stale-refresh-link" id="heroStaleRefresh">Refresh</button>`;
+      heroContext.parentElement?.appendChild(staleEl);
+      document.getElementById('heroStaleRefresh')?.addEventListener('click', () => {
+        document.getElementById('heroRefreshBtn')?.click();
+      });
+    }
+  } catch (e) {
+    // Fallback to standard context generation
+    if (readinessData) {
+      const sleep = readinessData.sleep_score || 0;
+      const hrv = (readinessData.hrv_status || '').toLowerCase();
+      const intensity = (workout.intensity || 'moderate').toLowerCase();
       context = `Your ${sleep} sleep score and ${hrv || 'steady'} HRV support ${intensity} effort today.`;
     }
   }

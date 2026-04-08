@@ -288,6 +288,73 @@
       z-index: 1;
     }
 
+    .hero-top-right {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+
+    .hero-refresh-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--duration-short) var(--ease-snappy);
+      padding: 0;
+    }
+
+    .hero-refresh-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--accent);
+    }
+
+    .hero-refresh-btn.refreshing svg {
+      animation: heroSpin 0.8s linear infinite;
+    }
+
+    @keyframes heroSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Stale indicator in hero card */
+    .hero-stale-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      font-size: var(--text-xs);
+      color: var(--status-green);
+      opacity: 0.8;
+    }
+
+    .stale-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-green);
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+    }
+
+    .stale-refresh-link {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: var(--text-xs);
+      font-family: var(--font-mono);
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+
+    .stale-refresh-link:hover { color: var(--accent-hover); }
+
     .hero-type-tag {
       display: inline-flex;
       padding: 4px 10px;
@@ -1434,7 +1501,12 @@
       <div class="hero-card-inner" id="heroCardInner">
         <div class="hero-top">
           <span class="hero-type-tag" id="heroTypeTag">--</span>
-          <div class="hero-duration" id="heroDuration">--<span>m</span></div>
+          <div class="hero-top-right">
+            <button class="hero-refresh-btn" id="heroRefreshBtn" title="Re-evaluate based on current readiness" aria-label="Refresh insights" style="display:none">
+              <svg viewBox="0 0 24 24" width="16" height="16"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/></svg>
+            </button>
+            <div class="hero-duration" id="heroDuration">--<span>m</span></div>
+          </div>
         </div>
         <div class="hero-center">
           <div class="hero-title" id="heroTitle">Loading...</div>

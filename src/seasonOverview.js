@@ -1,5 +1,6 @@
 // Season overview dashboard — week-by-week progress, adherence, type distribution
-import { getSeasonOverviewStats } from './seasonData.js';
+import { getSeasonOverviewStats, getSeasonWorkouts, getWorkoutLogsForSeason, getSeasonById } from './seasonData.js';
+import { computePlannedCurve, computeActualCurve, renderSparkline } from './progressionSparkline.js';
 
 /**
  * Render the season progress overview into a container element.
@@ -12,6 +13,24 @@ export async function renderSeasonOverview(containerEl, seasonId, currentWeek) {
     const stats = await getSeasonOverviewStats(seasonId);
     containerEl.innerHTML = buildOverviewHTML(stats, currentWeek);
     containerEl.style.display = '';
+
+    // Render progression sparkline
+    const sparklineEl = containerEl.querySelector('#progressionSparkline');
+    if (sparklineEl) {
+      try {
+        const [season, workouts, logs] = await Promise.all([
+          getSeasonById(seasonId),
+          getSeasonWorkouts(seasonId),
+          getWorkoutLogsForSeason(seasonId),
+        ]);
+        if (season?.plan_json) {
+          const plannedCurve = computePlannedCurve(season.plan_json, season.duration_weeks);
+          const actualCurve = computeActualCurve(workouts, logs, currentWeek);
+          const phases = season.plan_json?.plan?.phases || [];
+          renderSparkline(sparklineEl, plannedCurve, actualCurve, currentWeek, phases, { compact: true });
+        }
+      } catch (e) { console.warn('Sparkline render failed:', e); }
+    }
   } catch (err) {
     console.warn('Season overview failed:', err);
     containerEl.style.display = 'none';
@@ -25,6 +44,14 @@ function buildOverviewHTML(stats, currentWeek) {
 
       ${buildTotalsRow(stats)}
       ${buildWeekBars(stats.weekStats, currentWeek)}
+      <div class="so-sparkline-section">
+        <div class="so-sparkline-label">PLANNED VS ACTUAL</div>
+        <div id="progressionSparkline" class="so-sparkline-container"></div>
+        <div class="so-sparkline-legend">
+          <span class="so-legend-item"><span class="so-legend-line dashed"></span>Planned</span>
+          <span class="so-legend-item"><span class="so-legend-line solid"></span>Actual</span>
+        </div>
+      </div>
       ${buildTypeDistribution(stats.typeCounts)}
     </div>
   `;

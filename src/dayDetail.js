@@ -7,8 +7,12 @@ import {
   getThisWeekWorkouts,
   getAdaptationForDate,
   getPlanCompletion,
+  revertWorkout,
+  getProposedAdaptations,
+  getWorkoutLog,
 } from './seasonData.js';
 import { TRIGGER_LABELS, TRIGGER_COLORS } from './adaptationFeed.js';
+import { isAdaptationStale, formatAdaptationAge } from './readinessCoherence.js';
 
 // ── DOM refs ────────────────────────────────────────────────
 
@@ -63,15 +67,43 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
         };
         const meta = triggerMeta[adaptation.trigger] || { icon: '🔄', color: '#888', desc: 'Adjusted' };
 
+        // Check staleness with current readiness
+        let _readinessData = null;
+        try {
+          const { getTodayReadiness } = await import('./trainingData.js');
+          _readinessData = await getTodayReadiness();
+        } catch { /* ok */ }
+
+        const stale = _readinessData ? isAdaptationStale(adaptation, _readinessData) : false;
+        const ageText = formatAdaptationAge(adaptation);
+
         html += `
           <div class="adapt-card" style="border-left-color:${meta.color}">
             <div class="adapt-card-header">
               <span class="adapt-card-trigger" style="background:${meta.color}15;color:${meta.color}">${meta.icon} ${esc(meta.desc)}</span>
+              <span class="adapt-card-age">${esc(ageText)}</span>
             </div>
             <div class="adapt-card-headline">${esc(headline)}</div>
             ${detail ? `<button class="adapt-card-toggle" onclick="this.nextElementSibling.classList.toggle('visible');this.textContent=this.textContent==='Show details'?'Hide details':'Show details'">Show details</button><div class="adapt-card-detail">${esc(detail)}</div>` : ''}
           </div>
         `;
+
+        // Stale adaptation banner
+        if (stale) {
+          html += `
+            <div class="stale-adaptation-banner">
+              <div class="stale-banner-content">
+                <strong>Readiness Recovered</strong>
+                <p>${esc(ageText)}. Your current readiness supports the original plan.</p>
+              </div>
+              <div class="stale-banner-actions">
+                <button class="btn-primary btn-sm" id="staleRevertBtn" data-workout-id="${workout.id}">Revert to Original</button>
+                <button class="btn-ghost btn-sm" id="staleRefreshBtn">Refresh AI</button>
+                <button class="btn-ghost btn-sm" id="staleKeepBtn">Keep Adjusted</button>
+              </div>
+            </div>
+          `;
+        }
       }
     } catch { /* ignore — don't block workout display */ }
   }
@@ -149,6 +181,9 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
     }
   } catch { /* plan_completions may not exist yet */ }
 
+  // Garmin Activity Card — embed if there's a linked activity
+  html += '<div id="garminActivityEmbed"></div>';
+
   // Workout logger
   html += '<div id="dayDetailLogger"></div>';
 
@@ -161,6 +196,47 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   `;
 
   contentEl.innerHTML = html;
+
+  // Render Garmin activity card if activity is linked
+  try {
+    const completion = await getPlanCompletion(workout.id);
+    const log = await getWorkoutLog(workout.id).catch(() => null);
+    const garminActivityId = completion?.activity_id || log?.garmin_activity_id;
+    if (garminActivityId) {
+      const embedEl = document.getElementById('garminActivityEmbed');
+      if (embedEl) {
+        const { renderGarminActivityCard } = await import('./garminActivityCard.js');
+        renderGarminActivityCard(embedEl, garminActivityId);
+      }
+    }
+  } catch { /* ignore — don't block display */ }
+
+  // Wire stale adaptation banner buttons
+  const staleRevertBtn = document.getElementById('staleRevertBtn');
+  if (staleRevertBtn) {
+    staleRevertBtn.addEventListener('click', async () => {
+      staleRevertBtn.disabled = true; staleRevertBtn.textContent = 'Reverting...';
+      try {
+        await revertWorkout(workout.id);
+        close();
+        window.dispatchEvent(new CustomEvent('utrain:adaptationResolved'));
+      } catch (err) {
+        staleRevertBtn.textContent = 'Failed'; staleRevertBtn.disabled = false;
+      }
+    });
+  }
+  document.getElementById('staleRefreshBtn')?.addEventListener('click', async () => {
+    try {
+      const proposals = await getProposedAdaptations(true);
+      if (proposals.has_changes) {
+        const { showAdaptationApproval } = await import('./adaptationApproval.js');
+        showAdaptationApproval(proposals, { onComplete: () => { close(); window.dispatchEvent(new CustomEvent('utrain:adaptationResolved')); } });
+      }
+    } catch (err) { console.error('Refresh failed:', err); }
+  });
+  document.getElementById('staleKeepBtn')?.addEventListener('click', () => {
+    document.querySelector('.stale-adaptation-banner')?.remove();
+  });
 
   // Render workout logger
   const loggerEl = document.getElementById('dayDetailLogger');

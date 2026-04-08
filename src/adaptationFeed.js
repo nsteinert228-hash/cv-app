@@ -3,6 +3,7 @@ import {
   getUnacknowledgedAdaptations,
   acknowledgeAdaptation,
 } from './seasonData.js';
+import { formatAdaptationAge } from './readinessCoherence.js';
 
 export const TRIGGER_LABELS = {
   hrv_drop: 'HRV',
@@ -48,14 +49,20 @@ export async function renderAdaptationFeed(containerEl, seasonId) {
       const headline = cleaned.split(/\.\s/)[0];
       const truncated = headline.length > 80 ? headline.slice(0, 77) + '...' : headline;
 
+      const isProposed = a.approval_status === 'proposed';
+      const ageText = formatAdaptationAge(a);
+
       return `
         <div class="adapt-item ${TRIGGER_COLORS[a.trigger] || 'adapt-schedule'}" data-id="${a.id}">
           <span class="adapt-icon">${TRIGGER_LABELS[a.trigger] || TRIGGER_LABELS.unknown}</span>
           <div class="adapt-content">
             <div class="adapt-summary">${esc(truncated)}</div>
-            <div class="adapt-date">${esc(a.affected_date)}</div>
+            <div class="adapt-date">${esc(a.affected_date)} · <span class="adapt-age">${esc(ageText)}</span></div>
           </div>
-          <button class="adapt-dismiss" aria-label="Dismiss">Got it</button>
+          ${isProposed
+            ? `<button class="adapt-review" aria-label="Review changes" data-id="${a.id}">Review</button>`
+            : `<button class="adapt-dismiss" aria-label="Dismiss">Got it</button>`
+          }
         </div>
       `;
     }).join('');
@@ -75,6 +82,22 @@ export async function renderAdaptationFeed(containerEl, seasonId) {
         } catch (err) {
           console.error('Failed to dismiss adaptation:', err);
         }
+      });
+    });
+
+    // Bind review handlers for proposed adaptations
+    containerEl.querySelectorAll('.adapt-review').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          const { getProposedAdaptations } = await import('./seasonData.js');
+          const proposals = await getProposedAdaptations(true);
+          if (proposals.has_changes) {
+            const { showAdaptationApproval } = await import('./adaptationApproval.js');
+            showAdaptationApproval(proposals, {
+              onComplete: () => window.dispatchEvent(new CustomEvent('utrain:adaptationResolved')),
+            });
+          }
+        } catch (err) { console.error('Review failed:', err); }
       });
     });
 

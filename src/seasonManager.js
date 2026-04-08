@@ -5,6 +5,7 @@ import {
   completeSeason,
   abandonSeason,
   triggerAdaptation,
+  getProposedAdaptations,
 } from './seasonData.js';
 import { getTrainingPreferences } from './trainingData.js';
 
@@ -82,7 +83,19 @@ export async function stopCurrentSeason() {
  */
 export async function checkAdaptations(force = false) {
   try {
-    return await triggerAdaptation(force);
+    const proposals = await getProposedAdaptations(force);
+    if (proposals.has_changes) {
+      // Show the approval modal — lazy import to avoid circular deps
+      const { showAdaptationApproval } = await import('./adaptationApproval.js');
+      showAdaptationApproval(proposals, {
+        onComplete: () => {
+          // Dispatch event so dashboard can refresh
+          window.dispatchEvent(new CustomEvent('utrain:adaptationResolved'));
+        },
+      });
+      return proposals;
+    }
+    return { adaptations: [], has_changes: false };
   } catch (err) {
     console.error('Adaptation check failed:', err);
     return { adaptations: [], _error: err.message };
