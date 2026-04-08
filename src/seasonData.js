@@ -9,14 +9,51 @@ async function _callEdgeFunction(name, body = {}) {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase not configured');
 
-  // Use Supabase client's built-in functions.invoke() which handles auth automatically
-  const { data, error } = await client.functions.invoke(name, {
-    body,
-  });
+  // Force token refresh via getSession which returns fresh tokens
+  const { data: { session }, error: sessionError } = await client.auth.getSession();
+  if (sessionError) console.warn('Session error:', sessionError.message);
+  if (!session?.access_token) throw new Error('Not authenticated');
 
-  if (error) {
-    throw new Error(error.message || `Edge function error`);
+  let res;
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (networkErr) {
+    throw new Error('Unable to reach the server. Check your connection and try again.');
   }
+
+  if (res.status === 401) {
+    // Token may be stale in cache — try one more time with refreshed session
+    const { data: refreshed } = await client.auth.refreshSession();
+    if (refreshed?.session?.access_token) {
+      try {
+        res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${refreshed.session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify(body),
+        });
+      } catch { /* fall through to error handling below */ }
+    }
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Server returned an invalid response (${res.status})`);
+  }
+  if (!res.ok) throw new Error(data.error || `Edge function error: ${res.status}`);
   return data;
 }
 
