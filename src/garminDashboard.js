@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from './supabase.js';
 import { onAuthStateChange, getUser } from './auth.js';
 import { createAuthUI } from './authUI.js';
 import * as garmin from './garmin.js';
+import { initProfilePanel } from './userProfileUI.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ function esc(str) {
 
 const authSection = document.getElementById('authSection');
 const authUI = createAuthUI();
+initProfilePanel(authUI);
 
 const dashboardContent = document.getElementById('dashboardContent');
 const emptyState = document.getElementById('emptyState');

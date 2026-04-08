@@ -1315,6 +1315,9 @@
           <span class="auth-user" id="authUser"></span>
           <button class="auth-btn" id="authBtn">Sign In</button>
         </div>
+        <button class="profile-avatar-btn" id="profileAvatarBtn" title="Profile" aria-label="Open profile">
+          <span class="profile-avatar-initial" id="profileAvatarInitial"></span>
+        </button>
         <button class="overflow-btn" id="overflowBtn" title="More options" aria-label="More options">&#x22EF;</button>
       </div>
     </div>
@@ -1642,16 +1645,18 @@
     </div>
   </div>
 
+  <!-- Profile Panel -->
+  <div class="profile-backdrop" id="profileBackdrop"></div>
+  <div class="profile-panel" id="profilePanel">
+    <div class="profile-panel-inner" id="profilePanelInner"></div>
+  </div>
+
   <!-- Bottom Tab Bar -->
   <nav class="tab-bar">
     <div class="tab-indicator" data-active="0"></div>
     <a class="tab-link active" href="training.html" aria-label="Home">
       <svg class="tab-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       <span class="tab-label">Home</span>
-    </a>
-    <a class="tab-link" href="garmin.html" aria-label="Readiness">
-      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 12h3l2-4 4 8 2-4h3"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
-      <span class="tab-label">Readiness</span>
     </a>
     <a class="tab-link" href="index.html" aria-label="Tracker">
       <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 5v1m0 12v1m-7-7h1m12 0h1m-2.5-5.5l-.7.7m-8.6 8.6l-.7.7m0-10l.7.7m8.6 8.6l.7.7"/></svg>

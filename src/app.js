@@ -11,6 +11,7 @@ import { createAuthUI } from './authUI.js';
 import * as db from './db.js';
 import { getMurphAttempt, PHASES, MURPH_TARGETS } from './murph.js';
 import { initMurphUI } from './murphUI.js';
+import { initProfilePanel } from './userProfileUI.js';
 
 // Camera helpers
 async function startCamera(videoEl) {
@@ -621,6 +622,9 @@ authUI.init({
 async function init() {
   // Render any previously persisted session entries
   renderSessionLog();
+
+  // Init profile panel
+  initProfilePanel(authUI);
 
   // Show auth UI if Supabase is configured
   if (isSupabaseConfigured() && authSection) {

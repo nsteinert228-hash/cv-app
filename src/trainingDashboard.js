@@ -35,6 +35,7 @@ import { initPlanBuilder, destroyPlanBuilder } from './planBuilder.js';
 import { renderWeeklyView, renderWeekByNumber } from './weeklyView.js';
 import { renderSeasonOverview } from './seasonOverview.js';
 import { renderGoalTracker } from './goalTracker.js';
+import { initProfilePanel } from './userProfileUI.js';
 
 // ── DOM refs ─────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ let readinessData = null;
 // ── Auth ─────────────────────────────────────────────────────
 
 const authUI = createAuthUI();
+initProfilePanel(authUI);
 authUI.init({
   onSignIn() { refreshDashboard(); },
   onSignOut() {

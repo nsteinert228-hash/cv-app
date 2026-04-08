@@ -2249,9 +2249,14 @@
   <header>
     <div class="header-top">
       <h1>uTrain <span>Tracker</span></h1>
-      <div class="auth-section hidden" id="authSection">
-        <span class="auth-user" id="authUser"></span>
-        <button class="auth-btn" id="authBtn">Sign In</button>
+      <div class="header-right">
+        <div class="auth-section hidden" id="authSection">
+          <span class="auth-user" id="authUser"></span>
+          <button class="auth-btn" id="authBtn">Sign In</button>
+        </div>
+        <button class="profile-avatar-btn" id="profileAvatarBtn" title="Profile" aria-label="Open profile">
+          <span class="profile-avatar-initial" id="profileAvatarInitial"></span>
+        </button>
       </div>
     </div>
   </header>
@@ -2274,16 +2279,17 @@
     </div>
   </div>
 
-  <!-- Bottom Tab Bar -->
+  <!-- Profile Panel -->
+  <div class="profile-backdrop" id="profileBackdrop"></div>
+  <div class="profile-panel" id="profilePanel">
+    <div class="profile-panel-inner" id="profilePanelInner"></div>
+  </div>
+
   <nav class="tab-bar">
-    <div class="tab-indicator" data-active="2"></div>
+    <div class="tab-indicator" data-active="1"></div>
     <a class="tab-link" href="training.html" aria-label="Home">
       <svg class="tab-icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
       <span class="tab-label">Home</span>
-    </a>
-    <a class="tab-link" href="garmin.html" aria-label="Readiness">
-      <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 12h3l2-4 4 8 2-4h3"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
-      <span class="tab-label">Readiness</span>
     </a>
     <a class="tab-link active" href="index.html" aria-label="Tracker">
       <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 5v1m0 12v1m-7-7h1m12 0h1m-2.5-5.5l-.7.7m-8.6 8.6l-.7.7m0-10l.7.7m8.6 8.6l.7.7"/></svg>

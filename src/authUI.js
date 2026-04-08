@@ -14,17 +14,26 @@ export function createAuthUI() {
   const authToggleText = document.getElementById('authToggleText');
   const authToggleLink = document.getElementById('authToggleLink');
 
+  const avatarBtn = document.getElementById('profileAvatarBtn');
+  const avatarInitial = document.getElementById('profileAvatarInitial');
+
   let authMode = 'signin';
   let currentUser = null;
 
   function updateAuthUI(user) {
     currentUser = user;
     if (user) {
-      authUser.textContent = user.email;
-      authBtn.textContent = 'Sign Out';
+      if (authUser) authUser.textContent = user.email;
+      if (authBtn) authBtn.textContent = 'Sign Out';
+      // Update avatar button
+      const initial = user.email ? user.email[0].toUpperCase() : '?';
+      if (avatarInitial) avatarInitial.textContent = initial;
+      if (avatarBtn) avatarBtn.classList.add('signed-in');
     } else {
-      authUser.textContent = '';
-      authBtn.textContent = 'Sign In';
+      if (authUser) authUser.textContent = '';
+      if (authBtn) authBtn.textContent = 'Sign In';
+      if (avatarInitial) avatarInitial.textContent = '';
+      if (avatarBtn) avatarBtn.classList.remove('signed-in');
     }
   }
 

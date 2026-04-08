@@ -13,6 +13,10 @@
        Readiness Dashboard — Premium Health Intelligence
        ════════════════════════════════════════════════════ */
 
+    /* Override tab indicator for 3-tab layout on this page */
+    .tab-indicator { width: calc(100% / 3); }
+    .tab-indicator[data-active="2"] { transform: translateX(200%); }
+
     /* ── Staggered entrance ── */
     @keyframes zoneEnter {
       from { opacity: 0; transform: translateY(8px); }
@@ -622,9 +626,14 @@
   <header>
     <div class="header-top">
       <h1>uTrain <span>Readiness</span></h1>
-      <div class="auth-section hidden" id="authSection">
-        <span class="auth-user" id="authUser"></span>
-        <button class="auth-btn" id="authBtn">Sign In</button>
+      <div class="header-right">
+        <div class="auth-section hidden" id="authSection">
+          <span class="auth-user" id="authUser"></span>
+          <button class="auth-btn" id="authBtn">Sign In</button>
+        </div>
+        <button class="profile-avatar-btn" id="profileAvatarBtn" title="Profile" aria-label="Open profile">
+          <span class="profile-avatar-initial" id="profileAvatarInitial"></span>
+        </button>
       </div>
     </div>
   </header>
@@ -867,6 +876,12 @@
       <div class="garmin-error" id="garminError"></div>
       <div class="garmin-privacy">Your password is encrypted at rest and used only for initial authentication.</div>
     </div>
+  </div>
+
+  <!-- Profile Panel -->
+  <div class="profile-backdrop" id="profileBackdrop"></div>
+  <div class="profile-panel" id="profilePanel">
+    <div class="profile-panel-inner" id="profilePanelInner"></div>
   </div>
 
   <!-- Bottom Tab Bar -->
