@@ -264,6 +264,9 @@ async function refreshDashboard() {
     currentUser = await getUser();
   } catch { currentUser = null; }
 
+  // Update auth UI (avatar button + auth section) with current user state
+  authUI.updateAuthUI(currentUser);
+
   if (!currentUser) {
     dashboardContent.classList.remove('visible');
     emptyState.style.display = '';
