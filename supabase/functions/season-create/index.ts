@@ -19,6 +19,9 @@ Rules:
 - Build a progressive, periodized plan with appropriate volume and intensity ramps
 - Include a mix of strength, cardio, recovery, and rest days
 - Each daily workout must have specific exercises with sets, reps, rest times, and form cues
+- For intermediate and advanced users, include a "weight" field (number) for strength exercises where appropriate — use conservative starting weights based on the client's skill level, body composition, and training history
+- Weight values should use the client's preferred unit (lbs or kg, provided in config)
+- For beginners, omit weight and focus on form mastery with bodyweight or light loads
 - Cardio workouts should specify type (running, cycling, swimming), duration, and intensity zone
 - Rest and recovery days should include active recovery suggestions
 - If previous season data is provided, build on it — progress from where they left off
@@ -66,6 +69,7 @@ const SEASON_SCHEMA = `{
                 "exercise": "string",
                 "sets": 3,
                 "reps": "8-12",
+                "weight": 135,
                 "rest_seconds": 60,
                 "notes": "optional brief cue"
               }
@@ -83,7 +87,8 @@ IMPORTANT:
 - Provide one template per phase. A phase can span multiple weeks.
 - Use 2-4 phases total for an 8-week plan.
 - Progressive overload: later phases should increase volume/intensity from earlier ones.
-- Keep exercise lists concise (3-6 exercises per workout, brief notes).`;
+- Keep exercise lists concise (3-6 exercises per workout, brief notes).
+- The "weight" field is optional (number, in the client's preferred unit). Include it for compound and isolation lifts where the client is intermediate+. Omit for bodyweight exercises, stretches, and beginners.`;
 
 // ── Helpers ─────────────────────────────────────────────────
 
@@ -275,6 +280,7 @@ Deno.serve(async (req) => {
     const preferredActivities = preferences.preferred_activities || [];
     const avoidedExercises = preferences.avoided_exercises || [];
     const daysPerWeek = preferences.days_per_week || 5;
+    const weightUnit = preferences.weight_unit || "lbs";
 
     let planBuilderContext = "";
     if (trainingType || skillLevel || preferredActivities.length || avoidedExercises.length) {
@@ -283,6 +289,7 @@ Deno.serve(async (req) => {
 - Training Type: ${trainingType || "general fitness"}
 - Skill Level: ${skillLevel || "intermediate"}
 - Training Days Per Week: ${daysPerWeek}
+- Weight Unit: ${weightUnit}
 ${preferredActivities.length ? `- Preferred Activities: ${preferredActivities.join(", ")}` : ""}
 ${avoidedExercises.length ? `- Exercises to AVOID (do NOT include these): ${avoidedExercises.join(", ")}` : ""}
 ${preferences.injuries ? `- Injuries/Notes: ${preferences.injuries}` : ""}
@@ -386,6 +393,7 @@ Build on the previous season — progress from where the client left off.`;
     };
 
     // Add plan builder fields if available
+    seasonInsert.weight_unit = weightUnit;
     if (trainingType) seasonInsert.training_type = trainingType;
     if (skillLevel) seasonInsert.skill_level = skillLevel;
     if (avoidedExercises.length) seasonInsert.avoided_exercises = avoidedExercises;

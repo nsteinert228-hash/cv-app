@@ -73,6 +73,122 @@ python main.py status
 
 All tables include `raw_json` (full API response), `created_at`, `updated_at`, and `synced_at`. RLS is enabled with a service_role bypass policy.
 
+## Automated Sync (macOS)
+
+The sync can run automatically in the background using macOS `launchd`. This syncs yesterday + today every 4 hours and on login/boot.
+
+### 1. Create the wrapper script
+
+Create `sync-cron.sh` in the `garmin-sync/` directory:
+
+```bash
+#!/bin/bash
+# Garmin → Supabase sync cron wrapper
+set -euo pipefail
+
+YESTERDAY=$(date -v-1d +%Y-%m-%d)
+TODAY=$(date +%Y-%m-%d)
+USER_ID="<your-supabase-user-uuid>"
+
+cd ~/cv-app/garmin-sync
+exec .venv/bin/python main.py sync --range "$YESTERDAY" "$TODAY" --user-id "$USER_ID"
+```
+
+Replace `<your-supabase-user-uuid>` with your user ID from Supabase Auth.
+
+Make it executable:
+
+```bash
+chmod +x ~/cv-app/garmin-sync/sync-cron.sh
+```
+
+### 2. Create the log directory
+
+```bash
+mkdir -p ~/cv-app/garmin-sync/logs
+```
+
+### 3. Create the launchd plist
+
+Save the following to `~/Library/LaunchAgents/com.nsteinert.garmin-sync.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.nsteinert.garmin-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/YOUR_USERNAME/cv-app/garmin-sync/sync-cron.sh</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartInterval</key>
+    <integer>14400</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/cv-app/garmin-sync/logs/sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/cv-app/garmin-sync/logs/sync-error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
+```
+
+Replace `YOUR_USERNAME` with your macOS username (run `whoami` to check).
+
+### 4. Bootstrap your Garmin tokens
+
+Before the automated sync can work, you need to authenticate once manually so that garmy caches your OAuth tokens to `~/.garmy/`:
+
+```bash
+cd ~/cv-app/garmin-sync
+source .venv/bin/activate
+python main.py sync --today --user-id <your-uuid>
+```
+
+This performs an SSO login and saves tokens to disk. All future runs (including the cron) will use cached/refreshed tokens without needing interactive login.
+
+### 5. Load the scheduled job
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.nsteinert.garmin-sync.plist
+```
+
+Verify it's registered:
+
+```bash
+launchctl list | grep garmin
+```
+
+### Managing the sync job
+
+| Action | Command |
+|---|---|
+| Trigger manually | `launchctl start com.nsteinert.garmin-sync` |
+| Stop a running sync | `launchctl stop com.nsteinert.garmin-sync` |
+| Disable | `launchctl unload ~/Library/LaunchAgents/com.nsteinert.garmin-sync.plist` |
+| Re-enable | `launchctl load ~/Library/LaunchAgents/com.nsteinert.garmin-sync.plist` |
+| Watch logs | `tail -f ~/cv-app/garmin-sync/logs/sync-error.log` |
+
+### How it works
+
+- Runs on login/boot, then every 4 hours while your Mac is awake
+- Skipped runs (e.g., Mac asleep) are not retried — the next run catches up by syncing yesterday + today
+- Uses garmy's OAuth2 refresh tokens (valid ~30 days). As long as the sync runs at least once a month, no manual re-auth is needed
+- If the refresh token expires (e.g., Mac unused for 30+ days), run the manual sync from step 4 once to re-authenticate
+
 ## Development
 
 ```bash

@@ -3,6 +3,7 @@ import {
   submitWorkoutLog,
   getWorkoutLog,
   findMatchingGarminActivity,
+  getSeasonById,
 } from './seasonData.js';
 
 // ── Render workout confirmation panel ────────────────────────
@@ -23,6 +24,14 @@ export async function renderWorkoutConfirmation(containerEl, workout) {
   const prescription = workout.prescription_json || {};
   const isCardio = workout.workout_type === 'cardio';
 
+  // Resolve weight_unit from the parent season
+  if (workout.season_id && !workout.weight_unit) {
+    try {
+      const season = await getSeasonById(workout.season_id);
+      if (season?.weight_unit) workout.weight_unit = season.weight_unit;
+    } catch { /* fall back to default 'lbs' */ }
+  }
+
   if (isCardio) {
     await renderCardioConfirmation(containerEl, workout, prescription);
   } else {
@@ -33,7 +42,8 @@ export async function renderWorkoutConfirmation(containerEl, workout) {
 // ── Strength confirmation ────────────────────────────────────
 
 function renderStrengthConfirmation(containerEl, workout, prescription) {
-  const exercises = prescription.main_workout || [];
+  const exercises = prescription.exercises || prescription.main_workout || [];
+  const weightUnit = workout.weight_unit || 'lbs';
 
   const html = `
     <div class="workout-logger">
@@ -48,9 +58,20 @@ function renderStrengthConfirmation(containerEl, workout, prescription) {
             <div class="logger-fields">
               <label>Sets <input type="number" class="logger-input" data-field="sets" value="${ex.sets || 0}" min="0"></label>
               <label>Reps <input type="text" class="logger-input" data-field="reps" value="${esc(String(ex.reps || ''))}" size="6"></label>
+              <label>Weight <input type="number" class="logger-input logger-weight-input" data-field="weight" value="${ex.weight || ''}" min="0" step="2.5" placeholder="—">${esc(weightUnit)}</label>
             </div>
           </div>
         `).join('')}
+      </div>
+      <div class="logger-rpe">
+        <label class="rpe-label">
+          <span>Session RPE</span>
+          <span class="rpe-value" id="rpeDisplay">5</span>
+        </label>
+        <input type="range" class="rpe-slider" id="rpeSlider" min="1" max="10" value="5" step="1">
+        <div class="rpe-descriptors">
+          <span>Easy</span><span>Moderate</span><span>Hard</span><span>Max</span>
+        </div>
       </div>
       <div class="logger-notes">
         <textarea placeholder="Notes (optional)" class="logger-notes-input" rows="2"></textarea>
@@ -65,6 +86,15 @@ function renderStrengthConfirmation(containerEl, workout, prescription) {
   `;
 
   containerEl.innerHTML = html;
+
+  // RPE slider live display
+  const rpeSlider = containerEl.querySelector('#rpeSlider');
+  const rpeDisplay = containerEl.querySelector('#rpeDisplay');
+  if (rpeSlider && rpeDisplay) {
+    rpeSlider.addEventListener('input', () => {
+      rpeDisplay.textContent = rpeSlider.value;
+    });
+  }
 
   // "Complete as prescribed" — submit exactly as shown
   containerEl.querySelector('.logger-complete-btn').addEventListener('click', async () => {
@@ -93,6 +123,9 @@ async function submitLog(containerEl, workout, prescription, status, asPrescribe
       : buildEditedActual(containerEl, prescription);
 
     const notes = containerEl.querySelector('.logger-notes-input')?.value?.trim() || null;
+    const rpeSlider = containerEl.querySelector('#rpeSlider');
+    const rpe = rpeSlider ? parseInt(rpeSlider.value, 10) : null;
+    if (rpe !== null && !isNaN(rpe)) actualJson.rpe = rpe;
 
     const result = await submitWorkoutLog(workout.id, status, actualJson, null, notes);
     renderLoggedStatus(containerEl, workout, {
@@ -108,12 +141,16 @@ async function submitLog(containerEl, workout, prescription, status, asPrescribe
 }
 
 function buildPrescribedActual(prescription) {
-  const exercises = (prescription.main_workout || []).map(ex => ({
-    exercise: ex.exercise,
-    sets_completed: ex.sets || 0,
-    reps: ex.reps,
-    completed: true,
-  }));
+  const exercises = (prescription.exercises || prescription.main_workout || []).map(ex => {
+    const entry = {
+      exercise: ex.exercise,
+      sets_completed: ex.sets || 0,
+      reps: ex.reps,
+      completed: true,
+    };
+    if (ex.weight != null) entry.weight = ex.weight;
+    return entry;
+  });
   return { exercises };
 }
 
@@ -125,14 +162,18 @@ function buildEditedActual(containerEl, prescription) {
     const checked = row.querySelector('input[type="checkbox"]').checked;
     const setsInput = row.querySelector('[data-field="sets"]');
     const repsInput = row.querySelector('[data-field="reps"]');
-    const original = (prescription.main_workout || [])[i] || {};
+    const weightInput = row.querySelector('[data-field="weight"]');
+    const original = (prescription.exercises || prescription.main_workout || [])[i] || {};
 
-    exercises.push({
+    const entry = {
       exercise: original.exercise || `Exercise ${i + 1}`,
       sets_completed: checked ? parseInt(setsInput?.value || '0', 10) : 0,
       reps: repsInput?.value || original.reps || '0',
       completed: checked,
-    });
+    };
+    const w = parseFloat(weightInput?.value);
+    if (!isNaN(w) && w > 0) entry.weight = w;
+    exercises.push(entry);
   });
 
   return { exercises };

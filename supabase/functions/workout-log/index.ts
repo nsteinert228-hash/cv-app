@@ -17,7 +17,7 @@ function computeAdherenceScore(
 ): number {
   if (status === "skipped") return 0;
 
-  const prescribed = (prescription.main_workout as unknown[]) || [];
+  const prescribed = (prescription.exercises as unknown[]) || (prescription.main_workout as unknown[]) || [];
   const performed = (actual.exercises as unknown[]) || [];
 
   if (prescribed.length === 0) return 100;
@@ -29,6 +29,7 @@ function computeAdherenceScore(
     const rxEx = rx as Record<string, unknown>;
     const rxName = ((rxEx.exercise as string) || "").toLowerCase();
     const rxSets = (rxEx.sets as number) || 0;
+    const rxWeight = (rxEx.weight as number) || 0;
 
     // Find matching performed exercise
     const match = performed.find((p) => {
@@ -39,8 +40,28 @@ function computeAdherenceScore(
     if (match) {
       matchCount++;
       const actualSets = (match.sets_completed as number) || 0;
+      const actualWeight = (match.weight as number) || 0;
+
       const setRatio = rxSets > 0 ? Math.min(actualSets / rxSets, 1.0) : 1.0;
-      totalScore += setRatio * 100;
+
+      // Weight adherence: bonus/penalty when both prescribed and actual weights exist
+      let weightFactor = 1.0;
+      if (rxWeight > 0 && actualWeight > 0) {
+        const weightRatio = actualWeight / rxWeight;
+        // Hitting target or exceeding slightly (up to 110%) is perfect
+        // Under-shooting or overshooting beyond 110% reduces score proportionally
+        weightFactor = weightRatio >= 0.9 && weightRatio <= 1.1
+          ? 1.0
+          : Math.max(0.5, 1.0 - Math.abs(1.0 - weightRatio));
+      }
+
+      // Combine set adherence (70%) and weight adherence (30%) when weights exist
+      const hasWeights = rxWeight > 0 && actualWeight > 0;
+      const exerciseScore = hasWeights
+        ? (setRatio * 0.7 + weightFactor * 0.3) * 100
+        : setRatio * 100;
+
+      totalScore += exerciseScore;
     }
   }
 
@@ -74,7 +95,7 @@ Deno.serve(async (req) => {
 
     // ── Parse request ──
     const body = await req.json();
-    const { workout_id, status, actual_json, garmin_activity_id, notes, source: requestedSource } = body;
+    const { workout_id, status, actual_json, garmin_activity_id, notes, source: requestedSource, rpe: bodyRpe } = body;
 
     if (!workout_id) return jsonResponse({ error: "workout_id required" }, 400);
     if (!status || !["completed", "partial", "skipped", "substituted"].includes(status)) {
@@ -133,6 +154,16 @@ Deno.serve(async (req) => {
       status,
     );
 
+    // Extract RPE — either from actual_json.rpe (client-side) or body.rpe
+    const rpeRaw = (actualData as Record<string, unknown>).rpe ?? bodyRpe;
+    const rpe = typeof rpeRaw === "number" && rpeRaw >= 1 && rpeRaw <= 10
+      ? Math.round(rpeRaw)
+      : null;
+    // Remove rpe from actual_json to avoid duplication — it's stored as a column
+    if ("rpe" in (actualData as Record<string, unknown>)) {
+      delete (actualData as Record<string, unknown>).rpe;
+    }
+
     const validSources = ["manual", "garmin_auto", "garmin_confirmed"];
     const source = (requestedSource && validSources.includes(requestedSource))
       ? requestedSource
@@ -148,6 +179,7 @@ Deno.serve(async (req) => {
           actual_json: actualData,
           garmin_activity_id: garmin_activity_id || null,
           adherence_score: adherenceScore,
+          rpe,
           notes: notes || null,
         })
         .eq("id", existing.id);
@@ -177,6 +209,7 @@ Deno.serve(async (req) => {
         actual_json: actualData,
         garmin_activity_id: garmin_activity_id || null,
         adherence_score: adherenceScore,
+        rpe,
         notes: notes || null,
       })
       .select("id")
