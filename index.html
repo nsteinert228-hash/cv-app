@@ -1579,22 +1579,8 @@
     }
 
     /* ── Exercises Phase HUD (overlay) ── */
-    /* Push tracker content below the fixed Murph HUD */
-    .tracker-panel.murph-hud-active {
-      padding-top: 200px;
-    }
-
     .murph-exercises-hud {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
       padding: var(--space-3) var(--space-4) var(--space-3);
-      background: linear-gradient(180deg, rgba(8,8,8,0.92) 0%, rgba(8,8,8,0.78) 100%);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border-bottom: 1px solid rgba(200, 255, 0, 0.06);
     }
 
     /* ── Timer Row ── */
@@ -2802,7 +2788,6 @@
         const murphAttempt = window._getMurphAttempt && window._getMurphAttempt();
         const inMurphExercises = which === 'murph' && murphAttempt && murphAttempt.phase === 'exercises';
         trackerPanel.classList.toggle('hidden', which !== 'tracker' && !inMurphExercises);
-        trackerPanel.classList.toggle('murph-hud-active', inMurphExercises);
         // Pause tracker detect loop on non-exercises Murph phases, resume on tracker/exercises
         if (which === 'tracker' || inMurphExercises) {
           if (window._resumeTracker) window._resumeTracker();

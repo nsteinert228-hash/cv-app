@@ -170,10 +170,7 @@ function renderExercises(container, state) {
   // The Murph exercises phase reuses the shared tracker camera.
   // Show the tracker panel (camera feed) and push it below the HUD.
   const trackerPanel = document.getElementById('trackerPanel');
-  if (trackerPanel) {
-    trackerPanel.classList.remove('hidden');
-    trackerPanel.classList.add('murph-hud-active');
-  }
+  if (trackerPanel) trackerPanel.classList.remove('hidden');
 
   // Hide the tracker's own rep overlay — Murph HUD handles display
   const repOverlay = document.getElementById('repOverlay');
@@ -213,10 +210,7 @@ function renderExercises(container, state) {
 // Helper: hide tracker panel when leaving exercises phase
 function _hideTrackerForMurph() {
   const trackerPanel = document.getElementById('trackerPanel');
-  if (trackerPanel) {
-    trackerPanel.classList.add('hidden');
-    trackerPanel.classList.remove('murph-hud-active');
-  }
+  if (trackerPanel) trackerPanel.classList.add('hidden');
   if (window._pauseTracker) window._pauseTracker();
 }
 
