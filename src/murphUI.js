@@ -176,20 +176,20 @@ function renderExercises(container, state) {
   const repOverlay = document.getElementById('repOverlay');
   if (repOverlay) repOverlay.style.display = 'none';
 
+  const allDone = allTargetsMet(state.reps);
   container.innerHTML = `
     <div class="murph-exercises-hud" id="murphHUD">
-      <div class="murph-hud-top">
-        <div class="murph-hud-phase-tag">MURPH</div>
+      <div class="murph-hud-timer-row">
         <div class="murph-hud-timer">${formatTimer(state.elapsed)}</div>
-        <div class="murph-hud-progress-pct" id="murphHudPct">${totalProgress(state.reps)}%</div>
       </div>
       <div class="murph-hud-wheels">
-        ${renderRepWheel('PUL', state.reps.pullups, MURPH_TARGETS.pullups, 'pullups')}
-        ${renderRepWheel('PSH', state.reps.pushups, MURPH_TARGETS.pushups, 'pushups')}
-        ${renderRepWheel('SQT', state.reps.squats, MURPH_TARGETS.squats, 'squats')}
+        ${renderRepWheel('PULL', state.reps.pullups, MURPH_TARGETS.pullups, 'pullups')}
+        ${renderRepWheel('PUSH', state.reps.pushups, MURPH_TARGETS.pushups, 'pushups')}
+        ${renderRepWheel('SQUAT', state.reps.squats, MURPH_TARGETS.squats, 'squats')}
       </div>
-      <button class="murph-exercises-done-btn" id="murphExercisesDone">
-        ${allTargetsMet(state.reps) ? 'EXERCISES COMPLETE' : 'FINISH EXERCISES'}
+      <button class="murph-finish-pill ${allDone ? 'ready' : ''}" id="murphExercisesDone">
+        ${allDone ? 'COMPLETE' : 'FINISH'}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
   `;
@@ -381,30 +381,27 @@ function _updateTimerDisplay(state) {
   if (timerEl) timerEl.textContent = formatTimer(state.elapsed);
 }
 
-// SVG ring wheel — 270° arc, radius 36, circumference portion = 2π×36×(270/360) ≈ 169.6
-const WHEEL_R = 36;
-const WHEEL_CIRC = 2 * Math.PI * WHEEL_R * (270 / 360);
+// SVG ring — full 360° circle, radius 42
+const WHEEL_R = 42;
+const WHEEL_CIRC = 2 * Math.PI * WHEEL_R;
 
 function renderRepWheel(label, current, target, key) {
   const pct = Math.min(1, current / target);
   const offset = WHEEL_CIRC * (1 - pct);
   const done = current >= target;
-  const color = done ? 'var(--status-green)' : 'var(--accent)';
   return `
     <div class="murph-wheel ${done ? 'done' : ''}" data-exercise="${key}">
       <svg viewBox="0 0 100 100" class="murph-wheel-svg">
-        <circle class="murph-wheel-track" cx="50" cy="50" r="${WHEEL_R}"
-          stroke-dasharray="${WHEEL_CIRC}" stroke-dashoffset="0"
-          transform="rotate(135 50 50)" />
+        <circle class="murph-wheel-track" cx="50" cy="50" r="${WHEEL_R}" />
         <circle class="murph-wheel-fill" cx="50" cy="50" r="${WHEEL_R}"
-          stroke="${color}"
           stroke-dasharray="${WHEEL_CIRC}" stroke-dashoffset="${offset}"
-          transform="rotate(135 50 50)" />
+          transform="rotate(-90 50 50)" />
       </svg>
       <div class="murph-wheel-inner">
         <div class="murph-wheel-count">${current}</div>
-        <div class="murph-wheel-label">${label}</div>
+        <div class="murph-wheel-target">/ ${target}</div>
       </div>
+      <div class="murph-wheel-label">${label}</div>
     </div>
   `;
 }
@@ -455,9 +452,6 @@ export function updateMurphHUD(state) {
   const timerEl = hud.querySelector('.murph-hud-timer');
   if (timerEl) timerEl.textContent = formatTimer(state.elapsed);
 
-  const pctEl = document.getElementById('murphHudPct');
-  if (pctEl) pctEl.textContent = totalProgress(state.reps) + '%';
-
   const wheels = hud.querySelectorAll('.murph-wheel');
   const exercises = ['pullups', 'pushups', 'squats'];
   wheels.forEach((wheel, i) => {
@@ -470,17 +464,16 @@ export function updateMurphHUD(state) {
     const done = current >= target;
     const fill = wheel.querySelector('.murph-wheel-fill');
     const count = wheel.querySelector('.murph-wheel-count');
-    if (fill) {
-      fill.style.strokeDashoffset = offset;
-      fill.style.stroke = done ? 'var(--status-green)' : 'var(--accent)';
-    }
+    if (fill) fill.style.strokeDashoffset = offset;
     if (count) count.textContent = current;
     wheel.classList.toggle('done', done);
   });
 
+  const allDone = allTargetsMet(state.reps);
   const btn = document.getElementById('murphExercisesDone');
   if (btn) {
-    btn.textContent = allTargetsMet(state.reps) ? 'EXERCISES COMPLETE' : 'FINISH EXERCISES';
+    btn.innerHTML = `${allDone ? 'COMPLETE' : 'FINISH'}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>`;
+    btn.classList.toggle('ready', allDone);
   }
 }
 

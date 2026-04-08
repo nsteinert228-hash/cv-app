@@ -1585,85 +1585,76 @@
       left: 0;
       right: 0;
       z-index: 100;
-      padding: var(--space-3) var(--space-4) var(--space-2);
-      background: rgba(8, 8, 8, 0.88);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(200, 255, 0, 0.08);
+      padding: var(--space-3) var(--space-4) var(--space-3);
+      background: linear-gradient(180deg, rgba(8,8,8,0.92) 0%, rgba(8,8,8,0.78) 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(200, 255, 0, 0.06);
     }
 
-    .murph-hud-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    /* ── Timer Row ── */
+    .murph-hud-timer-row {
+      text-align: center;
       margin-bottom: var(--space-2);
-    }
-
-    .murph-hud-phase-tag {
-      font-family: var(--font-mono);
-      font-size: 8px;
-      font-weight: 600;
-      letter-spacing: 0.15em;
-      color: var(--accent);
-      background: var(--accent-tint);
-      padding: 2px 8px;
-      border-radius: 3px;
     }
 
     .murph-hud-timer {
-      font-family: var(--font-mono);
-      font-size: var(--text-xl);
-      font-weight: 500;
+      font-family: var(--font-display);
+      font-size: var(--text-3xl);
+      font-weight: 800;
       color: var(--text-primary);
+      letter-spacing: 0.04em;
+      line-height: 1;
     }
 
-    .murph-hud-progress-pct {
-      font-family: var(--font-mono);
-      font-size: var(--text-sm);
-      font-weight: 500;
-      color: var(--accent);
-    }
-
-    /* ── Murph Progress Wheels ── */
+    /* ── Progress Wheels ── */
     .murph-hud-wheels {
       display: flex;
       justify-content: center;
-      gap: var(--space-3);
-      margin-bottom: var(--space-2);
+      gap: var(--space-5);
+      margin-bottom: var(--space-3);
     }
 
     .murph-wheel {
       position: relative;
-      width: 72px;
-      height: 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .murph-wheel-svg {
-      width: 100%;
-      height: 100%;
-      transform: scaleX(-1); /* flip so arc fills clockwise */
+      width: 88px;
+      height: 88px;
+      filter: drop-shadow(0 0 6px rgba(200, 255, 0, 0.08));
+    }
+
+    .murph-wheel.done .murph-wheel-svg {
+      filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.2));
     }
 
     .murph-wheel-track {
       fill: none;
       stroke: var(--bg-surface-3);
-      stroke-width: 6;
-      stroke-linecap: round;
+      stroke-width: 5;
     }
 
     .murph-wheel-fill {
       fill: none;
       stroke: var(--accent);
-      stroke-width: 6;
+      stroke-width: 5;
       stroke-linecap: round;
-      transition: stroke-dashoffset 0.3s ease;
+      transition: stroke-dashoffset 0.4s var(--ease-snappy);
     }
 
     .murph-wheel.done .murph-wheel-fill { stroke: var(--status-green); }
 
     .murph-wheel-inner {
       position: absolute;
-      inset: 0;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 88px;
+      height: 88px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -1672,42 +1663,64 @@
     }
 
     .murph-wheel-count {
-      font-family: var(--font-mono);
-      font-size: 18px;
-      font-weight: 700;
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
       color: var(--text-primary);
       line-height: 1;
     }
 
     .murph-wheel.done .murph-wheel-count { color: var(--status-green); }
 
-    .murph-wheel-label {
+    .murph-wheel-target {
       font-family: var(--font-mono);
-      font-size: 8px;
-      font-weight: 500;
+      font-size: 9px;
+      font-weight: 400;
       color: var(--text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
-    .murph-exercises-done-btn {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: var(--radius-inner);
-      background: var(--accent);
-      color: var(--text-inverse);
+    .murph-wheel-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 4px;
+    }
+
+    .murph-wheel.done .murph-wheel-label { color: var(--status-green); }
+
+    /* ── Finish Button (pill) ── */
+    .murph-finish-pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 0 auto;
+      padding: 8px 28px;
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius-pill);
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
       font-family: var(--font-display);
       font-size: var(--text-sm);
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.08em;
       cursor: pointer;
-      transition: all var(--duration-short);
+      transition: all var(--duration-medium) var(--ease-snappy);
     }
 
-    .murph-exercises-done-btn:hover { opacity: 0.9; }
+    .murph-finish-pill:active { transform: scale(0.97); }
+
+    .murph-finish-pill.ready {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--text-inverse);
+      box-shadow: var(--accent-glow-sm);
+    }
 
     /* ── Murph Camera Container (independent instance) ── */
     .murph-camera-container {
