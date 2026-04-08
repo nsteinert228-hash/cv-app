@@ -45,6 +45,7 @@ async function _getClient() {
 
 async function fetchProfile() {
   const { client, user } = await _getClient();
+  console.log('[profile] user:', user?.id, user?.email);
   if (!client || !user) return null;
   const { data, error } = await client
     .from('user_profiles')
