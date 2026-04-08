@@ -183,10 +183,10 @@ function renderExercises(container, state) {
         <div class="murph-hud-timer">${formatTimer(state.elapsed)}</div>
         <div class="murph-hud-progress-pct" id="murphHudPct">${totalProgress(state.reps)}%</div>
       </div>
-      <div class="murph-hud-reps">
-        ${renderRepBar('Pull-ups', state.reps.pullups, MURPH_TARGETS.pullups, 'pullups')}
-        ${renderRepBar('Push-ups', state.reps.pushups, MURPH_TARGETS.pushups, 'pushups')}
-        ${renderRepBar('Squats', state.reps.squats, MURPH_TARGETS.squats, 'squats')}
+      <div class="murph-hud-wheels">
+        ${renderRepWheel('PUL', state.reps.pullups, MURPH_TARGETS.pullups, 'pullups')}
+        ${renderRepWheel('PSH', state.reps.pushups, MURPH_TARGETS.pushups, 'pushups')}
+        ${renderRepWheel('SQT', state.reps.squats, MURPH_TARGETS.squats, 'squats')}
       </div>
       <button class="murph-exercises-done-btn" id="murphExercisesDone">
         ${allTargetsMet(state.reps) ? 'EXERCISES COMPLETE' : 'FINISH EXERCISES'}
@@ -381,14 +381,30 @@ function _updateTimerDisplay(state) {
   if (timerEl) timerEl.textContent = formatTimer(state.elapsed);
 }
 
-function renderRepBar(label, current, target, key) {
-  const pct = Math.min(100, Math.round((current / target) * 100));
+// SVG ring wheel — 270° arc, radius 36, circumference portion = 2π×36×(270/360) ≈ 169.6
+const WHEEL_R = 36;
+const WHEEL_CIRC = 2 * Math.PI * WHEEL_R * (270 / 360);
+
+function renderRepWheel(label, current, target, key) {
+  const pct = Math.min(1, current / target);
+  const offset = WHEEL_CIRC * (1 - pct);
   const done = current >= target;
+  const color = done ? 'var(--status-green)' : 'var(--accent)';
   return `
-    <div class="murph-rep-row ${done ? 'done' : ''}" data-exercise="${key}">
-      <span class="murph-rep-label">${label}</span>
-      <div class="murph-rep-bar"><div class="murph-rep-fill" style="width:${pct}%"></div></div>
-      <span class="murph-rep-count">${current}<span class="murph-rep-target">/${target}</span></span>
+    <div class="murph-wheel ${done ? 'done' : ''}" data-exercise="${key}">
+      <svg viewBox="0 0 100 100" class="murph-wheel-svg">
+        <circle class="murph-wheel-track" cx="50" cy="50" r="${WHEEL_R}"
+          stroke-dasharray="${WHEEL_CIRC}" stroke-dashoffset="0"
+          transform="rotate(135 50 50)" />
+        <circle class="murph-wheel-fill" cx="50" cy="50" r="${WHEEL_R}"
+          stroke="${color}"
+          stroke-dasharray="${WHEEL_CIRC}" stroke-dashoffset="${offset}"
+          transform="rotate(135 50 50)" />
+      </svg>
+      <div class="murph-wheel-inner">
+        <div class="murph-wheel-count">${current}</div>
+        <div class="murph-wheel-label">${label}</div>
+      </div>
     </div>
   `;
 }
@@ -442,19 +458,24 @@ export function updateMurphHUD(state) {
   const pctEl = document.getElementById('murphHudPct');
   if (pctEl) pctEl.textContent = totalProgress(state.reps) + '%';
 
-  const rows = hud.querySelectorAll('.murph-rep-row');
+  const wheels = hud.querySelectorAll('.murph-wheel');
   const exercises = ['pullups', 'pushups', 'squats'];
-  rows.forEach((row, i) => {
+  wheels.forEach((wheel, i) => {
     const key = exercises[i];
     if (!key) return;
     const current = state.reps[key];
     const target = MURPH_TARGETS[key];
-    const pct = Math.min(100, Math.round((current / target) * 100));
-    const fill = row.querySelector('.murph-rep-fill');
-    const count = row.querySelector('.murph-rep-count');
-    if (fill) fill.style.width = pct + '%';
-    if (count) count.innerHTML = `${current}<span class="murph-rep-target">/${target}</span>`;
-    row.classList.toggle('done', current >= target);
+    const pct = Math.min(1, current / target);
+    const offset = WHEEL_CIRC * (1 - pct);
+    const done = current >= target;
+    const fill = wheel.querySelector('.murph-wheel-fill');
+    const count = wheel.querySelector('.murph-wheel-count');
+    if (fill) {
+      fill.style.strokeDashoffset = offset;
+      fill.style.stroke = done ? 'var(--status-green)' : 'var(--accent)';
+    }
+    if (count) count.textContent = current;
+    wheel.classList.toggle('done', done);
   });
 
   const btn = document.getElementById('murphExercisesDone');
