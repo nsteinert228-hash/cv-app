@@ -1388,7 +1388,9 @@ body {
 /* Adherence sparkline */
 .so-sparkline-container {
   position: relative;
-  height: 48px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .so-sparkline {
@@ -3520,14 +3522,6 @@ body {
 .progression-sparkline.compact,
 .progression-sparkline.full {
   display: block;
-  height: auto;
-}
-
-.so-sparkline-container,
-.aa-sparkline-container {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Season Overview sparkline section */

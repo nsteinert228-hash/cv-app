@@ -66,13 +66,12 @@ export function renderSparkline(container, plannedCurve, actualCurve, currentWee
   const totalWeeks = plannedCurve.length;
   const maxLoad = Math.max(100, ...plannedCurve.map(p => p.load), ...actualCurve.map(a => a.load));
 
-  // Use wider SVG for scrollability on long seasons, square-ish aspect for compact
-  const minW = compact ? 400 : 500;
-  const W = Math.max(minW, totalWeeks * 50);
-  const H = 200;
-  const padX = 12;
-  const padTop = compact ? 16 : 24;
-  const padBottom = compact ? 14 : 18;
+  // Square viewing box: height matches container width, scrollable if season is wide
+  const H = 300;
+  const W = Math.max(H, totalWeeks * 60);
+  const padX = 16;
+  const padTop = 28;
+  const padBottom = 20;
   const chartW = W - padX * 2;
   const chartH = H - padTop - padBottom;
 
@@ -188,9 +187,8 @@ export function renderSparkline(container, plannedCurve, actualCurve, currentWee
   const plannedPath = smoothPath(plannedDaily);
   const actualPath = actualDaily.length >= 2 ? smoothPath(actualDaily) : '';
 
-  // Set explicit width so the SVG overflows horizontally (scrollable container)
   container.innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="progression-sparkline ${compact ? 'compact' : 'full'}" preserveAspectRatio="none">
+    <svg viewBox="0 0 ${W} ${H}" style="width:${W}px;height:${H}px;display:block" class="progression-sparkline ${compact ? 'compact' : 'full'}">
       ${phaseLabels}
       ${ticks.join('')}
       ${divergenceFill}
