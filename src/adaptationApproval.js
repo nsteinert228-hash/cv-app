@@ -68,13 +68,26 @@ function renderDiffTable(proposedChanges) {
     const orig = change.original || {};
     const proposed = change.proposed || {};
 
-    const origLabel = `${orig.title || '--'} ${orig.duration_minutes ? formatDuration(orig.duration_minutes) : ''}`;
-    const proposedLabel = isChanged
-      ? `${proposed.title || '--'} ${proposed.duration_minutes ? formatDuration(proposed.duration_minutes) : ''}`
-      : 'No change';
+    const origIntensity = orig.intensity ? ` · ${orig.intensity}` : '';
+    const proposedIntensity = proposed.intensity ? ` · ${proposed.intensity}` : '';
+    const origLabel = `${orig.title || '--'} ${orig.duration_minutes ? formatDuration(orig.duration_minutes) : ''}${origIntensity}`;
 
     const intensityChanged = isChanged && orig.intensity !== proposed.intensity;
     const typeChanged = isChanged && orig.workout_type !== proposed.workout_type;
+    const durationChanged = isChanged && orig.duration_minutes !== proposed.duration_minutes;
+
+    // Build a meaningful proposed label that highlights what actually changed
+    let proposedLabel = 'No change';
+    if (isChanged) {
+      if (intensityChanged || durationChanged || typeChanged) {
+        proposedLabel = `${proposed.title || orig.title || '--'} ${proposed.duration_minutes ? formatDuration(proposed.duration_minutes) : formatDuration(orig.duration_minutes)}${proposedIntensity}`;
+      } else if (change.change_summary) {
+        // Title/duration/intensity are same but prescription details changed
+        proposedLabel = change.change_summary.length > 60 ? change.change_summary.slice(0, 57) + '...' : change.change_summary;
+      } else {
+        proposedLabel = `${proposed.title || '--'} ${proposed.duration_minutes ? formatDuration(proposed.duration_minutes) : ''}${proposedIntensity}`;
+      }
+    }
 
     return `
       <div class="aa-diff-row ${isChanged ? 'changed' : 'unchanged'}" data-index="${i}" data-workout-id="${change.workout_id || ''}">
@@ -88,6 +101,7 @@ function renderDiffTable(proposedChanges) {
         ${change.change_summary ? `<div class="aa-change-summary">${esc(change.change_summary)}</div>` : ''}
         ${intensityChanged ? `<div class="aa-change-detail">Intensity: <span class="aa-old">${esc(orig.intensity || '--')}</span> → <span class="aa-new">${esc(proposed.intensity || '--')}</span></div>` : ''}
         ${typeChanged ? `<div class="aa-change-detail">Type: <span class="aa-old">${esc(orig.workout_type || '--')}</span> → <span class="aa-new">${esc(proposed.workout_type || '--')}</span></div>` : ''}
+        ${durationChanged ? `<div class="aa-change-detail">Duration: <span class="aa-old">${orig.duration_minutes || '--'}m</span> → <span class="aa-new">${proposed.duration_minutes || '--'}m</span></div>` : ''}
       </div>` : ''}`;
   }).join('');
 
@@ -140,8 +154,8 @@ export function showAdaptationApproval(proposalData, options = {}) {
           ${renderDiffTable(proposalData.proposed_changes)}
         </div>
 
-        <!-- Section 3: Projected Impact -->
-        <div class="aa-section">
+        <!-- Section 3: Projected Impact (only shown when sparkline data available) -->
+        <div class="aa-section" id="aaSparklineSection" style="display:none">
           <div class="aa-section-title">PROJECTED IMPACT</div>
           <div class="aa-sparkline-container" id="aaSparkline"></div>
           <div class="aa-sparkline-legend">
@@ -176,6 +190,8 @@ export function showAdaptationApproval(proposalData, options = {}) {
 
   // Render sparkline if data available
   if (options.plannedCurve && options.actualCurve) {
+    const sparklineSection = document.getElementById('aaSparklineSection');
+    if (sparklineSection) sparklineSection.style.display = '';
     const sparklineEl = document.getElementById('aaSparkline');
     if (sparklineEl) {
       renderSparkline(
