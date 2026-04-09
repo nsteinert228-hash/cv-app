@@ -3517,14 +3517,17 @@ body {
   display: block;
 }
 
-.progression-sparkline.compact {
-  height: 160px;
-  min-width: 400px;
+.progression-sparkline.compact,
+.progression-sparkline.full {
+  display: block;
+  height: auto;
 }
 
-.progression-sparkline.full {
-  height: 200px;
-  min-width: 500px;
+.so-sparkline-container,
+.aa-sparkline-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Season Overview sparkline section */
