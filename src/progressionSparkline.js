@@ -63,18 +63,18 @@ export function renderSparkline(container, plannedCurve, actualCurve, currentWee
     return;
   }
 
+  const totalWeeks = plannedCurve.length;
+  const maxLoad = Math.max(100, ...plannedCurve.map(p => p.load), ...actualCurve.map(a => a.load));
+
   // Use wider SVG for scrollability on long seasons, square-ish aspect for compact
   const minW = compact ? 400 : 500;
-  const W = Math.max(minW, totalWeeks * 50); // 50px per week ensures room for detail
+  const W = Math.max(minW, totalWeeks * 50);
   const H = compact ? 160 : 200;
   const padX = 12;
   const padTop = compact ? 16 : 24;
   const padBottom = compact ? 14 : 18;
   const chartW = W - padX * 2;
   const chartH = H - padTop - padBottom;
-
-  const totalWeeks = plannedCurve.length;
-  const maxLoad = Math.max(100, ...plannedCurve.map(p => p.load), ...actualCurve.map(a => a.load));
 
   // Interpolate weekly points into daily for smoother curves
   function interpolateDaily(weeklyCurve) {

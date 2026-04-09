@@ -24,12 +24,8 @@ export async function renderSeasonOverview(containerEl, seasonId, currentWeek) {
           getWorkoutLogsForSeason(seasonId),
         ]);
         if (season?.plan_json) {
-          console.log('[sparkline] plan_json keys:', Object.keys(season.plan_json));
-          console.log('[sparkline] plan_json.plan:', season.plan_json.plan ? Object.keys(season.plan_json.plan) : 'missing');
-          console.log('[sparkline] phases:', season.plan_json?.plan?.phases || season.plan_json?.phases || 'none');
           const durationWeeks = season.duration_weeks || 8;
           const plannedCurve = computePlannedCurve(season.plan_json, durationWeeks);
-          console.log('[sparkline] plannedCurve:', plannedCurve);
           const actualCurve = computeActualCurve(workouts || [], logs || [], currentWeek);
           const phases = season.plan_json?.plan?.phases || season.plan_json?.phases || [];
           if (plannedCurve.length > 0) {
