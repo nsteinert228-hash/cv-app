@@ -63,41 +63,77 @@ export function renderSparkline(container, plannedCurve, actualCurve, currentWee
     return;
   }
 
-  const W = compact ? 300 : 400;
-  const H = compact ? 60 : 100;
-  const padX = 8;
-  const padTop = compact ? 14 : 22;
-  const padBottom = compact ? 10 : 16;
+  // Use wider SVG for scrollability on long seasons, square-ish aspect for compact
+  const minW = compact ? 400 : 500;
+  const W = Math.max(minW, totalWeeks * 50); // 50px per week ensures room for detail
+  const H = compact ? 160 : 200;
+  const padX = 12;
+  const padTop = compact ? 16 : 24;
+  const padBottom = compact ? 14 : 18;
   const chartW = W - padX * 2;
   const chartH = H - padTop - padBottom;
 
   const totalWeeks = plannedCurve.length;
   const maxLoad = Math.max(100, ...plannedCurve.map(p => p.load), ...actualCurve.map(a => a.load));
 
-  function x(week) { return padX + ((week - 1) / Math.max(totalWeeks - 1, 1)) * chartW; }
-  function y(load) { return padTop + chartH - (load / maxLoad) * chartH; }
-
-  function polyline(curve) {
-    return curve.map(p => `${x(p.week).toFixed(1)},${y(p.load).toFixed(1)}`).join(' ');
+  // Interpolate weekly points into daily for smoother curves
+  function interpolateDaily(weeklyCurve) {
+    if (weeklyCurve.length < 2) return weeklyCurve.map(p => ({ day: (p.week - 1) * 7 + 3.5, load: p.load }));
+    const daily = [];
+    for (let i = 0; i < weeklyCurve.length - 1; i++) {
+      const a = weeklyCurve[i], b = weeklyCurve[i + 1];
+      for (let d = 0; d < 7; d++) {
+        const t = d / 7;
+        daily.push({ day: (a.week - 1) * 7 + d, load: a.load + (b.load - a.load) * t });
+      }
+    }
+    const last = weeklyCurve[weeklyCurve.length - 1];
+    daily.push({ day: (last.week - 1) * 7 + 3.5, load: last.load });
+    return daily;
   }
 
-  // Divergence fill between planned and actual
+  const totalDays = totalWeeks * 7;
+
+  function x(day) { return padX + (day / Math.max(totalDays - 1, 1)) * chartW; }
+  function xWeek(week) { return padX + (((week - 1) * 7 + 3.5) / Math.max(totalDays - 1, 1)) * chartW; }
+  function y(load) { return padTop + chartH - (load / maxLoad) * chartH; }
+
+  // Generate smooth SVG path from daily interpolated data
+  function smoothPath(dailyCurve) {
+    if (dailyCurve.length < 2) return '';
+    const points = dailyCurve.map(p => ({ x: x(p.day), y: y(p.load) }));
+    let d = `M ${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1], curr = points[i];
+      const cpx = (prev.x + curr.x) / 2;
+      d += ` C ${cpx.toFixed(1)},${prev.y.toFixed(1)} ${cpx.toFixed(1)},${curr.y.toFixed(1)} ${curr.x.toFixed(1)},${curr.y.toFixed(1)}`;
+    }
+    return d;
+  }
+
+  function polyline(curve) {
+    const daily = interpolateDaily(curve);
+    return daily.map(p => `${x(p.day).toFixed(1)},${y(p.load).toFixed(1)}`).join(' ');
+  }
+
+  // Interpolate to daily
+  const plannedDaily = interpolateDaily(plannedCurve);
+  const actualDaily = interpolateDaily(actualCurve);
+
+  // Divergence fill between planned and actual (using daily points)
   let divergenceFill = '';
-  if (actualCurve.length >= 2) {
-    // Build a closed polygon: actual forward, planned backward
-    const actualPoints = actualCurve.map(p => `${x(p.week).toFixed(1)},${y(p.load).toFixed(1)}`);
-    const plannedReverse = [...plannedCurve]
-      .filter(p => p.week <= currentWeek)
-      .reverse()
-      .map(p => `${x(p.week).toFixed(1)},${y(p.load).toFixed(1)}`);
+  if (actualDaily.length >= 2) {
+    const maxActualDay = actualDaily[actualDaily.length - 1].day;
+    const actualPoints = actualDaily.map(p => `${x(p.day).toFixed(1)},${y(p.load).toFixed(1)}`);
+    const plannedTrimmed = plannedDaily.filter(p => p.day <= maxActualDay);
+    const plannedReverse = [...plannedTrimmed].reverse().map(p => `${x(p.day).toFixed(1)},${y(p.load).toFixed(1)}`);
 
     if (actualPoints.length && plannedReverse.length) {
-      // Determine color based on average divergence
       const avgActual = actualCurve.reduce((s, p) => s + p.load, 0) / actualCurve.length;
       const avgPlanned = plannedCurve.filter(p => p.week <= currentWeek).reduce((s, p) => s + p.load, 0) / Math.max(actualCurve.length, 1);
       const fillColor = avgActual >= avgPlanned
-        ? 'rgba(74, 222, 128, 0.08)'
-        : 'rgba(248, 113, 113, 0.08)';
+        ? 'rgba(74, 222, 128, 0.12)'
+        : 'rgba(248, 113, 113, 0.12)';
 
       divergenceFill = `<polygon points="${actualPoints.join(' ')} ${plannedReverse.join(' ')}" fill="${fillColor}" stroke="none"/>`;
     }
@@ -105,32 +141,30 @@ export function renderSparkline(container, plannedCurve, actualCurve, currentWee
 
   // Phase labels (above chart)
   let phaseLabels = '';
-  if (phases && phases.length && !compact) {
+  if (phases && phases.length) {
     phaseLabels = phases.map(p => {
       if (!p.weeks || !p.weeks.length) return '';
       const startWeek = Math.min(...p.weeks);
       const endWeek = Math.max(...p.weeks);
-      const cx = (x(startWeek) + x(endWeek)) / 2;
-      return `<text x="${cx.toFixed(1)}" y="8" text-anchor="middle" fill="var(--text-tertiary)" font-family="var(--font-mono)" font-size="7" letter-spacing="0.05em" text-transform="uppercase">${_escSvg(p.name || '')}</text>`;
+      const cx = (xWeek(startWeek) + xWeek(endWeek)) / 2;
+      return `<text x="${cx.toFixed(1)}" y="10" text-anchor="middle" fill="var(--text-tertiary)" font-family="var(--font-mono)" font-size="8" letter-spacing="0.05em">${_escSvg(p.name || '')}</text>`;
     }).join('');
   }
 
-  // Week ticks
+  // Week ticks + grid lines
   const ticks = [];
-  const tickInterval = totalWeeks <= 8 ? 1 : totalWeeks <= 16 ? 2 : 4;
-  for (let w = 1; w <= totalWeeks; w += tickInterval) {
-    const tx = x(w);
-    ticks.push(`<line x1="${tx.toFixed(1)}" y1="${H - padBottom + 2}" x2="${tx.toFixed(1)}" y2="${H - padBottom + 5}" stroke="var(--text-tertiary)" stroke-width="0.5" opacity="0.4"/>`);
-    if (!compact || w === 1 || w === totalWeeks || w % tickInterval === 0) {
-      ticks.push(`<text x="${tx.toFixed(1)}" y="${H - 1}" text-anchor="middle" fill="var(--text-tertiary)" font-family="var(--font-mono)" font-size="7">W${w}</text>`);
-    }
+  for (let w = 1; w <= totalWeeks; w++) {
+    const tx = xWeek(w);
+    // Subtle vertical grid line
+    ticks.push(`<line x1="${tx.toFixed(1)}" y1="${padTop}" x2="${tx.toFixed(1)}" y2="${H - padBottom}" stroke="var(--border-subtle)" stroke-width="0.5" opacity="0.3"/>`);
+    ticks.push(`<text x="${tx.toFixed(1)}" y="${H - 2}" text-anchor="middle" fill="var(--text-tertiary)" font-family="var(--font-mono)" font-size="8">W${w}</text>`);
   }
 
   // Current week marker (pulsing circle)
   const currentActual = actualCurve.find(a => a.week === currentWeek);
   let marker = '';
   if (currentActual) {
-    const cx = x(currentActual.week).toFixed(1);
+    const cx = xWeek(currentActual.week).toFixed(1);
     const cy = y(currentActual.load).toFixed(1);
     marker = `
       <circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--accent)" opacity="0.3">
@@ -150,16 +184,20 @@ export function renderSparkline(container, plannedCurve, actualCurve, currentWee
     altProjectedLine = `<polyline points="${polyline(altProjectedCurve)}" fill="none" stroke="var(--status-yellow)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.5"/>`;
   }
 
+  // Build smooth paths from daily data
+  const plannedPath = smoothPath(plannedDaily);
+  const actualPath = actualDaily.length >= 2 ? smoothPath(actualDaily) : '';
+
   container.innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}" class="progression-sparkline ${compact ? 'compact' : 'full'}" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox="0 0 ${W} ${H}" class="progression-sparkline ${compact ? 'compact' : 'full'}" preserveAspectRatio="xMinYMid meet">
       ${phaseLabels}
+      ${ticks.join('')}
       ${divergenceFill}
-      <polyline points="${polyline(plannedCurve)}" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.5"/>
-      ${actualCurve.length >= 2 ? `<polyline points="${polyline(actualCurve)}" fill="none" stroke="var(--accent)" stroke-width="2"/>` : ''}
+      ${plannedPath ? `<path d="${plannedPath}" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.5"/>` : ''}
+      ${actualPath ? `<path d="${actualPath}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>` : ''}
       ${projectedLine}
       ${altProjectedLine}
       ${marker}
-      ${ticks.join('')}
     </svg>`;
 }
 
