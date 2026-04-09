@@ -6,6 +6,8 @@ import {
   abandonSeason,
   triggerAdaptation,
   getProposedAdaptations,
+  getSeasonWorkouts,
+  getWorkoutLogsForSeason,
 } from './seasonData.js';
 import { getTrainingPreferences } from './trainingData.js';
 
@@ -85,11 +87,34 @@ export async function checkAdaptations(force = false) {
   try {
     const proposals = await getProposedAdaptations(force);
     if (proposals.has_changes) {
-      // Show the approval modal — lazy import to avoid circular deps
+      // Fetch sparkline data for the projected impact chart
+      let sparklineOpts = {};
+      if (_activeSeason) {
+        try {
+          const { computePlannedCurve, computeActualCurve } = await import('./progressionSparkline.js');
+          const [workouts, logs] = await Promise.all([
+            getSeasonWorkouts(_activeSeason.id),
+            getWorkoutLogsForSeason(_activeSeason.id),
+          ]);
+          const planJson = _activeSeason.plan_json;
+          const durationWeeks = _activeSeason.duration_weeks || 8;
+          const currentWeek = _seasonState?.currentWeek || 1;
+          if (planJson) {
+            sparklineOpts = {
+              plannedCurve: computePlannedCurve(planJson, durationWeeks),
+              actualCurve: computeActualCurve(workouts || [], logs || [], currentWeek),
+              currentWeek,
+              phases: planJson?.plan?.phases || planJson?.phases || [],
+            };
+          }
+        } catch (e) { console.warn('Sparkline data fetch failed:', e); }
+      }
+
+      // Show the approval modal
       const { showAdaptationApproval } = await import('./adaptationApproval.js');
       showAdaptationApproval(proposals, {
+        ...sparklineOpts,
         onComplete: () => {
-          // Dispatch event so dashboard can refresh
           window.dispatchEvent(new CustomEvent('utrain:adaptationResolved'));
         },
       });
