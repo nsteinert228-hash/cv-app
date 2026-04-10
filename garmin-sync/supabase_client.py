@@ -244,7 +244,7 @@ def fetch_season_workouts(client: Client, user_id: str, season_id: str,
     def _do():
         return (
             client.table("season_workouts")
-            .select("id, date, week_number, workout_type, title, intensity, duration_minutes")
+            .select("id, date, week_number, workout_type, title, intensity, duration_minutes, prescription_json")
             .eq("user_id", user_id)
             .eq("season_id", season_id)
             .gte("date", start_date)
@@ -262,7 +262,7 @@ def fetch_activities_in_range(client: Client, user_id: str,
     def _do():
         return (
             client.table("activities")
-            .select("activity_id, date, activity_type, name, duration_seconds, distance_meters, avg_heart_rate, max_heart_rate, calories")
+            .select("activity_id, date, activity_type, name, duration_seconds, distance_meters, avg_heart_rate, max_heart_rate, calories, aerobic_training_effect, anaerobic_training_effect")
             .eq("user_id", user_id)
             .gte("date", start_date)
             .lte("date", end_date)
@@ -282,7 +282,7 @@ def fetch_activity_metrics_map(client: Client, user_id: str,
     def _do():
         return (
             client.table("activity_metrics")
-            .select("activity_id, workout_classification, classification_details, duration_seconds, distance_meters")
+            .select("activity_id, workout_classification, classification_details, duration_seconds, distance_meters, heart_rate_samples, pace_samples, splits")
             .eq("user_id", user_id)
             .in_("activity_id", activity_ids)
             .execute()

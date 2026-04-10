@@ -1928,6 +1928,35 @@ body {
   font-family: var(--font-mono);
 }
 
+/* HR zone distribution bar */
+.mib-zones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 6px;
+}
+
+.mib-zone-bar {
+  flex: 1;
+  height: 6px;
+  display: flex;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mib-zone-seg {
+  height: 100%;
+  min-width: 1px;
+  transition: opacity 0.15s;
+}
+.mib-zone-seg:hover { opacity: 0.7; }
+
+.zone-z1 { background: #3b82f6; }
+.zone-z2 { background: #22c55e; }
+.zone-z3 { background: #eab308; }
+.zone-z4 { background: #f97316; }
+.zone-z5 { background: #ef4444; }
+
 /* ════════════════════════════════════════════════════
    Milestone Banner (timeline zone)
    ════════════════════════════════════════════════════ */

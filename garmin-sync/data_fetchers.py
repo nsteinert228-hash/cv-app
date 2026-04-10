@@ -190,6 +190,9 @@ def fetch_activities(client: Any, date_str: str) -> list[dict]:
             "max_heart_rate": int(act["maxHR"]) if act.get("maxHR") is not None else None,
             "avg_pace": avg_pace,
             "elevation_gain_meters": act.get("elevationGain"),
+            "aerobic_training_effect": act.get("aerobicTrainingEffect"),
+            "anaerobic_training_effect": act.get("anaerobicTrainingEffect"),
+            "training_effect_label": act.get("aerobicTrainingEffectMessage"),
             "raw_json": json.dumps(act),
         })
 

@@ -183,9 +183,24 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
               ${breakdown.duration_score != null ? `<div class="mib-item"><span class="mib-label">Duration</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.duration_score}%"></div></div><span class="mib-val">${breakdown.duration_score}%</span></div>` : ''}
               ${breakdown.intensity_score != null ? `<div class="mib-item"><span class="mib-label">Intensity</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.intensity_score}%"></div></div><span class="mib-val">${breakdown.intensity_score}%</span></div>` : ''}
               ${breakdown.date_score != null ? `<div class="mib-item"><span class="mib-label">Timing</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.date_score}%"></div></div><span class="mib-val">${breakdown.date_score}%</span></div>` : ''}
+              ${breakdown.structure_score != null ? `<div class="mib-item"><span class="mib-label">Structure</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.structure_score}%"></div></div><span class="mib-val">${breakdown.structure_score}%</span></div>` : ''}
+              ${breakdown.zone_score != null ? `<div class="mib-item"><span class="mib-label">Zones</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.zone_score}%"></div></div><span class="mib-val">${breakdown.zone_score}%</span></div>` : ''}
+              ${breakdown.effort_score != null ? `<div class="mib-item"><span class="mib-label">Effort</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.effort_score}%"></div></div><span class="mib-val">${breakdown.effort_score}%</span></div>` : ''}
             </div>
+            ${breakdown.zones ? `
+              <div class="mib-zones">
+                <span class="mib-label">HR Zones</span>
+                <div class="mib-zone-bar">
+                  ${Object.entries(breakdown.zones).map(([z, pct]) =>
+                    `<div class="mib-zone-seg zone-${z}" style="width:${pct}%" title="${z.toUpperCase()}: ${pct}%"></div>`
+                  ).join('')}
+                </div>
+              </div>
+            ` : ''}
           ` : ''}
-          <div class="match-insight-meta">${completion.match_type} match · ${completion.activity_date || completion.match_date}</div>
+          <div class="match-insight-meta">
+            ${completion.match_type} match · ${completion.activity_date || completion.match_date}${breakdown.classification && breakdown.classification !== 'unknown' ? ` · ${breakdown.classification}` : ''}${breakdown.aerobic_te ? ` · ${breakdown.aerobic_te} TE` : ''}
+          </div>
         </div>
       `;
     }

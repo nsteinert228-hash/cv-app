@@ -8,6 +8,8 @@ from Supabase tables.
 
 import json
 import logging
+import math
+import re
 from datetime import date, timedelta
 from typing import Any
 
@@ -58,6 +60,62 @@ CLASSIFICATION_INTENSITY = {
 
 # Plan intensity ordering for comparison
 INTENSITY_RANK = {"low": 1, "moderate": 2, "high": 3, "rest": 0}
+
+# Structure adjacency — which workout types are "close enough"
+STRUCTURE_ADJACENCY: dict[str, set[str]] = {
+    "intervals": {"threshold", "pyramid", "race effort"},
+    "tempo": {"threshold", "progression"},
+    "threshold": {"tempo", "intervals", "race effort"},
+    "easy": {"recovery", "long run"},
+    "recovery": {"easy"},
+    "long run": {"easy", "progression"},
+    "progression": {"tempo", "long run"},
+    "pyramid": {"intervals"},
+    "race effort": {"threshold", "intervals"},
+}
+
+# Keywords in prescription text / title → expected classification
+STRUCTURE_KEYWORDS: dict[str, str] = {
+    "interval": "intervals",
+    "tempo": "tempo",
+    "threshold": "threshold",
+    "easy": "easy",
+    "recovery": "recovery",
+    "long run": "long run",
+    "progression": "progression",
+    "fartlek": "intervals",
+    "speed": "intervals",
+    "hill repeat": "intervals",
+    "steady state": "tempo",
+    "race pace": "race effort",
+}
+
+# Expected HR zone profiles per workout classification (z1-z5 as percentages)
+EXPECTED_ZONE_PROFILES: dict[str, dict[str, float]] = {
+    "recovery": {"z1": 50, "z2": 30, "z3": 15, "z4": 5, "z5": 0},
+    "easy": {"z1": 30, "z2": 45, "z3": 20, "z4": 5, "z5": 0},
+    "long run": {"z1": 20, "z2": 40, "z3": 30, "z4": 10, "z5": 0},
+    "tempo": {"z1": 10, "z2": 15, "z3": 45, "z4": 25, "z5": 5},
+    "threshold": {"z1": 5, "z2": 10, "z3": 20, "z4": 45, "z5": 20},
+    "intervals": {"z1": 15, "z2": 15, "z3": 15, "z4": 30, "z5": 25},
+    "race effort": {"z1": 5, "z2": 5, "z3": 15, "z4": 35, "z5": 40},
+    "progression": {"z1": 15, "z2": 25, "z3": 35, "z4": 20, "z5": 5},
+    "pyramid": {"z1": 10, "z2": 15, "z3": 20, "z4": 30, "z5": 25},
+}
+
+# Intensity → fallback zone profile when no structural keyword found
+INTENSITY_ZONE_PROFILE: dict[str, str] = {
+    "low": "easy",
+    "moderate": "tempo",
+    "high": "intervals",
+}
+
+# Intensity → expected aerobic training effect range
+INTENSITY_TE_RANGE: dict[str, tuple[float, float]] = {
+    "low": (1.0, 2.5),
+    "moderate": (2.0, 3.5),
+    "high": (3.0, 5.0),
+}
 
 
 # ── Activity classifier ──────────────────────────────────────
@@ -141,6 +199,10 @@ def score_match(
 ) -> tuple[float, float, dict, str]:
     """Score how well an activity matches a planned workout.
 
+    Uses four core dimensions (type, duration, intensity, date) plus
+    three time-series dimensions (structure, zones, effort) when
+    activity_metrics data is available.
+
     Returns (completion_score, match_confidence, breakdown, match_reason).
     """
     w_type = workout.get("workout_type", "")
@@ -155,35 +217,35 @@ def score_match(
     a_duration_min = (activity.get("duration_seconds") or 0) / 60
     a_distance_m = activity.get("distance_meters") or 0
 
-    # ── Type score (25%) ──
+    # ── Type score ──
     compatible_types = PLAN_TO_GARMIN.get(w_type, set())
     if a_type in compatible_types:
         type_score = 100
     elif classified["plan_type"] == w_type:
-        type_score = 90  # semantic match (e.g., hiking classified as cardio)
+        type_score = 90
     elif w_type == "mixed":
-        type_score = 70  # mixed accepts almost anything
+        type_score = 70
     elif w_type in ("cardio", "mixed") and classified["plan_type"] in ("cardio", "mixed"):
-        type_score = 60  # adjacent type
+        type_score = 60
     else:
-        type_score = 20  # wrong type entirely
+        type_score = 20
 
-    # ── Duration score (30%) ──
+    # ── Duration score ──
     if w_duration > 0 and a_duration_min > 0:
         ratio = a_duration_min / w_duration
         if 0.8 <= ratio <= 1.2:
-            duration_score = 100  # within 20%
+            duration_score = 100
         elif ratio > 1.2:
-            duration_score = max(60, 100 - (ratio - 1.2) * 100)  # over-performed
+            duration_score = max(60, 100 - (ratio - 1.2) * 100)
         else:
-            duration_score = max(0, ratio / 0.8 * 100)  # under-performed
+            duration_score = max(0, ratio / 0.8 * 100)
         duration_score = min(100, max(0, duration_score))
     elif w_duration == 0:
-        duration_score = 80  # no duration prescribed → assume good
+        duration_score = 80
     else:
-        duration_score = 50  # activity has no duration data
+        duration_score = 50
 
-    # ── Intensity score (30%) ──
+    # ── Intensity score ──
     w_rank = INTENSITY_RANK.get(w_intensity, 2)
     a_rank = INTENSITY_RANK.get(classified["intensity"], 2)
     intensity_diff = abs(w_rank - a_rank)
@@ -194,47 +256,217 @@ def score_match(
     else:
         intensity_score = 30
 
-    # ── Date score (15%) ──
-    if a_date == w_date:
-        date_score = 100
-    else:
-        date_score = 70  # ±1 day
+    # ── Date score ──
+    date_score = 100 if a_date == w_date else 70
 
-    # ── Weighted total ──
-    completion_score = round(
-        type_score * 0.25
-        + duration_score * 0.30
-        + intensity_score * 0.30
-        + date_score * 0.15,
-        1,
-    )
+    # ── Time-series dimensions (when data available) ──
+    has_timeseries = bool(metrics and metrics.get("heart_rate_samples"))
+    structure_score = None
+    zone_score = None
+    effort_score = None
+    zone_pcts = classified.get("zones") or None
+    pace_cv = None
+    aero_te = activity.get("aerobic_training_effect")
+
+    if has_timeseries:
+        structure_score = _score_structure(workout, metrics, classified)
+        zone_score = _score_zones(workout, classified)
+        effort_score, pace_cv = _score_effort(workout, activity, metrics, classified)
+
+    # ── Weighted total (adaptive) ──
+    if has_timeseries and structure_score is not None:
+        completion_score = round(
+            type_score * 0.15
+            + duration_score * 0.20
+            + intensity_score * 0.10
+            + date_score * 0.10
+            + structure_score * 0.15
+            + (zone_score or intensity_score) * 0.15
+            + (effort_score or 50) * 0.15,
+            1,
+        )
+    else:
+        completion_score = round(
+            type_score * 0.25
+            + duration_score * 0.30
+            + intensity_score * 0.30
+            + date_score * 0.15,
+            1,
+        )
 
     # ── Confidence ──
     confidence = min(99, round(
         (type_score * 0.4 + date_score * 0.4 + duration_score * 0.2) / 100 * 95
     ))
 
-    # ── Match reason ──
-    reason = _build_reason(
-        a_name, a_duration_min, a_distance_m, w_type, w_title,
-        w_duration, completion_score, classified, a_date, w_date,
-    )
-
-    breakdown = {
+    # ── Breakdown ──
+    breakdown: dict[str, Any] = {
         "type_score": round(type_score),
         "duration_score": round(duration_score),
         "intensity_score": round(intensity_score),
         "date_score": round(date_score),
     }
+    if has_timeseries:
+        if structure_score is not None:
+            breakdown["structure_score"] = round(structure_score)
+        if zone_score is not None:
+            breakdown["zone_score"] = round(zone_score)
+        if effort_score is not None:
+            breakdown["effort_score"] = round(effort_score)
+        if zone_pcts:
+            breakdown["zones"] = zone_pcts
+        breakdown["classification"] = classified.get("classification")
+        if pace_cv is not None:
+            breakdown["pace_cv"] = round(pace_cv, 1)
+        if aero_te is not None:
+            breakdown["aerobic_te"] = round(aero_te, 1)
+
+    # ── Match reason ──
+    reason = _build_reason(
+        a_name, a_duration_min, a_distance_m, w_type, w_title,
+        w_duration, completion_score, classified, a_date, w_date,
+        zone_pcts=zone_pcts, pace_cv=pace_cv, training_effect=aero_te,
+    )
 
     return completion_score, confidence, breakdown, reason
+
+
+# ── Time-series scoring helpers ──────────────────────────────
+
+
+def _extract_expected_structure(workout: dict) -> str | None:
+    """Extract expected workout structure from prescription text and title."""
+    text = ""
+    rx = workout.get("prescription_json")
+    if isinstance(rx, dict):
+        text = (rx.get("description") or "") + " " + (rx.get("notes") or "")
+    elif isinstance(rx, str):
+        text = rx
+    text = (text + " " + (workout.get("title") or "")).lower()
+
+    for keyword, classification in STRUCTURE_KEYWORDS.items():
+        if keyword in text:
+            return classification
+    return None
+
+
+def _score_structure(workout: dict, metrics: dict | None, classified: dict) -> int:
+    """Score: does the workout's HR/pace pattern match the prescribed structure?"""
+    actual = classified.get("classification", "unknown")
+    if actual in ("unknown", "unclassified"):
+        return 50
+
+    expected = _extract_expected_structure(workout)
+    if not expected:
+        # No structural keywords — fall back to intensity-compatible check
+        w_intensity = workout.get("intensity", "moderate")
+        expected_from_intensity = CLASSIFICATION_INTENSITY.get(actual)
+        if expected_from_intensity == w_intensity:
+            return 80
+        return 50
+
+    if actual == expected:
+        return 100
+    if expected in STRUCTURE_ADJACENCY and actual in STRUCTURE_ADJACENCY[expected]:
+        return 75
+    if CLASSIFICATION_INTENSITY.get(actual) == CLASSIFICATION_INTENSITY.get(expected):
+        return 60
+    return 20
+
+
+def _zone_cosine_similarity(expected: dict, actual: dict) -> float:
+    """Cosine similarity between two zone profile vectors, scaled 0-100."""
+    keys = ["z1", "z2", "z3", "z4", "z5"]
+    e = [expected.get(k, 0) for k in keys]
+    a = [actual.get(k, 0) for k in keys]
+    dot = sum(x * y for x, y in zip(e, a))
+    mag_e = math.sqrt(sum(x * x for x in e))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    if mag_e == 0 or mag_a == 0:
+        return 50
+    return round(dot / (mag_e * mag_a) * 100)
+
+
+def _score_zones(workout: dict, classified: dict) -> int:
+    """Score: does time-in-zones match the intended workout type?"""
+    actual_zones = classified.get("zones")
+    if not actual_zones:
+        return 50
+
+    expected_structure = _extract_expected_structure(workout)
+
+    if expected_structure and expected_structure in EXPECTED_ZONE_PROFILES:
+        expected = EXPECTED_ZONE_PROFILES[expected_structure]
+    else:
+        w_intensity = workout.get("intensity", "moderate")
+        profile_key = INTENSITY_ZONE_PROFILE.get(w_intensity, "tempo")
+        expected = EXPECTED_ZONE_PROFILES.get(profile_key, EXPECTED_ZONE_PROFILES["tempo"])
+
+    return _zone_cosine_similarity(expected, actual_zones)
+
+
+def _score_effort(
+    workout: dict, activity: dict, metrics: dict | None, classified: dict,
+) -> tuple[int, float | None]:
+    """Score: training effect alignment + pace consistency.
+
+    Returns (effort_score, pace_cv_or_none).
+    """
+    sub_scores: list[float] = []
+    pace_cv = None
+
+    # 1. Training effect alignment
+    aero_te = activity.get("aerobic_training_effect")
+    w_intensity = workout.get("intensity", "moderate")
+    if aero_te is not None:
+        te_min, te_max = INTENSITY_TE_RANGE.get(w_intensity, (2.0, 3.5))
+        if te_min <= aero_te <= te_max:
+            sub_scores.append(100)
+        else:
+            dist = te_min - aero_te if aero_te < te_min else aero_te - te_max
+            sub_scores.append(max(20, 100 - dist * 40))
+
+    # 2. Pace consistency from splits
+    if metrics:
+        splits = metrics.get("splits")
+        if isinstance(splits, str):
+            try:
+                splits = json.loads(splits)
+            except (json.JSONDecodeError, TypeError):
+                splits = None
+        if splits and len(splits) >= 3:
+            paces = [
+                s.get("avg_pace") or s.get("duration_s", 0) / max(s.get("distance_m", 1), 1) * 1000
+                for s in splits if s.get("distance_m", 0) > 100
+            ]
+            if len(paces) >= 3:
+                mean_pace = sum(paces) / len(paces)
+                if mean_pace > 0:
+                    std_pace = math.sqrt(sum((p - mean_pace) ** 2 for p in paces) / len(paces))
+                    pace_cv = (std_pace / mean_pace) * 100
+
+                    actual_cls = classified.get("classification", "")
+                    expected_struct = _extract_expected_structure(workout)
+                    is_interval_type = (expected_struct or actual_cls) in (
+                        "intervals", "pyramid", "fartlek",
+                    )
+                    if is_interval_type:
+                        sub_scores.append(min(100, pace_cv * 4))
+                    else:
+                        sub_scores.append(max(20, 100 - max(0, (pace_cv - 5)) * 5))
+
+    if not sub_scores:
+        return 50, pace_cv
+
+    return round(sum(sub_scores) / len(sub_scores)), pace_cv
 
 
 def _build_reason(
     a_name, a_dur_min, a_dist_m, w_type, w_title,
     w_dur, score, classified, a_date, w_date,
+    zone_pcts=None, pace_cv=None, training_effect=None,
 ) -> str:
-    """Build a plain English match explanation."""
+    """Build a plain English match explanation with physiological detail."""
     dist_str = f"{a_dist_m / 1609:.1f} mi" if a_dist_m else ""
     dur_str = f"{a_dur_min:.0f} min" if a_dur_min else ""
     detail = ", ".join(filter(None, [dur_str, dist_str]))
@@ -255,7 +487,31 @@ def _build_reason(
     if a_date != w_date:
         day_note = f" (done {'day before' if a_date < w_date else 'day after'})"
 
-    return f"{verb} — {a_name} ({detail}){cls_str} matched your {w_type} day \"{w_title}\"{day_note}."
+    base = f"{verb} — {a_name} ({detail}){cls_str}{day_note}."
+
+    # Append physiological insights when available
+    insights: list[str] = []
+    if zone_pcts:
+        top_zone = max(zone_pcts, key=lambda z: zone_pcts.get(z, 0))
+        top_pct = zone_pcts.get(top_zone, 0)
+        if top_pct > 0:
+            zone_label = {
+                "z1": "recovery", "z2": "easy", "z3": "tempo",
+                "z4": "threshold", "z5": "VO2max",
+            }.get(top_zone, top_zone)
+            insights.append(f"{top_pct}% in {zone_label} zone")
+    if pace_cv is not None:
+        if pace_cv < 10:
+            insights.append(f"steady pace (CV {pace_cv:.0f}%)")
+        elif pace_cv > 20:
+            insights.append(f"varied pace (CV {pace_cv:.0f}%)")
+    if training_effect is not None:
+        insights.append(f"{training_effect:.1f} TE")
+
+    if insights:
+        base = base.rstrip(".") + " — " + ", ".join(insights) + "."
+
+    return base
 
 
 # ── Candidate finder ──────────────────────────────────────────
