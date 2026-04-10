@@ -5,6 +5,7 @@ coordinate fetching, upserting, and logging.  Individual data-type
 failures are logged but never stop the overall sync.
 """
 
+import json
 import logging
 import time
 from datetime import date, timedelta
@@ -170,6 +171,24 @@ def _sync_activity_metrics(
             except Exception:
                 pass  # On error, fall through to fetch
 
+        # Extract Garmin's pre-computed HR zone times from the activity summary
+        # These use the user's actual configured max HR for accurate zones
+        garmin_zones = None
+        raw = act.get("raw_json")
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                raw = None
+        if isinstance(raw, dict):
+            zt = {}
+            for i in range(1, 6):
+                val = raw.get(f"hrTimeInZone_{i}")
+                if val is not None:
+                    zt[i] = float(val)
+            if zt:
+                garmin_zones = zt
+
         detail = with_retry(
             data_fetchers.fetch_activity_details,
             garmin,
@@ -178,6 +197,7 @@ def _sync_activity_metrics(
             avg_hr=act.get("avg_heart_rate"),
             max_hr=act.get("max_heart_rate"),
             duration_seconds=act.get("duration_seconds"),
+            garmin_zone_times=garmin_zones,
         )
 
         if detail:

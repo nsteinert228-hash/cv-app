@@ -268,8 +268,13 @@ def _classify_workout(
     max_hr: int | None,
     activity_type: str | None,
     duration_seconds: float | None,
+    garmin_zone_times: dict | None = None,
 ) -> tuple[str, dict]:
     """Classify an aerobic workout based on HR and pace patterns.
+
+    When garmin_zone_times is provided (from the activity summary raw_json),
+    those pre-computed zones are used instead of estimating from HR samples.
+    Garmin uses the user's actual configured max HR for its zone calculations.
 
     Returns (classification_label, details_dict).
     """
@@ -285,37 +290,49 @@ def _classify_workout(
     avg_hr_actual = sum(hr_values) / len(hr_values)
     max_hr_actual = max(hr_values)
 
-    # Estimate max HR if not provided (220 - age approximation)
-    # Use the actual max HR from the activity as a proxy
-    est_max_hr = max_hr if max_hr and max_hr > 150 else max(max_hr_actual + 10, 190)
-
-    # HR zone boundaries (percentage of estimated max HR)
-    z1_ceil = est_max_hr * 0.60  # Recovery: <60%
-    z2_ceil = est_max_hr * 0.70  # Base/Easy: 60-70%
-    z3_ceil = est_max_hr * 0.80  # Tempo: 70-80%
-    z4_ceil = est_max_hr * 0.90  # Threshold: 80-90%
-    # z5: >90% — VO2max/Intervals
-
-    # Compute time in each zone
-    zone_counts = {"z1": 0, "z2": 0, "z3": 0, "z4": 0, "z5": 0}
-    for hr in hr_values:
-        if hr < z1_ceil:
-            zone_counts["z1"] += 1
-        elif hr < z2_ceil:
-            zone_counts["z2"] += 1
-        elif hr < z3_ceil:
-            zone_counts["z3"] += 1
-        elif hr < z4_ceil:
-            zone_counts["z4"] += 1
+    # Use Garmin's pre-computed zone times when available (preferred — uses
+    # the user's actual configured max HR from their Garmin profile)
+    if garmin_zone_times:
+        total_time = sum(garmin_zone_times.values())
+        if total_time > 0:
+            zone_pcts = {
+                f"z{i}": round(garmin_zone_times.get(i, 0) / total_time * 100, 1)
+                for i in range(1, 6)
+            }
+            details["zones"] = zone_pcts
+            details["zone_source"] = "garmin"
         else:
-            zone_counts["z5"] += 1
+            garmin_zone_times = None  # fall through to estimation
 
-    total = len(hr_values)
-    zone_pcts = {k: round(v / total * 100, 1) for k, v in zone_counts.items()}
-    details["zones"] = zone_pcts
+    if not garmin_zone_times:
+        # Fallback: estimate zones from HR samples (less accurate)
+        est_max_hr = max_hr if max_hr and max_hr > 150 else max(max_hr_actual + 10, 190)
+        z1_ceil = est_max_hr * 0.60
+        z2_ceil = est_max_hr * 0.70
+        z3_ceil = est_max_hr * 0.80
+        z4_ceil = est_max_hr * 0.90
+
+        zone_counts = {"z1": 0, "z2": 0, "z3": 0, "z4": 0, "z5": 0}
+        for hr in hr_values:
+            if hr < z1_ceil:
+                zone_counts["z1"] += 1
+            elif hr < z2_ceil:
+                zone_counts["z2"] += 1
+            elif hr < z3_ceil:
+                zone_counts["z3"] += 1
+            elif hr < z4_ceil:
+                zone_counts["z4"] += 1
+            else:
+                zone_counts["z5"] += 1
+
+        total = len(hr_values)
+        zone_pcts = {k: round(v / total * 100, 1) for k, v in zone_counts.items()}
+        details["zones"] = zone_pcts
+        details["zone_source"] = "estimated"
+        details["est_max_hr"] = est_max_hr
+
     details["avg_hr"] = round(avg_hr_actual)
     details["max_hr"] = max_hr_actual
-    details["est_max_hr"] = est_max_hr
 
     # Detect HR variability pattern (for interval detection)
     # Look at rolling HR segments to find alternating high/low patterns
@@ -406,7 +423,8 @@ def _classify_workout(
 
 def fetch_activity_details(client: Any, activity_id: int, activity_type: str | None = None,
                            avg_hr: int | None = None, max_hr: int | None = None,
-                           duration_seconds: float | None = None) -> dict | None:
+                           duration_seconds: float | None = None,
+                           garmin_zone_times: dict | None = None) -> dict | None:
     """Fetch detailed metrics for a single activity.
 
     Returns a parsed dict with time-series data and workout classification,
@@ -497,6 +515,7 @@ def fetch_activity_details(client: Any, activity_id: int, activity_type: str | N
     classification, classification_details = _classify_workout(
         hr_samples, pace_samples, splits,
         avg_hr, max_hr, activity_type, duration_seconds,
+        garmin_zone_times=garmin_zone_times,
     )
 
     # Downsample time-series if too many points (keep ~200 points max)
