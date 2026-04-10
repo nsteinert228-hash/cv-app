@@ -209,6 +209,7 @@ AEROBIC_TYPES = {
     "trail_running", "open_water_swimming", "elliptical",
     "stair_climbing", "rowing", "indoor_cycling", "treadmill_running",
     "indoor_rowing", "lap_swimming",
+    "strength_training", "indoor_cardio", "other",
 }
 
 

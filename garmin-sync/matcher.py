@@ -92,6 +92,7 @@ STRUCTURE_KEYWORDS: dict[str, str] = {
 
 # Expected HR zone profiles per workout classification (z1-z5 as percentages)
 EXPECTED_ZONE_PROFILES: dict[str, dict[str, float]] = {
+    # Cardio
     "recovery": {"z1": 50, "z2": 30, "z3": 15, "z4": 5, "z5": 0},
     "easy": {"z1": 30, "z2": 45, "z3": 20, "z4": 5, "z5": 0},
     "long run": {"z1": 20, "z2": 40, "z3": 30, "z4": 10, "z5": 0},
@@ -101,6 +102,12 @@ EXPECTED_ZONE_PROFILES: dict[str, dict[str, float]] = {
     "race effort": {"z1": 5, "z2": 5, "z3": 15, "z4": 35, "z5": 40},
     "progression": {"z1": 15, "z2": 25, "z3": 35, "z4": 20, "z5": 5},
     "pyramid": {"z1": 10, "z2": 15, "z3": 20, "z4": 30, "z5": 25},
+    # Strength — HR stays low with spikes during sets
+    "strength_low": {"z1": 55, "z2": 35, "z3": 10, "z4": 0, "z5": 0},
+    "strength_moderate": {"z1": 35, "z2": 45, "z3": 15, "z4": 5, "z5": 0},
+    "strength_high": {"z1": 20, "z2": 40, "z3": 25, "z4": 10, "z5": 5},
+    # Recovery non-cardio (walking, yoga, mobility)
+    "rest_like": {"z1": 75, "z2": 20, "z3": 5, "z4": 0, "z5": 0},
 }
 
 # Intensity → fallback zone profile when no structural keyword found
@@ -356,6 +363,25 @@ def _score_structure(workout: dict, metrics: dict | None, classified: dict) -> i
     if actual in ("unknown", "unclassified"):
         return 50
 
+    w_type = workout.get("workout_type", "")
+    plan_type = classified.get("plan_type", "")
+
+    # Strength workouts: structure = did they actually lift?
+    # The cardio classifications (tempo, intervals, etc.) are meaningless for strength,
+    # but a strength session at a reasonable intensity should score well.
+    if w_type == "strength":
+        if plan_type == "strength":
+            # Check HR profile — strength should keep most time in lower zones
+            zones = classified.get("zones") or {}
+            low_time = zones.get("z1", 0) + zones.get("z2", 0)
+            if low_time >= 60:
+                return 95  # classic strength HR pattern
+            elif low_time >= 40:
+                return 80  # higher intensity but still strength-like
+            else:
+                return 60  # lots of time in high zones (circuit-style)
+        return 20  # didn't lift at all
+
     expected = _extract_expected_structure(workout)
     if not expected:
         # No structural keywords — fall back to intensity-compatible check
@@ -393,14 +419,24 @@ def _score_zones(workout: dict, classified: dict) -> int:
     if not actual_zones:
         return 50
 
-    expected_structure = _extract_expected_structure(workout)
+    w_type = workout.get("workout_type", "")
+    w_intensity = workout.get("intensity", "moderate")
 
-    if expected_structure and expected_structure in EXPECTED_ZONE_PROFILES:
-        expected = EXPECTED_ZONE_PROFILES[expected_structure]
+    # Strength workouts have different expected HR profiles
+    # (HR stays lower overall with brief spikes during sets)
+    if w_type == "strength":
+        profile_key = f"strength_{w_intensity}"
+        expected = EXPECTED_ZONE_PROFILES.get(profile_key, EXPECTED_ZONE_PROFILES["strength_moderate"])
+    elif w_type == "recovery":
+        expected = EXPECTED_ZONE_PROFILES["rest_like"]
     else:
-        w_intensity = workout.get("intensity", "moderate")
-        profile_key = INTENSITY_ZONE_PROFILE.get(w_intensity, "tempo")
-        expected = EXPECTED_ZONE_PROFILES.get(profile_key, EXPECTED_ZONE_PROFILES["tempo"])
+        # Cardio / mixed — use structural keyword or intensity fallback
+        expected_structure = _extract_expected_structure(workout)
+        if expected_structure and expected_structure in EXPECTED_ZONE_PROFILES:
+            expected = EXPECTED_ZONE_PROFILES[expected_structure]
+        else:
+            profile_key = INTENSITY_ZONE_PROFILE.get(w_intensity, "tempo")
+            expected = EXPECTED_ZONE_PROFILES.get(profile_key, EXPECTED_ZONE_PROFILES["tempo"])
 
     return _zone_cosine_similarity(expected, actual_zones)
 
@@ -408,16 +444,49 @@ def _score_zones(workout: dict, classified: dict) -> int:
 def _score_effort(
     workout: dict, activity: dict, metrics: dict | None, classified: dict,
 ) -> tuple[int, float | None]:
-    """Score: training effect alignment + pace consistency.
+    """Score: training effect alignment + pace/HR consistency.
 
     Returns (effort_score, pace_cv_or_none).
     """
     sub_scores: list[float] = []
     pace_cv = None
-
-    # 1. Training effect alignment
-    aero_te = activity.get("aerobic_training_effect")
+    w_type = workout.get("workout_type", "")
     w_intensity = workout.get("intensity", "moderate")
+
+    # Strength: effort is about HR elevation and avg_hr, not TE/pace
+    if w_type == "strength":
+        avg_hr = activity.get("avg_heart_rate") or 0
+        if avg_hr > 0:
+            # Expected avg HR bands for strength at each intensity
+            if w_intensity == "low":
+                target_min, target_max = 90, 115
+            elif w_intensity == "high":
+                target_min, target_max = 125, 160
+            else:  # moderate
+                target_min, target_max = 105, 140
+
+            if target_min <= avg_hr <= target_max:
+                sub_scores.append(100)
+            else:
+                dist = target_min - avg_hr if avg_hr < target_min else avg_hr - target_max
+                sub_scores.append(max(30, 100 - dist * 2))
+
+        # Duration match bonus (strength sessions should meet prescribed time)
+        w_dur = workout.get("duration_minutes") or 0
+        a_dur = (activity.get("duration_seconds") or 0) / 60
+        if w_dur > 0 and a_dur > 0:
+            ratio = a_dur / w_dur
+            if 0.8 <= ratio <= 1.2:
+                sub_scores.append(100)
+            elif ratio > 0.5:
+                sub_scores.append(70)
+            else:
+                sub_scores.append(40)
+
+        return (round(sum(sub_scores) / len(sub_scores)) if sub_scores else 50, None)
+
+    # Cardio: training effect + pace consistency
+    aero_te = activity.get("aerobic_training_effect")
     if aero_te is not None:
         te_min, te_max = INTENSITY_TE_RANGE.get(w_intensity, (2.0, 3.5))
         if te_min <= aero_te <= te_max:
@@ -426,7 +495,7 @@ def _score_effort(
             dist = te_min - aero_te if aero_te < te_min else aero_te - te_max
             sub_scores.append(max(20, 100 - dist * 40))
 
-    # 2. Pace consistency from splits
+    # Pace consistency from splits
     if metrics:
         splits = metrics.get("splits")
         if isinstance(splits, str):
