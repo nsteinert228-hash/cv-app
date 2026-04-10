@@ -222,6 +222,9 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
 
   contentEl.innerHTML = html;
 
+  // Wire custom tooltips on match insight bars and zones
+  _wireMatchTooltips();
+
   // Render Garmin activity card if activity is linked
   try {
     const log = await getWorkoutLog(workout.id).catch(() => null);
@@ -374,22 +377,102 @@ async function showSwapPreview(previewEl, workout, newType, newTitle, ctx) {
 
 function _mibBar(label, score, tooltip) {
   if (score == null) return '';
-  return `<div class="mib-item" title="${tooltip}"><span class="mib-label">${label}</span><div class="mib-bar"><div class="mib-fill" style="width:${score}%"></div></div><span class="mib-val">${score}%</span></div>`;
+  return `<div class="mib-item" data-tip="${tooltip}"><span class="mib-label">${label}</span><div class="mib-bar"><div class="mib-fill" style="width:${score}%"></div></div><span class="mib-val">${score}%</span></div>`;
 }
 
 const ZONE_META = {
-  z1: { name: 'Recovery', range: '<60% max HR', color: '#3b82f6' },
-  z2: { name: 'Easy', range: '60-70% max HR', color: '#22c55e' },
-  z3: { name: 'Tempo', range: '70-80% max HR', color: '#eab308' },
-  z4: { name: 'Threshold', range: '80-90% max HR', color: '#f97316' },
-  z5: { name: 'VO2max', range: '>90% max HR', color: '#ef4444' },
+  z1: { name: 'Recovery', range: '<60% max HR', color: '#3b82f6', icon: '💙' },
+  z2: { name: 'Easy', range: '60–70% max HR', color: '#22c55e', icon: '💚' },
+  z3: { name: 'Tempo', range: '70–80% max HR', color: '#eab308', icon: '💛' },
+  z4: { name: 'Threshold', range: '80–90% max HR', color: '#f97316', icon: '🧡' },
+  z5: { name: 'VO2max', range: '>90% max HR', color: '#ef4444', icon: '❤️' },
 };
 
 function _zoneSegs(zones) {
   return Object.entries(zones).map(([z, pct]) => {
-    const meta = ZONE_META[z] || { name: z, range: '', color: '#888' };
-    return `<div class="mib-zone-seg zone-${z}" style="width:${pct}%" title="${meta.name} (${meta.range}): ${pct}%"></div>`;
+    const meta = ZONE_META[z] || { name: z, range: '', color: '#888', icon: '' };
+    return `<div class="mib-zone-seg zone-${z}" style="width:${pct}%"
+      data-zone="${z}" data-zone-name="${meta.name}" data-zone-range="${meta.range}"
+      data-zone-pct="${pct}" data-zone-color="${meta.color}"></div>`;
   }).join('');
+}
+
+/** Wire custom tooltips on match insight breakdown after DOM insert */
+function _wireMatchTooltips() {
+  const insight = document.querySelector('.match-insight');
+  if (!insight) return;
+
+  // Remove any existing tooltip
+  let tip = document.getElementById('mibTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'mibTip';
+    tip.className = 'mib-tip';
+    document.body.appendChild(tip);
+  }
+
+  function show(el, html) {
+    tip.innerHTML = html;
+    tip.classList.add('visible');
+    // Position above the element
+    const rect = el.getBoundingClientRect();
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    let left = rect.left + rect.width / 2 - tipW / 2;
+    let top = rect.top - tipH - 10;
+    // Clamp horizontal
+    if (left < 8) left = 8;
+    if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+    // Flip below if clipped
+    if (top < 8) top = rect.bottom + 10;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  }
+
+  function hide() {
+    tip.classList.remove('visible');
+  }
+
+  // Score bar tooltips
+  insight.querySelectorAll('.mib-item[data-tip]').forEach(item => {
+    item.addEventListener('mouseenter', () => {
+      const text = item.dataset.tip;
+      const val = item.querySelector('.mib-val')?.textContent || '';
+      const label = item.querySelector('.mib-label')?.textContent || '';
+      const score = parseInt(val);
+      const verdict = score >= 80 ? 'Strong' : score >= 50 ? 'Moderate' : 'Weak';
+      const verdictColor = score >= 80 ? 'var(--accent)' : score >= 50 ? 'var(--status-yellow)' : 'var(--status-red)';
+      show(item, `
+        <div class="mib-tip-header">
+          <span class="mib-tip-label">${label}</span>
+          <span class="mib-tip-verdict" style="color:${verdictColor}">${verdict}</span>
+        </div>
+        <div class="mib-tip-body">${text}</div>
+      `);
+    });
+    item.addEventListener('mouseleave', hide);
+  });
+
+  // Zone segment tooltips
+  insight.querySelectorAll('.mib-zone-seg').forEach(seg => {
+    seg.addEventListener('mouseenter', () => {
+      const name = seg.dataset.zoneName;
+      const range = seg.dataset.zoneRange;
+      const pct = seg.dataset.zonePct;
+      const color = seg.dataset.zoneColor;
+      show(seg, `
+        <div class="mib-tip-zone">
+          <div class="mib-tip-zone-swatch" style="background:${color}"></div>
+          <div>
+            <div class="mib-tip-zone-name">${name}</div>
+            <div class="mib-tip-zone-range">${range}</div>
+          </div>
+          <div class="mib-tip-zone-pct" style="color:${color}">${pct}%</div>
+        </div>
+      `);
+    });
+    seg.addEventListener('mouseleave', hide);
+  });
 }
 
 // ── Adaptation summary parser ───────────────────────────────
