@@ -1889,6 +1889,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  cursor: help;
 }
 
 .mib-label {
@@ -1948,6 +1949,7 @@ body {
   height: 100%;
   min-width: 1px;
   transition: opacity 0.15s;
+  cursor: help;
 }
 .mib-zone-seg:hover { opacity: 0.7; }
 

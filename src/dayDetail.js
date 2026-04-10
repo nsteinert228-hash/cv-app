@@ -179,21 +179,19 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
           <div class="match-insight-reason">${esc(completion.match_reason || '')}</div>
           ${Object.keys(breakdown).length ? `
             <div class="match-insight-breakdown">
-              ${breakdown.type_score != null ? `<div class="mib-item"><span class="mib-label">Type</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.type_score}%"></div></div><span class="mib-val">${breakdown.type_score}%</span></div>` : ''}
-              ${breakdown.duration_score != null ? `<div class="mib-item"><span class="mib-label">Duration</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.duration_score}%"></div></div><span class="mib-val">${breakdown.duration_score}%</span></div>` : ''}
-              ${breakdown.intensity_score != null ? `<div class="mib-item"><span class="mib-label">Intensity</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.intensity_score}%"></div></div><span class="mib-val">${breakdown.intensity_score}%</span></div>` : ''}
-              ${breakdown.date_score != null ? `<div class="mib-item"><span class="mib-label">Timing</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.date_score}%"></div></div><span class="mib-val">${breakdown.date_score}%</span></div>` : ''}
-              ${breakdown.structure_score != null ? `<div class="mib-item"><span class="mib-label">Structure</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.structure_score}%"></div></div><span class="mib-val">${breakdown.structure_score}%</span></div>` : ''}
-              ${breakdown.zone_score != null ? `<div class="mib-item"><span class="mib-label">Zones</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.zone_score}%"></div></div><span class="mib-val">${breakdown.zone_score}%</span></div>` : ''}
-              ${breakdown.effort_score != null ? `<div class="mib-item"><span class="mib-label">Effort</span><div class="mib-bar"><div class="mib-fill" style="width:${breakdown.effort_score}%"></div></div><span class="mib-val">${breakdown.effort_score}%</span></div>` : ''}
+              ${_mibBar('Type', breakdown.type_score, 'Did the Garmin activity type match the planned workout type?')}
+              ${_mibBar('Duration', breakdown.duration_score, 'How close was the actual duration to the prescribed time?')}
+              ${_mibBar('Intensity', breakdown.intensity_score, 'Was the overall effort level (low/moderate/high) what the plan called for?')}
+              ${_mibBar('Timing', breakdown.date_score, 'Was the activity done on the planned day, or offset by a day?')}
+              ${_mibBar('Structure', breakdown.structure_score, breakdown.classification ? `Did the workout pattern match? Detected: ${breakdown.classification}` : 'Does the HR/pace pattern match the prescribed structure (intervals, tempo, easy, etc.)?')}
+              ${_mibBar('Zones', breakdown.zone_score, 'How well does the time spent in each HR zone match the expected zone profile?')}
+              ${_mibBar('Effort', breakdown.effort_score, breakdown.aerobic_te ? `Training effect and pace consistency. TE: ${breakdown.aerobic_te}${breakdown.pace_cv != null ? ', pace CV: ' + breakdown.pace_cv + '%' : ''}` : 'Combined training effect alignment and pace consistency from splits')}
             </div>
             ${breakdown.zones ? `
               <div class="mib-zones">
                 <span class="mib-label">HR Zones</span>
                 <div class="mib-zone-bar">
-                  ${Object.entries(breakdown.zones).map(([z, pct]) =>
-                    `<div class="mib-zone-seg zone-${z}" style="width:${pct}%" title="${z.toUpperCase()}: ${pct}%"></div>`
-                  ).join('')}
+                  ${_zoneSegs(breakdown.zones)}
                 </div>
               </div>
             ` : ''}
@@ -370,6 +368,28 @@ async function showSwapPreview(previewEl, workout, newType, newTitle, ctx) {
   document.getElementById('cancelSwapBtn').addEventListener('click', () => {
     previewEl.innerHTML = '';
   });
+}
+
+// ── Match insight helpers ──────────────────────────────────
+
+function _mibBar(label, score, tooltip) {
+  if (score == null) return '';
+  return `<div class="mib-item" title="${tooltip}"><span class="mib-label">${label}</span><div class="mib-bar"><div class="mib-fill" style="width:${score}%"></div></div><span class="mib-val">${score}%</span></div>`;
+}
+
+const ZONE_META = {
+  z1: { name: 'Recovery', range: '<60% max HR', color: '#3b82f6' },
+  z2: { name: 'Easy', range: '60-70% max HR', color: '#22c55e' },
+  z3: { name: 'Tempo', range: '70-80% max HR', color: '#eab308' },
+  z4: { name: 'Threshold', range: '80-90% max HR', color: '#f97316' },
+  z5: { name: 'VO2max', range: '>90% max HR', color: '#ef4444' },
+};
+
+function _zoneSegs(zones) {
+  return Object.entries(zones).map(([z, pct]) => {
+    const meta = ZONE_META[z] || { name: z, range: '', color: '#888' };
+    return `<div class="mib-zone-seg zone-${z}" style="width:${pct}%" title="${meta.name} (${meta.range}): ${pct}%"></div>`;
+  }).join('');
 }
 
 // ── Adaptation summary parser ───────────────────────────────
