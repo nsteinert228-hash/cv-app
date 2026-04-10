@@ -1363,6 +1363,49 @@
       .wm-submit { width: 100%; }
       .hero-card-inner { min-height: 260px; padding: 24px 20px 20px; }
     }
+
+    /* Custom cursor (matches tracker page) */
+    .u-cursor {
+      position: fixed;
+      top: -4px; left: -4px;
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      transition: width 0.2s, height 0.2s, top 0.2s, left 0.2s;
+    }
+    .u-cursor.hover { width: 12px; height: 12px; top: -6px; left: -6px; }
+    .u-cursor.click { transform: translate(var(--x, 0), var(--y, 0)) scale(0.7); }
+
+    .u-cursor-ring {
+      position: fixed;
+      top: -20px; left: -20px;
+      width: 40px; height: 40px;
+      border: 1px solid rgba(200, 255, 0, 0.25);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transition: width 0.3s var(--ease-snappy), height 0.3s var(--ease-snappy),
+                  top 0.3s var(--ease-snappy), left 0.3s var(--ease-snappy),
+                  border-color 0.2s;
+    }
+    .u-cursor-ring.hover {
+      width: 56px; height: 56px; top: -28px; left: -28px;
+      border-color: rgba(200, 255, 0, 0.5);
+    }
+    .u-cursor-ring.click { transform: translate(var(--x, 0), var(--y, 0)) scale(0.85); }
+
+    @media (pointer: coarse) {
+      .u-cursor, .u-cursor-ring { display: none !important; }
+    }
+
+    /* Hide default cursor when custom is active */
+    @media (pointer: fine) {
+      body { cursor: none !important; }
+      a, button, [role="button"], input, textarea, select { cursor: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -1739,6 +1782,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script type="module" src="src/trainingDashboard.js?v=3"></script>
+  <script type="module">
+    import('./src/interactions.js').then(m => m.initInteractions()).catch(() => {});
+  </script>
   <script>
     (function() {
       const phrases = ['Building your plan...', 'Syncing Garmin data...', 'Analyzing readiness...'];
