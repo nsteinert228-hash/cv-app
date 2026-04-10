@@ -100,9 +100,10 @@ export async function checkAdaptations(force = false) {
           const durationWeeks = _activeSeason.duration_weeks || 8;
           const currentWeek = _seasonState?.currentWeek || 1;
           if (planJson) {
+            const _plannedCurve = computePlannedCurve(planJson, durationWeeks);
             sparklineOpts = {
-              plannedCurve: computePlannedCurve(planJson, durationWeeks),
-              actualCurve: computeActualCurve(workouts || [], logs || [], currentWeek),
+              plannedCurve: _plannedCurve,
+              actualCurve: computeActualCurve(workouts || [], logs || [], currentWeek, _plannedCurve),
               currentWeek,
               phases: planJson?.plan?.phases || planJson?.phases || [],
             };

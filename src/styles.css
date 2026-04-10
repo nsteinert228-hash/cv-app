@@ -3524,6 +3524,69 @@ body {
   display: block;
 }
 
+/* Sparkline tooltip */
+.sparkline-tooltip {
+  position: absolute;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-inner);
+  padding: 8px 10px;
+  min-width: 140px;
+  max-width: 200px;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.stt-header {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.stt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.stt-label {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+
+.stt-val {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.stt-delta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  margin: 2px 0;
+  text-align: right;
+}
+
+.stt-divider {
+  border-top: 1px solid var(--border-subtle);
+  margin: 4px 0;
+  opacity: 0.5;
+}
+
+.stt-missed .stt-val {
+  color: var(--status-red);
+}
+
 /* Season Overview sparkline section */
 .so-sparkline-section {
   margin: var(--space-4) 0;

@@ -26,7 +26,7 @@ export async function renderSeasonOverview(containerEl, seasonId, currentWeek) {
         if (season?.plan_json) {
           const durationWeeks = season.duration_weeks || 8;
           const plannedCurve = computePlannedCurve(season.plan_json, durationWeeks);
-          const actualCurve = computeActualCurve(workouts || [], logs || [], currentWeek);
+          const actualCurve = computeActualCurve(workouts || [], logs || [], currentWeek, plannedCurve);
           const phases = season.plan_json?.plan?.phases || season.plan_json?.phases || [];
           if (plannedCurve.length > 0) {
             renderSparkline(sparklineEl, plannedCurve, actualCurve, currentWeek, phases, { compact: true });
