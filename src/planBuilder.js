@@ -1,5 +1,5 @@
 // Plan Builder — step-by-step wizard for creating training plans
-import { createSeason, saveTrainingGoals } from './seasonData.js';
+import { createSeason, saveTrainingGoals, toLocalDateStr } from './seasonData.js';
 import { saveTrainingPreferences } from './trainingData.js';
 
 const TRAINING_TYPES = [
@@ -53,7 +53,7 @@ function getNextMonday() {
   const day = d.getDay();
   const diff = day === 0 ? 1 : 8 - day;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 // ── Public API ──────────────────────────────────────────────

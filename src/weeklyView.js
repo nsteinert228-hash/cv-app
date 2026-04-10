@@ -4,6 +4,8 @@ import {
   getWorkoutLogsForSeason,
   getThisWeekWorkouts,
   getSeasonWorkouts,
+  getLocalToday,
+  toLocalDateStr,
 } from './seasonData.js';
 import { getSupabaseClient } from './supabase.js';
 import { initWorkoutModifier, destroyWorkoutModifier } from './workoutModifier.js';
@@ -36,7 +38,7 @@ export async function renderWeeklyView(container, { season, seasonState, onWeekC
   if (!container || !season || !seasonState) return;
 
   const weekNumber = seasonState.currentWeek;
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
 
   // Fetch workouts for this week
   let workouts = await getThisWeekWorkouts(season.id);
@@ -76,7 +78,7 @@ export async function renderWeeklyView(container, { season, seasonState, onWeekC
 export async function renderWeekByNumber(container, weekNumber, { season, seasonState, onWeekChange }) {
   if (!container || !season) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   const workouts = await getWeekWorkoutsByWeekNumber(season.id, weekNumber);
   const logs = await getWorkoutLogsForSeason(season.id);
   const logMap = new Map(logs.map(l => [l.workout_id, l]));
@@ -170,8 +172,8 @@ function ensureTodayIncluded(workouts, today, season, displayWeek) {
     mondayOfWeek.setDate(mondayOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
     const sundayOfWeek = new Date(mondayOfWeek);
     sundayOfWeek.setDate(mondayOfWeek.getDate() + 6);
-    const mondayStr = mondayOfWeek.toISOString().split('T')[0];
-    const sundayStr = sundayOfWeek.toISOString().split('T')[0];
+    const mondayStr = toLocalDateStr(mondayOfWeek);
+    const sundayStr = toLocalDateStr(sundayOfWeek);
     if (today < mondayStr || today > sundayStr) return workouts;
   }
 

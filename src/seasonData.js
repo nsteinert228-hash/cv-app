@@ -3,6 +3,16 @@ import { getSupabaseClient, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase.j
 
 const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
 
+/** Formats a Date object as 'YYYY-MM-DD' in local timezone (avoids UTC shift from toISOString) */
+export function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Returns today's date as 'YYYY-MM-DD' in local timezone */
+export function getLocalToday() {
+  return toLocalDateStr(new Date());
+}
+
 // ── Edge function caller ─────────────────────────────────────
 
 async function _callEdgeFunction(name, body = {}) {
@@ -159,7 +169,7 @@ export async function getTodayWorkout(seasonId) {
   const client = getSupabaseClient();
   if (!client) return null;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
 
   const { data, error } = await client
     .from('season_workouts')
@@ -187,8 +197,8 @@ export async function getThisWeekWorkouts(seasonId) {
     .from('season_workouts')
     .select('*')
     .eq('season_id', seasonId)
-    .gte('date', monday.toISOString().split('T')[0])
-    .lte('date', sunday.toISOString().split('T')[0])
+    .gte('date', toLocalDateStr(monday))
+    .lte('date', toLocalDateStr(sunday))
     .order('date', { ascending: true });
 
   if (error) throw error;
@@ -390,7 +400,7 @@ export async function getSeasonOverviewStats(seasonId) {
   ]);
 
   const logMap = new Map(logs.map(l => [l.workout_id, l]));
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
 
   // Per-week aggregation
   const weeks = {};

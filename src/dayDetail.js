@@ -10,6 +10,7 @@ import {
   revertWorkout,
   getProposedAdaptations,
   getWorkoutLog,
+  getLocalToday,
 } from './seasonData.js';
 import { TRIGGER_LABELS, TRIGGER_COLORS } from './adaptationFeed.js';
 import { isAdaptationStale, formatAdaptationAge } from './readinessCoherence.js';
@@ -41,9 +42,13 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   const rx = normalizePrescription(workout.prescription_json);
   const isCardio = workout.workout_type === 'cardio';
 
+  // Determine temporal state — past workouts are read-only
+  const today = getLocalToday();
+  const dayState = workout.date < today ? 'past' : workout.date === today ? 'today' : 'future';
+
   let html = '';
 
-  // Adaptation banner for adapted workouts (Item 2)
+  // Adaptation banner for adapted workouts
   if (workout.is_adapted && activeSeason) {
     try {
       const adaptation = await getAdaptationForDate(activeSeason.id, workout.date);
@@ -67,14 +72,6 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
         };
         const meta = triggerMeta[adaptation.trigger] || { icon: '🔄', color: '#888', desc: 'Adjusted' };
 
-        // Check staleness with current readiness
-        let _readinessData = null;
-        try {
-          const { getTodayReadiness } = await import('./trainingData.js');
-          _readinessData = await getTodayReadiness();
-        } catch { /* ok */ }
-
-        const stale = _readinessData ? isAdaptationStale(adaptation, _readinessData) : false;
         const ageText = formatAdaptationAge(adaptation);
 
         html += `
@@ -88,21 +85,30 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
           </div>
         `;
 
-        // Stale adaptation banner
-        if (stale) {
-          html += `
-            <div class="stale-adaptation-banner">
-              <div class="stale-banner-content">
-                <strong>Readiness Recovered</strong>
-                <p>${esc(ageText)}. Your current readiness supports the original plan.</p>
+        // Stale adaptation banner — only actionable for today/future, read-only for past
+        if (dayState !== 'past') {
+          let _readinessData = null;
+          try {
+            const { getTodayReadiness } = await import('./trainingData.js');
+            _readinessData = await getTodayReadiness();
+          } catch { /* ok */ }
+
+          const stale = _readinessData ? isAdaptationStale(adaptation, _readinessData) : false;
+          if (stale) {
+            html += `
+              <div class="stale-adaptation-banner">
+                <div class="stale-banner-content">
+                  <strong>Readiness Recovered</strong>
+                  <p>${esc(ageText)}. Your current readiness supports the original plan.</p>
+                </div>
+                <div class="stale-banner-actions">
+                  <button class="btn-primary btn-sm" id="staleRevertBtn" data-workout-id="${workout.id}">Revert to Original</button>
+                  <button class="btn-ghost btn-sm" id="staleRefreshBtn">Refresh AI</button>
+                  <button class="btn-ghost btn-sm" id="staleKeepBtn">Keep Adjusted</button>
+                </div>
               </div>
-              <div class="stale-banner-actions">
-                <button class="btn-primary btn-sm" id="staleRevertBtn" data-workout-id="${workout.id}">Revert to Original</button>
-                <button class="btn-ghost btn-sm" id="staleRefreshBtn">Refresh AI</button>
-                <button class="btn-ghost btn-sm" id="staleKeepBtn">Keep Adjusted</button>
-              </div>
-            </div>
-          `;
+            `;
+          }
         }
       }
     } catch { /* ignore — don't block workout display */ }
@@ -191,13 +197,15 @@ export async function open(workout, { normalizePrescription, esc, activeSeason, 
   // Workout logger
   html += '<div id="dayDetailLogger"></div>';
 
-  // Swap workout button
-  html += `
-    <div class="day-detail-swap">
-      <button class="btn-secondary" id="swapWorkoutBtn">Swap workout type</button>
-      <div id="swapWorkoutPanel" style="display:none"></div>
-    </div>
-  `;
+  // Swap workout button — only for today and future workouts
+  if (dayState !== 'past') {
+    html += `
+      <div class="day-detail-swap">
+        <button class="btn-secondary" id="swapWorkoutBtn">Swap workout type</button>
+        <div id="swapWorkoutPanel" style="display:none"></div>
+      </div>
+    `;
+  }
 
   contentEl.innerHTML = html;
 

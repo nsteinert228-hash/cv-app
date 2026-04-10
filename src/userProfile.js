@@ -2,7 +2,7 @@
 // Queries all 5 data silos and returns a single profile object
 import { getSupabaseClient } from './supabase.js';
 import { getTodayReadiness } from './trainingData.js';
-import { getActiveSeason, getTrainingGoals, getSeasonHistory } from './seasonData.js';
+import { getActiveSeason, getTrainingGoals, getSeasonHistory, toLocalDateStr } from './seasonData.js';
 import { getGarminStatus } from './garmin.js';
 
 const CACHE_KEY = 'utrain_profile_cache';
@@ -158,14 +158,14 @@ function _getWeekStart(dateStr) {
   const day = d.getDay();
   const diff = day === 0 ? 6 : day - 1; // Monday start
   d.setDate(d.getDate() - diff);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 function _computeMileage(garminRuns, murphAttempts) {
   const now = new Date();
   const thisYear = now.getFullYear();
   const thisMonth = now.getMonth();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = toLocalDateStr(now);
   const weekStartStr = _getWeekStart(todayStr);
 
   let totalMiles = 0, thisWeekMiles = 0, thisMonthMiles = 0, thisYearMiles = 0;
@@ -231,7 +231,7 @@ function _computeMileage(garminRuns, murphAttempts) {
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i * 7);
-    const ws = _getWeekStart(d.toISOString().split('T')[0]);
+    const ws = _getWeekStart(toLocalDateStr(d));
     weeklyTrend.push({ weekStart: ws, miles: Math.round((weeklyMap[ws] || 0) * 10) / 10 });
   }
 

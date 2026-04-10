@@ -28,6 +28,7 @@ import {
   getGarminActivitiesByDateRange,
   getAdaptationForDate,
   getProposedAdaptations,
+  getLocalToday,
 } from './seasonData.js';
 import { renderWorkoutConfirmation } from './workoutLogger.js';
 import { renderAdaptationFeed } from './adaptationFeed.js';
@@ -673,7 +674,7 @@ async function loadAllZones(force = false) {
 
 async function loadSeasonZones(force) {
   const plan = activeSeason.plan_json || {};
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
 
   // Load this week's workouts + logs in parallel
   const [weekWorkouts, allLogs] = await Promise.all([
@@ -789,7 +790,7 @@ async function renderSeasonHero(workout, log, pendingGarminMatch = null) {
   // Build coherent context that accounts for active adaptations
   let context = rx.description || '';
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalToday();
     const adaptation = workout.is_adapted ? await getAdaptationForDate(activeSeason.id, todayStr) : null;
     const ctx = getCoherentContext(readinessData, workout, adaptation);
     context = ctx.text;
@@ -1117,7 +1118,7 @@ function renderSeasonTimeline(workouts, logMap, today, displayWeek) {
 
 function renderTimelineZone(weekData) {
   const days = weekData.days || [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   weekTitle.textContent = 'This Week';
   weekSubtitle.textContent = weekData.weekly_summary || '';
 
@@ -1197,7 +1198,7 @@ function renderCurrentMilestone(milestones, currentWeek) {
 async function navigateTimelineWeek(weekNum) {
   if (!activeSeason || weekNum < 1 || weekNum > activeSeason.duration_weeks) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
 
   // Fetch workouts + logs for the target week
   const weekWorkouts = await getWeekWorkoutsByWeekNumber(activeSeason.id, weekNum);
@@ -1407,7 +1408,7 @@ function renderWeekSummary(weekWorkouts, logMap, state, plan) {
   const container = document.getElementById('weekSummary');
   if (!container) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   const total = weekWorkouts.filter(w => w.workout_type !== 'rest').length;
   let completed = 0;
   let adherenceSum = 0;
