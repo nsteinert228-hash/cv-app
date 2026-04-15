@@ -114,6 +114,14 @@ def cmd_sync(args: argparse.Namespace) -> None:
         print("Specify --today, --date, or --range")
         sys.exit(1)
 
+    # Update last_sync_at so the frontend shows the correct timestamp
+    try:
+        sb.table("garmin_connections").update({
+            "last_sync_at": supabase_client._now_iso(),
+        }).eq("user_id", user_id).execute()
+    except Exception as exc:
+        log.warning("Could not update last_sync_at: %s", exc)
+
 
 def cmd_backfill(args: argparse.Namespace) -> None:
     """Backfill the last N days, skipping dates with existing data."""
