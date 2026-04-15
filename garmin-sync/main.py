@@ -34,6 +34,16 @@ def _parse_types(types_str: str | None) -> list[str] | None:
     return types
 
 
+def _validate_uuid(value: str) -> str:
+    """Validate that a string is a valid UUID."""
+    import uuid
+    try:
+        uuid.UUID(value)
+        return value
+    except (ValueError, AttributeError):
+        raise argparse.ArgumentTypeError(f"invalid UUID: '{value}'")
+
+
 def _print_summary(agg: dict) -> None:
     """Print a summary table from an aggregate result dict."""
     if not agg:
@@ -103,6 +113,14 @@ def cmd_sync(args: argparse.Namespace) -> None:
     else:
         print("Specify --today, --date, or --range")
         sys.exit(1)
+
+    # Update last_sync_at so the frontend shows the correct timestamp
+    try:
+        sb.table("garmin_connections").update({
+            "last_sync_at": supabase_client._now_iso(),
+        }).eq("user_id", user_id).execute()
+    except Exception as exc:
+        log.warning("Could not update last_sync_at: %s", exc)
 
 
 def cmd_backfill(args: argparse.Namespace) -> None:
@@ -398,7 +416,7 @@ def main() -> None:
     sp.add_argument("--types", type=str, metavar="TYPE,TYPE,...",
                     help=f"Comma-separated data types (default: all). "
                          f"Options: {', '.join(sync.ALL_DATA_TYPES)}")
-    sp.add_argument("--user-id", type=str, required=True,
+    sp.add_argument("--user-id", type=_validate_uuid, required=True,
                     help="UUID of the user to sync data for")
     sp.add_argument("--force", action="store_true",
                     help="Bypass cache and re-fetch from Garmin even if data exists")
@@ -409,7 +427,7 @@ def main() -> None:
                     help="Number of days to backfill (default: 30)")
     bp.add_argument("--types", type=str, metavar="TYPE,TYPE,...",
                     help="Comma-separated data types (default: all)")
-    bp.add_argument("--user-id", type=str, required=True,
+    bp.add_argument("--user-id", type=_validate_uuid, required=True,
                     help="UUID of the user to backfill data for")
     bp.add_argument("--force", action="store_true",
                     help="Bypass cache and re-fetch from Garmin even if data exists")
@@ -425,7 +443,7 @@ def main() -> None:
     # match
     mp = subparsers.add_parser("match",
                                help="Run activity-to-plan matching engine")
-    mp.add_argument("--user-id", type=str, required=True,
+    mp.add_argument("--user-id", type=_validate_uuid, required=True,
                     help="UUID of the user to match")
     mp.add_argument("--date", type=str, metavar="YYYY-MM-DD",
                     help="Match a specific date")
@@ -439,7 +457,7 @@ def main() -> None:
 
     # status
     stp = subparsers.add_parser("status", help="Show last sync status per data type")
-    stp.add_argument("--user-id", type=str, default=None,
+    stp.add_argument("--user-id", type=_validate_uuid, default=None,
                      help="Filter status to a specific user UUID")
 
     args = parser.parse_args()
